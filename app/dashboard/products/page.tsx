@@ -188,7 +188,7 @@ function Th({ children, align = 'left' }: { children: React.ReactNode; align?: '
   return <th className={`px-4 py-2 text-xs font-medium text-slate-500 uppercase tracking-wide text-${align}`}>{children}</th>;
 }
 
-export function Pagination({ page, total, limit, onPage }: { page: number; total: number; limit: number; onPage: (p: number) => void }) {
+ function Pagination({ page, total, limit, onPage }: { page: number; total: number; limit: number; onPage: (p: number) => void }) {
   const pages = Math.ceil(total / limit);
   if (pages <= 1) return null;
   return (
