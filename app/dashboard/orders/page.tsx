@@ -72,7 +72,7 @@ function OrdersList() {
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               <Th>Order #</Th><Th>Customer</Th><Th>Date</Th>
-              <Th align="right">Total</Th><Th>Order</Th><Th>Payment</Th><Th></Th>
+              <Th align="right">Total</Th><Th>Order</Th><Th>Payment</Th><Th> </Th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
