@@ -184,7 +184,7 @@ export default function ProductsPage() {
   );
 }
 
-function Th({ children, align = 'left' }: { children: React.ReactNode; align?: 'left' | 'right' }) {
+function Th({ children, align = 'left' }: { children?: React.ReactNode; align?: 'left' | 'right' }) {
   return <th className={`px-4 py-2 text-xs font-medium text-slate-500 uppercase tracking-wide text-${align}`}>{children}</th>;
 }
 
