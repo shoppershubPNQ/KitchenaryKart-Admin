@@ -1,0 +1,436 @@
+// KitchenaryKart Admin — Prisma schema
+// Ported from database-schema.sql
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+enum AdminRole {
+  admin
+  sales
+  staff
+  accounts
+}
+
+enum ProductStatus {
+  active
+  draft
+  discontinued
+}
+
+enum CustomerType {
+  retail
+  b2b
+  corporate
+}
+
+enum OrderStatus {
+  pending
+  processing
+  shipped
+  delivered
+  cancelled
+}
+
+enum PaymentStatus {
+  pending
+  completed
+  failed
+  refunded
+}
+
+enum InquiryStatus {
+  new
+  contacted
+  quoted
+  converted
+  rejected
+}
+
+enum MovementType {
+  stock_in
+  stock_out
+  adjustment
+  damage
+}
+
+model AdminUser {
+  id            Int       @id @default(autoincrement())
+  name          String
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  role          AdminRole @default(staff)
+  phone         String?
+  isActive      Boolean   @default(true) @map("is_active")
+  lastLogin     DateTime? @map("last_login")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  productsCreated    Product[]            @relation("CreatedBy")
+  movementsCreated   InventoryMovement[]
+
+  @@map("admin_users")
+}
+
+model Product {
+  id              Int           @id @default(autoincrement())
+  sku             String        @unique
+  name            String
+  description     String?
+  category        String?
+  subcategory     String?
+  leafCategory    String?       @map("leaf_category")
+
+  price           Decimal       @db.Decimal(10, 2)
+  mrp             Decimal?      @db.Decimal(10, 2)
+  taxPercent      Decimal       @default(18) @db.Decimal(5, 2) @map("tax_percent")
+  discountPercent Decimal       @default(0) @db.Decimal(5, 2) @map("discount_percent")
+
+  dimensions      String?
+  power           String?
+  capacity        String?
+  weight          String?
+  material        String?
+  color           String?
+
+  stock           Int           @default(0)
+  reorderPoint    Int           @default(5) @map("reorder_point")
+  hsnCode         String?       @map("hsn_code")
+
+  status          ProductStatus @default(active)
+
+  // Merchandising flags — admin-controlled so the home page doesn't rely on
+  // heuristics. When both are false the frontend falls back to its existing
+  // price-based picks.
+  isBestseller    Boolean       @default(false) @map("is_bestseller")
+  isNewArrival    Boolean       @default(false) @map("is_new_arrival")
+
+  imageUrl        String?       @map("image_url")
+  images          Json?
+
+  metaTitle       String?       @map("meta_title")
+  metaDescription String?       @map("meta_description")
+  metaKeywords    String?       @map("meta_keywords")
+
+  createdById     Int?          @map("created_by")
+  createdBy       AdminUser?    @relation("CreatedBy", fields: [createdById], references: [id])
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  variants        ProductVariant[]
+  orderItems      OrderItem[]
+  movements       InventoryMovement[]
+
+  @@index([category])
+  @@index([status])
+  @@index([stock])
+  @@index([subcategory])
+  @@index([isBestseller])
+  @@index([isNewArrival])
+  @@map("products")
+}
+
+model ProductVariant {
+  id            Int      @id @default(autoincrement())
+  productId     Int      @map("product_id")
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  variantType   String?  @map("variant_type")
+  variantValue  String?  @map("variant_value")
+  skuSuffix     String?  @map("sku_suffix")
+  priceModifier Decimal  @default(0) @db.Decimal(10, 2) @map("price_modifier")
+  stock         Int      @default(0)
+
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("product_variants")
+}
+
+model Category {
+  id           Int       @id @default(autoincrement())
+  name         String    @unique
+  slug         String?
+  parentId     Int?      @map("parent_id")
+  parent       Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children     Category[] @relation("CategoryHierarchy")
+  description  String?
+  imageUrl     String?   @map("image_url")
+  productCount Int       @default(0) @map("product_count")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@map("categories")
+}
+
+model Customer {
+  id              Int          @id @default(autoincrement())
+  name            String
+  email           String       @unique
+  phone           String?
+
+  companyName     String?      @map("company_name")
+  customerType    CustomerType @default(retail) @map("customer_type")
+
+  billingAddress  String?      @map("billing_address")
+  shippingAddress String?      @map("shipping_address")
+  city            String?
+  state           String?
+  postalCode      String?      @map("postal_code")
+  country         String?
+
+  gstNumber       String?      @map("gst_number")
+
+  creditLimit     Decimal      @default(0) @db.Decimal(12, 2) @map("credit_limit")
+  creditUsed      Decimal      @default(0) @db.Decimal(12, 2) @map("credit_used")
+
+  isActive        Boolean      @default(true) @map("is_active")
+
+  // How the customer record got created — "admin" for back-office entries,
+  // "web" for phone-OTP signups from the storefront. Existing rows default
+  // to "admin" so legacy data stays classified.
+  signupSource    String       @default("admin") @map("signup_source")
+
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  orders          Order[]
+
+  @@index([customerType])
+  @@index([signupSource])
+  @@index([phone])
+  @@map("customers")
+}
+
+model Order {
+  id               Int           @id @default(autoincrement())
+  orderNumber      String        @unique @map("order_number")
+
+  customerId       Int?          @map("customer_id")
+  customer         Customer?     @relation(fields: [customerId], references: [id])
+
+  customerName     String?       @map("customer_name")
+  customerEmail    String?       @map("customer_email")
+  customerPhone    String?       @map("customer_phone")
+
+  shippingAddress  String?       @map("shipping_address")
+  shippingMethod   String?       @map("shipping_method")
+  shippingCost     Decimal       @default(0) @db.Decimal(10, 2) @map("shipping_cost")
+
+  subtotal         Decimal?      @db.Decimal(12, 2)
+  taxAmount        Decimal?      @db.Decimal(12, 2) @map("tax_amount")
+  discountAmount   Decimal       @default(0) @db.Decimal(12, 2) @map("discount_amount")
+  totalAmount      Decimal?      @db.Decimal(12, 2) @map("total_amount")
+
+  orderStatus      OrderStatus   @default(pending) @map("order_status")
+  paymentStatus    PaymentStatus @default(pending) @map("payment_status")
+
+  paymentMethod    String?       @map("payment_method")
+  paymentReference String?       @map("payment_reference")
+  razorpayOrderId  String?       @map("razorpay_order_id")
+
+  notes            String?
+  internalNotes    String?       @map("internal_notes")
+
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  items            OrderItem[]
+  payments         Payment[]
+
+  @@index([orderStatus])
+  @@index([paymentStatus])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id              Int      @id @default(autoincrement())
+  orderId         Int      @map("order_id")
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId       Int?     @map("product_id")
+  product         Product? @relation(fields: [productId], references: [id])
+
+  productName     String?  @map("product_name")
+  productSku      String?  @map("product_sku")
+
+  unitPrice       Decimal  @db.Decimal(10, 2) @map("unit_price")
+  quantity        Int
+  taxPercent      Decimal  @default(18) @db.Decimal(5, 2) @map("tax_percent")
+  discountPercent Decimal  @default(0) @db.Decimal(5, 2) @map("discount_percent")
+
+  lineTotal       Decimal  @db.Decimal(12, 2) @map("line_total")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model Payment {
+  id                 Int           @id @default(autoincrement())
+  orderId            Int           @map("order_id")
+  order              Order         @relation(fields: [orderId], references: [id])
+
+  amount             Decimal       @db.Decimal(12, 2)
+  paymentMethod      String?       @map("payment_method")
+  paymentReference   String?       @map("payment_reference")
+
+  status             PaymentStatus @default(pending)
+
+  razorpayPaymentId  String?       @map("razorpay_payment_id")
+  razorpaySignature  String?       @map("razorpay_signature")
+
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  @@map("payments")
+}
+
+model InventoryMovement {
+  id            Int           @id @default(autoincrement())
+  productId     Int           @map("product_id")
+  product       Product       @relation(fields: [productId], references: [id])
+
+  movementType  MovementType  @map("movement_type")
+  quantity      Int
+  referenceId   String?       @map("reference_id")
+
+  notes         String?
+  createdById   Int?          @map("created_by")
+  createdBy     AdminUser?    @relation(fields: [createdById], references: [id])
+
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  @@index([productId])
+  @@map("inventory_movements")
+}
+
+model Inquiry {
+  id             Int           @id @default(autoincrement())
+  customerName   String?       @map("customer_name")
+  customerEmail  String?       @map("customer_email")
+  customerPhone  String?       @map("customer_phone")
+  companyName    String?       @map("company_name")
+
+  items          Json?
+  message        String?
+
+  status         InquiryStatus @default(new)
+  quotedAmount   Decimal?      @db.Decimal(12, 2) @map("quoted_amount")
+
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("inquiries")
+}
+
+model AnalyticsEvent {
+  id         BigInt   @id @default(autoincrement())
+  eventType  String   @map("event_type")
+  userId     String?  @map("user_id")
+  productId  Int?     @map("product_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("analytics_events")
+}
+
+model Setting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String?
+  dataType  String?  @map("data_type")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
+
+/// Editable policy / informational pages rendered at /policy/<slug> on the
+/// storefront. The admin panel provides CRUD over title and body. `body` is
+/// stored as plain text with simple line breaks; the storefront renders it
+/// as paragraphs without a heavy markdown engine.
+model Policy {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique
+  title     String
+  body      String   @default("")
+  isActive  Boolean  @default(true) @map("is_active")
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@map("policies")
+}
+
+/// Curated home-page collections (e.g. "Best Seller", "New Arrival").
+/// The admin picks which subcategories appear under each tab; the storefront
+/// filters its product queries by that list. Identified by `slug` so the
+/// frontend can fetch a known collection by name.
+model Collection {
+  id            Int      @id @default(autoincrement())
+  slug          String   @unique
+  name          String
+  /// Legacy field — kept for compatibility. Curation now happens per-product
+  /// via `productSkus`; this column may still hold subcategory names from
+  /// older saves.
+  subcategories Json     @default("[]")
+  /// SKU strings of every product manually picked into the collection. The
+  /// home page tabs read from this list directly.
+  productSkus   Json     @default("[]") @map("product_skus")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("collections")
+}
+
+/// Hero-carousel slides managed from the admin panel.
+/// - `imageUrl` points at `/banners/<file>` (served from web/public/banners/).
+/// - Text overlays (eyebrow/title/subtitle) are optional; if left blank the
+///   image is displayed as-is, full-bleed.
+/// - CTA maps to either a raw URL in `ctaHref`, or to a product SKU / category
+///   the admin selected — the frontend resolves those into the right link.
+model Banner {
+  id         Int      @id @default(autoincrement())
+  /// Storefront slot this banner belongs to. "hero" feeds the home-page
+  /// HeroCarousel; "secondary" is a separate slot the admin manages
+  /// independently.
+  placement  String   @default("hero")
+  position   Int      @default(0)
+  isActive   Boolean  @default(true) @map("is_active")
+
+  imageUrl   String   @map("image_url")
+  alt        String?
+
+  eyebrow    String?
+  title      String?
+  subtitle   String?
+
+  ctaText    String?  @map("cta_text")
+  ctaHref    String?  @map("cta_href")
+  productSku String?  @map("product_sku")
+  category   String?
+
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([position])
+  @@index([isActive])
+  @@index([placement])
+  @@map("banners")
+}
