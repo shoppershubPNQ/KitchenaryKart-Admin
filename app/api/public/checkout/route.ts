@@ -1,0 +1,107 @@
+/**
+ * Public storefront checkout endpoint.
+ * Creates an Order + OrderItems + a Razorpay order in one transaction.
+ */
+import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { prisma } from '@/lib/db';
+import { fail, handleError, ok } from '@/lib/api';
+import { createRazorpayOrder } from '@/lib/integrations/razorpay';
+
+const schema = z.object({
+  customerName: z.string().min(1),
+  customerEmail: z.string().email().optional().or(z.literal('')),
+  customerPhone: z.string().min(1),
+  shippingAddress: z.string().min(1),
+  items: z
+    .array(
+      z.object({
+        sku: z.string(),
+        name: z.string().optional().default(''),
+        price: z.number().positive(),
+        quantity: z.number().int().positive(),
+      }),
+    )
+    .min(1),
+});
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = schema.parse(await req.json());
+
+    const skus = body.items.map((i) => i.sku);
+    const products = await prisma.product.findMany({
+      where: { sku: { in: skus } },
+      select: { id: true, sku: true, name: true, price: true, taxPercent: true },
+    });
+    const productMap = new Map(products.map((p) => [p.sku, p]));
+
+    let subtotal = 0;
+    const itemsToCreate = body.items.map((i) => {
+      const p = productMap.get(i.sku);
+      const unitPrice = p ? Number(p.price) : i.price;
+      const lineTotal = unitPrice * i.quantity;
+      subtotal += lineTotal;
+      return {
+        productId: p?.id,
+        productSku: i.sku,
+        productName: p?.name || i.name || i.sku,
+        unitPrice,
+        quantity: i.quantity,
+        taxPercent: p ? Number(p.taxPercent) : 18,
+        lineTotal,
+      };
+    });
+
+    const totalAmount = subtotal;
+    const orderNumber = `KK${Date.now().toString(36).toUpperCase()}`;
+
+    const order = await prisma.order.create({
+      data: {
+        orderNumber,
+        customerName: body.customerName,
+        customerEmail: body.customerEmail || null,
+        customerPhone: body.customerPhone,
+        shippingAddress: body.shippingAddress,
+        subtotal,
+        totalAmount,
+        orderStatus: 'pending',
+        paymentStatus: 'pending',
+        items: { create: itemsToCreate },
+      },
+    });
+
+    const amountPaise = Math.round(totalAmount * 100);
+    const rz = await createRazorpayOrder(amountPaise, orderNumber);
+
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { razorpayOrderId: rz.id },
+    });
+
+    return ok({
+      orderId: order.id,
+      orderNumber,
+      razorpayOrderId: rz.id,
+      razorpayKeyId: process.env.RAZORPAY_KEY_ID || '',
+      amount: rz.amount,
+      currency: rz.currency,
+      customerName: body.customerName,
+      customerEmail: body.customerEmail || '',
+      customerPhone: body.customerPhone,
+    });
+  } catch (e) {
+    return handleError(e);
+  }
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
+}
