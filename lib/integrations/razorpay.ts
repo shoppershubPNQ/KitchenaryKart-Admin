@@ -33,7 +33,11 @@ export async function createRazorpayOrder(amountPaise: number, receipt: string):
     },
     body: JSON.stringify({ amount: amountPaise, currency: 'INR', receipt }),
   });
-  if (!res.ok) throw new Error(`Razorpay order creation failed: ${res.status}`);
+    if (!res.ok) {
+    const body = await res.text();
+    console.error('[razorpay] order creation failed:', res.status, body);
+    throw new Error(`Razorpay order creation failed: ${res.status} ${body}`);
+  }
   return res.json() as Promise<RazorpayOrder>;
 }
 
