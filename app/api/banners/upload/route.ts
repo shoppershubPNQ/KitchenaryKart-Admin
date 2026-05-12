@@ -1,20 +1,19 @@
 /**
  * POST /api/banners/upload
  *
- * Multipart form upload. Accepts a single `file` field, writes it to the
- * web storefront's `public/banners/` folder (so the image is served directly
- * by Next.js at `/banners/<filename>`), and returns the public path.
+ * Multipart form upload. Accepts a single `file` field, ships it to
+ * Cloudinary under the `kk-banners` folder, and returns the absolute
+ * delivery URL.
  *
- * The web project is resolved from the admin's cwd — both live side-by-side
- * under `C-code/`, so `../web/public/banners/` is always the right folder.
+ * Why Cloudinary instead of writing to disk: Vercel serverless has a
+ * read-only filesystem (only `/tmp` is writable and it's per-invocation),
+ * and admin+web run as separate Vercel projects — they don't share volumes.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { withAuth } from '@/lib/auth';
 import { fail } from '@/lib/api';
-
-const WEB_PUBLIC = path.resolve(process.cwd(), '..', 'web', 'public', 'banners');
+import { uploadBuffer } from '@/lib/cloudinary-upload';
 
 const ALLOWED_TYPES = new Set([
   'image/jpeg',
@@ -27,6 +26,7 @@ const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 function safeName(name: string): string {
   const base = path.basename(name).toLowerCase();
   return base
+    .replace(/\.[^.]+$/, '') // strip extension; Cloudinary infers from buffer
     .replace(/[^a-z0-9._-]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '') || 'banner';
@@ -42,17 +42,16 @@ export const POST = withAuth(async (req: NextRequest) => {
     }
     if (file.size > MAX_BYTES) return fail('File too large (max 8 MB)', 413);
 
-    await mkdir(WEB_PUBLIC, { recursive: true });
-
-    const ext = path.extname(file.name) || '.jpg';
+    const buf = Buffer.from(await file.arrayBuffer());
     const stamp = Date.now().toString(36);
-    const filename = `${stamp}-${safeName(path.basename(file.name, ext))}${ext.toLowerCase()}`;
-    const full = path.join(WEB_PUBLIC, filename);
+    const publicIdPrefix = `${stamp}-${safeName(file.name)}`;
 
-    const bytes = Buffer.from(await file.arrayBuffer());
-    await writeFile(full, bytes);
+    const { url } = await uploadBuffer(buf, {
+      folder: 'kk-banners',
+      publicIdPrefix,
+    });
 
-    return NextResponse.json({ imageUrl: `/banners/${filename}` }, { status: 201 });
+    return NextResponse.json({ imageUrl: url }, { status: 201 });
   } catch (e: any) {
     return fail(e?.message || 'Upload failed', 500);
   }

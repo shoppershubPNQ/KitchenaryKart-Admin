@@ -1,38 +1,25 @@
 /**
  * Product image management.
  *
- * Files are written to ../website/images/{sku}/ (relative to the admin project root)
- * so they're served directly by the static website at /images/{sku}/...
+ * Files are uploaded to Cloudinary under `kk/<sku>/` and the secure_url is
+ * stored in `Product.images` (array) and `Product.imageUrl` (primary). The
+ * old admin used to write to a sibling `website/images/{sku}/` folder, but
+ * that doesn't work on Vercel — see lib/cloudinary-upload.ts for context.
  */
-import fs from 'node:fs';
-import path from 'node:path';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
+import { v2 as cloudinary } from 'cloudinary';
 import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { fail, handleError, ok } from '@/lib/api';
+import { uploadBuffer } from '@/lib/cloudinary-upload';
 
-// Admin's cwd when `next dev` runs; website lives one level up.
-const IMAGES_ROOT = path.resolve(process.cwd(), '..', 'website', 'images');
-const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB per file
 
 function safeSku(sku: string): string {
   // Defence in depth — SKUs in the DB shouldn't contain slashes, but guard anyway.
   return sku.replace(/[^A-Za-z0-9._-]/g, '_');
-}
-function publicUrl(sku: string, file: string): string {
-  return `/images/${encodeURIComponent(sku)}/${file}`;
-}
-function nextFilename(dir: string, ext: string): string {
-  let max = 0;
-  if (fs.existsSync(dir)) {
-    for (const f of fs.readdirSync(dir)) {
-      const n = parseInt(f);
-      if (Number.isFinite(n) && n > max) max = n;
-    }
-  }
-  return `${max + 1}${ext}`;
 }
 
 /** List images for a product (returned via the main product GET; this is here for convenience). */
@@ -69,19 +56,18 @@ export const POST = withAuth(async (req, { params }) => {
     if (files.length === 0) return fail('No files uploaded', 400);
 
     const sku = safeSku(product.sku);
-    const dir = path.join(IMAGES_ROOT, sku);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-
     const newUrls: string[] = [];
     for (const f of files) {
       if (f.size > MAX_BYTES) return fail(`File too large: ${f.name} (max 10 MB)`, 400);
-      const ext = path.extname(f.name).toLowerCase();
-      if (!ALLOWED_EXT.has(ext)) return fail(`Unsupported file type: ${ext || f.name}`, 400);
-      const fname = nextFilename(dir, ext);
-      const full = path.join(dir, fname);
+      if (!ALLOWED_TYPES.has(f.type)) return fail(`Unsupported file type: ${f.type || f.name}`, 400);
+
       const buf = Buffer.from(await f.arrayBuffer());
-      fs.writeFileSync(full, buf);
-      newUrls.push(publicUrl(product.sku, fname));
+      const stamp = Date.now().toString(36);
+      const { url } = await uploadBuffer(buf, {
+        folder: `kk/${sku}`,
+        publicIdPrefix: stamp,
+      });
+      newUrls.push(url);
     }
 
     const currentImages = (product.images as string[] | null) || [];
@@ -107,7 +93,7 @@ export const POST = withAuth(async (req, { params }) => {
 
 const deleteSchema = z.object({ url: z.string().min(1) });
 
-/** Remove one image (by its URL). Deletes the file from disk and updates the DB. */
+/** Remove one image (by its URL). Updates the DB and removes from Cloudinary. */
 export const DELETE = withAuth(async (req, { params }) => {
   try {
     const id = parseInt(params.id);
@@ -116,15 +102,20 @@ export const DELETE = withAuth(async (req, { params }) => {
     const product = await prisma.product.findUnique({ where: { id } });
     if (!product) return fail('Not found', 404);
 
-    const images = ((product.images as string[] | null) || []).filter(u => u !== body.url);
+    const images = ((product.images as string[] | null) || []).filter((u) => u !== body.url);
     const imageUrl = product.imageUrl === body.url ? (images[0] || null) : product.imageUrl;
 
-    // Best-effort file removal. URL format: /images/{sku}/{file}
-    const m = body.url.match(/^\/images\/([^/]+)\/([^/]+)$/);
-    if (m) {
-      const full = path.join(IMAGES_ROOT, decodeURIComponent(m[1]), decodeURIComponent(m[2]));
-      try { fs.unlinkSync(full); } catch (err: any) {
-        if (err?.code !== 'ENOENT') console.warn('Failed to remove image file:', full, err?.code);
+    // Best-effort Cloudinary deletion. Only attempt if the URL looks like a
+    // Cloudinary asset we own — old `/images/<sku>/<file>` paths were served
+    // by a redirect route, so the underlying asset is still accessed but the
+    // DB never stored its public_id.
+    const m = body.url.match(/\/upload\/(?:[^/]+\/)*([^/]+\/[^/.]+)\.[a-z0-9]+$/i);
+    if (m && process.env.CLOUDINARY_URL) {
+      try {
+        cloudinary.config({ secure: true });
+        await cloudinary.uploader.destroy(m[1]);
+      } catch (err: any) {
+        console.warn('Failed to delete Cloudinary asset:', m[1], err?.message);
       }
     }
 
