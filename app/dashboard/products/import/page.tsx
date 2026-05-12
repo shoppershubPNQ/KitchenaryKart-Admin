@@ -33,7 +33,29 @@ export default function BulkImportPage() {
   return (
     <div className="max-w-2xl space-y-4">
       <h1 className="text-2xl font-semibold text-slate-900">Bulk import products</h1>
-      <p className="text-sm text-slate-500">CSV or XLSX. Required columns: <code className="bg-slate-100 px-1 rounded">sku, name, price</code>. Optional: category, subcategory, mrp, tax_percent, dimensions, power, capacity, weight, stock, hsn_code.</p>
+      <p className="text-sm text-slate-500">
+        CSV or XLSX. Required columns: <code className="bg-slate-100 px-1 rounded">sku, name, price</code>.
+        Optional: category, subcategory, description, mrp, tax_percent, hsn_code, stock, reorder_point,
+        dimensions, power, capacity, weight, material, color, status, is_bestseller, is_new_arrival,
+        meta_keywords, image_url.
+      </p>
+
+      <div className="card p-4 bg-amber-50 border border-amber-200 text-sm space-y-2">
+        <div className="font-medium text-slate-900">How import works</div>
+        <ul className="list-disc pl-5 space-y-1 text-slate-700">
+          <li><strong>Same SKU</strong> as an existing product → that product is <strong>updated</strong> with the new values.</li>
+          <li><strong>New SKU</strong> → a new product is <strong>created</strong>.</li>
+          <li>Products in the database but <strong>not in the file are left alone</strong> — bulk-import never deletes. Use the UI to delete.</li>
+        </ul>
+        <div className="flex gap-3 pt-2 flex-wrap">
+          <a href="/api/products/template" className="btn-outline text-sm" download>
+            📥 Download sample template
+          </a>
+          <a href="/api/products/export" className="btn-outline text-sm" download>
+            📤 Export current catalog (.xlsx)
+          </a>
+        </div>
+      </div>
 
       <form onSubmit={submit} className="card p-6 space-y-4">
         <input

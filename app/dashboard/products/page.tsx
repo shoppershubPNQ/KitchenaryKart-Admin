@@ -100,7 +100,9 @@ export default function ProductsPage() {
           <h1 className="text-2xl font-semibold text-slate-900">Products</h1>
           <p className="text-sm text-slate-500">{total.toLocaleString('en-IN')} total SKUs</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <a href="/api/products/export" className="btn-outline" download>Export products</a>
+          <a href="/api/variants/export" className="btn-outline" download>Export variants</a>
           <Link href="/dashboard/variants/import" className="btn-outline">Bulk import variants</Link>
           <Link href="/dashboard/products/import" className="btn-outline">Bulk import</Link>
           <Link href="/dashboard/products/new" className="btn-primary">+ New product</Link>

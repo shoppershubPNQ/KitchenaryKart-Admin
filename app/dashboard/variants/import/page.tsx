@@ -88,13 +88,29 @@ export default function VariantsImportPage() {
             <li><code className="bg-slate-100 px-1 rounded">price_modifier</code> — optional number; added to base price (negative = discount)</li>
             <li><code className="bg-slate-100 px-1 rounded">stock</code> — optional integer; defaults to 0</li>
           </ul>
-          <button
-            type="button"
-            onClick={downloadTemplate}
-            className="text-sm text-brand hover:underline mt-3"
-          >
-            ⬇ Download .csv template
-          </button>
+          <div className="flex gap-3 flex-wrap mt-3">
+            <button
+              type="button"
+              onClick={downloadTemplate}
+              className="text-sm text-brand hover:underline"
+            >
+              ⬇ Download .csv template
+            </button>
+            <a
+              href="/api/variants/template"
+              className="text-sm text-brand hover:underline"
+              download
+            >
+              ⬇ Download .xlsx template (with README)
+            </a>
+            <a
+              href="/api/variants/export"
+              className="text-sm text-brand hover:underline"
+              download
+            >
+              📤 Export all current variants
+            </a>
+          </div>
         </div>
       </div>
 
