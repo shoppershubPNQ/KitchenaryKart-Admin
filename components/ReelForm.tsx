@@ -42,33 +42,61 @@ export function ReelForm({ initial, isNew }: { initial: ReelDraft; isNew: boolea
     setUploadPct(0);
     setErr(null);
     try {
+      // Step 1: ask our admin for a signed Cloudinary upload payload.
+      // The signature stays small (well under Vercel's 4.5 MB body limit).
+      const signRes = await fetch('/api/reels/upload-sign', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const sign = await signRes.json();
+      if (!signRes.ok) throw new Error(sign?.error || 'Could not get upload signature');
+
+      // Step 2: upload the file directly to Cloudinary using XHR (for
+      // progress events). This bypasses Vercel entirely — Cloudinary
+      // accepts files up to 100 MB on the free tier.
       const fd = new FormData();
       fd.append('file', file);
+      fd.append('api_key', sign.apiKey);
+      fd.append('timestamp', String(sign.timestamp));
+      fd.append('signature', sign.signature);
+      fd.append('folder', sign.folder);
 
-      // Use XHR (not fetch) so we can show a progress bar — 60 MB videos
-      // can take 20-40 seconds on a typical connection and a stuck "Uploading…"
-      // string is a bad UX.
-      const res = await new Promise<{ ok: boolean; status: number; body: any }>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/api/reels/upload');
-        xhr.withCredentials = true;
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) setUploadPct(Math.round((e.loaded / e.total) * 100));
-        };
-        xhr.onload = () => {
-          try {
-            resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, body: JSON.parse(xhr.responseText || '{}') });
-          } catch {
-            resolve({ ok: false, status: xhr.status, body: { error: xhr.responseText } });
-          }
-        };
-        xhr.onerror = () => reject(new Error('Network error'));
-        xhr.send(fd);
-      });
+      const res = await new Promise<{ ok: boolean; status: number; body: any }>(
+        (resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', sign.uploadUrl);
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) setUploadPct(Math.round((e.loaded / e.total) * 100));
+          };
+          xhr.onload = () => {
+            try {
+              resolve({
+                ok: xhr.status >= 200 && xhr.status < 300,
+                status: xhr.status,
+                body: JSON.parse(xhr.responseText || '{}'),
+              });
+            } catch {
+              resolve({ ok: false, status: xhr.status, body: { error: xhr.responseText } });
+            }
+          };
+          xhr.onerror = () => reject(new Error('Network error'));
+          xhr.send(fd);
+        },
+      );
 
-      if (!res.ok) throw new Error(res.body?.error || `Upload failed (${res.status})`);
-      update('videoUrl', res.body.videoUrl);
-      update('thumbnailUrl', res.body.thumbnailUrl);
+      if (!res.ok) {
+        const msg = res.body?.error?.message || res.body?.error || `Upload failed (${res.status})`;
+        throw new Error(typeof msg === 'string' ? msg : 'Upload failed');
+      }
+
+      // Cloudinary returns secure_url for the video; we derive the poster
+      // JPG by swapping the extension (Cloudinary serves it on demand).
+      const secureUrl: string = res.body.secure_url;
+      update('videoUrl', secureUrl);
+      update(
+        'thumbnailUrl',
+        secureUrl.replace(/\.(mp4|mov|webm|m4v)(?:\?.*)?$/i, '.jpg'),
+      );
     } catch (e: any) {
       setErr(e?.message || 'Upload failed');
     } finally {
