@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { fail, handleError, ok } from '@/lib/api';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/integrations/razorpay';
+import { sendEmail } from '@/lib/integrations/resend';
+import { buildOrderConfirmationEmail } from '@/lib/email-templates/order-confirmation';
 
 const createSchema = z.object({
   orderId: z.number().int().positive(),
@@ -59,7 +61,40 @@ export async function PUT(req: NextRequest) {
           },
         },
       },
+      include: { items: true },
     });
+
+    // Fire the order-confirmation email. Awaited so any thrown error is
+    // caught by handleError, but the email helper is non-throwing and
+    // returns false on failure — email delivery never blocks the API
+    // returning success to the storefront.
+    if (order.customerEmail) {
+      const { subject, html, text } = buildOrderConfirmationEmail({
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        totalAmount: Number(order.totalAmount || 0),
+        subtotal: Number(order.subtotal || 0),
+        taxAmount: Number(order.taxAmount || 0),
+        shippingCost: Number(order.shippingCost || 0),
+        shippingAddress: order.shippingAddress,
+        paymentReference: order.paymentReference,
+        items: order.items.map((it) => ({
+          name: it.productName || '',
+          sku: it.productSku || '',
+          quantity: it.quantity,
+          unitPrice: Number(it.unitPrice),
+          lineTotal: Number(it.lineTotal),
+        })),
+      });
+      // Fire and forget — log internally if it fails but don't fail the response.
+      void sendEmail({
+        to: order.customerEmail,
+        subject,
+        html,
+        text,
+        category: 'order-confirmation',
+      });
+    }
 
     return ok({ order });
   } catch (e) {
