@@ -27,8 +27,9 @@ interface UploadOptions {
   folder: string;
   /** Suggested public_id prefix (not strict — Cloudinary may suffix it). */
   publicIdPrefix?: string;
-  /** Apply standard product/banner transforms on delivery. */
-  resourceType?: 'image' | 'auto';
+  /** "video" is required for MP4/WebM uploads — Cloudinary stores and
+   *  transforms images and videos under separate resource types. */
+  resourceType?: 'image' | 'video' | 'auto';
 }
 
 export async function uploadBuffer(

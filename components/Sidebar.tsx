@@ -41,6 +41,7 @@ const NAV: NavItem[] = [
       { href: '/dashboard/banners-2', label: 'Banner 2' },
     ],
   },
+  { href: '/dashboard/reels', label: 'Reels', icon: '🎬' },
   { href: '/dashboard/policies', label: 'Policies', icon: '📄' },
   { href: '/dashboard/social', label: 'Social links', icon: '🔗', roles: ['admin'] },
   { href: '/dashboard/analytics', label: 'Analytics', icon: '📉' },

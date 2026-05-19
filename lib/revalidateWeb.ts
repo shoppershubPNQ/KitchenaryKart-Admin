@@ -12,6 +12,7 @@ export async function revalidateWeb(
     | 'category-counts'
     | 'collections'
     | 'policies'
+    | 'reels'
     | 'social',
 ) {
   const base = process.env.WEB_BASE_URL || 'http://localhost:3001';

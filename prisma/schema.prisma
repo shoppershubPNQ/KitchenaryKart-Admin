@@ -434,3 +434,34 @@ model Banner {
   @@index([placement])
   @@map("banners")
 }
+
+model Reel {
+  id            Int      @id @default(autoincrement())
+  /// Cloudinary MP4 URL — required. The storefront <video> tag plays this directly.
+  videoUrl      String   @map("video_url")
+  /// Optional poster image shown before the video loads. Auto-derivable from
+  /// the video URL via Cloudinary's `.jpg` extension swap, but storing
+  /// explicitly avoids extra fetch when the storefront SSRs.
+  thumbnailUrl  String?  @map("thumbnail_url")
+  /// Short caption — surfaced as the alt text and small label under the reel.
+  caption       String?
+  /// Optional link to the original Instagram Reel post — purely informational
+  /// for the admin, not surfaced on the storefront.
+  instagramUrl  String?  @map("instagram_url")
+  /// SKU of the product this reel demos. Stored as a plain string (not a FK)
+  /// so reels survive catalog re-imports the same way orders do. The
+  /// storefront resolves the product at render time.
+  productSku    String?  @map("product_sku")
+  /// Display count override. Defaults to 0 — when 0, the storefront falls
+  /// back to its pseudo-random per-SKU view count so cards never look empty.
+  viewCount     Int      @default(0) @map("view_count")
+  position      Int      @default(0)
+  isActive      Boolean  @default(true) @map("is_active")
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([position])
+  @@index([isActive])
+  @@map("reels")
+}
