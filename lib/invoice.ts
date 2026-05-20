@@ -218,129 +218,197 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     y += 8;
 
     // ── Items table ─────────────────────────────────────────────────
-    // Column widths must sum to <= contentW (523pt on A4 with 36pt
-    // margins). Previous layout put the Total column at x=532, off the
-    // page — Total Amount was clipped on every printed invoice.
+    // 6 columns with vertical borders. Tax column stacks the amount,
+    // rate %, and tax type (CGST+SGST or IGST) so the per-line tax
+    // info is all visible without needing 3 separate columns.
     const taxType = inv.isInterState ? 'IGST' : 'CGST+SGST';
+    const PAD = 5;
     const cols = {
-      sl:   { x: leftX,        w: 24,  label: 'Sl.\nNo.', align: 'left' as const },
-      desc: { x: leftX + 26,   w: 170, label: 'Description', align: 'left' as const },
-      rate: { x: leftX + 198,  w: 46,  label: 'Unit\nPrice', align: 'right' as const },
-      qty:  { x: leftX + 246,  w: 24,  label: 'Qty', align: 'right' as const },
-      net:  { x: leftX + 272,  w: 50,  label: 'Net\nAmount', align: 'right' as const },
-      pct:  { x: leftX + 324,  w: 30,  label: 'Tax\nRate', align: 'right' as const },
-      type: { x: leftX + 356,  w: 46,  label: 'Tax\nType', align: 'center' as const },
-      tax:  { x: leftX + 404,  w: 52,  label: 'Tax\nAmount', align: 'right' as const },
-      tot:  { x: leftX + 458,  w: 65,  label: 'Total\nAmount', align: 'right' as const },
+      sl:   { x: leftX,        w: 28,  label: 'Sl.\nNo.', align: 'center' as const },
+      desc: { x: leftX + 28,   w: 250, label: 'Description', align: 'left' as const },
+      qty:  { x: leftX + 278,  w: 36,  label: 'Qty', align: 'center' as const },
+      rate: { x: leftX + 314,  w: 60,  label: 'Unit Price', align: 'right' as const },
+      tax:  { x: leftX + 374,  w: 80,  label: 'Tax', align: 'right' as const },
+      tot:  { x: leftX + 454,  w: 69,  label: 'Total', align: 'right' as const },
     };
     const tableRight = leftX + contentW;
+    const HEADER_H = 22;
 
-    // Header row
-    doc.rect(leftX, y, contentW, 26).fillAndStroke('#F5F1EA', '#CFC5A8');
-    doc.fillColor('#000').fontSize(8).font('Body-Bold');
+    // Capture the table's top Y so we can draw the outer border + vertical
+    // separators in one shot after all rows are rendered.
+    const tableTopY = y;
+
+    // Header row with background + bottom border
+    doc.rect(leftX, y, contentW, HEADER_H).fillAndStroke('#1F1F1F', '#1F1F1F');
+    doc.fillColor('#FFFFFF').fontSize(9).font('Body-Bold');
     Object.values(cols).forEach((c) => {
-      doc.text(c.label, c.x + 2, y + 4, { width: c.w - 4, align: c.align });
+      doc.text(c.label, c.x + PAD, y + 6, { width: c.w - PAD * 2, align: c.align });
     });
-    y += 26;
+    y += HEADER_H;
+    const bodyTopY = y;
 
     // Rows
-    doc.font('Body').fontSize(8).fillColor('#222');
+    doc.font('Body').fontSize(9).fillColor('#222');
     inv.items.forEach((it, i) => {
-      // Each row's height depends on how long the description wraps.
-      const descLines = doc.heightOfString(it.name, { width: cols.desc.w - 4 });
-      const skuHsnH = 10; // for SKU + HSN sub-line
-      const rowH = Math.max(descLines + skuHsnH + 6, 32);
+      // Row height driven by description wrap + SKU/HSN sub-lines
+      doc.fontSize(9);
+      const descNameH = doc.heightOfString(it.name, { width: cols.desc.w - PAD * 2 });
+      const subLineH = it.hsnCode ? 22 : 11; // SKU line + HSN line if present
+      const taxBlockH = 32; // amount + rate + type stacked
+      const rowH = Math.max(descNameH + subLineH + PAD * 2, taxBlockH + PAD * 2, 40);
 
       if (y + rowH > 760) {
         doc.addPage();
         y = PAGE_MARGIN;
       }
 
+      // Subtle alternating row tint to make rows easier to read
+      if (i % 2 === 0) {
+        doc.rect(leftX, y, contentW, rowH).fill('#FAF7EE');
+      }
+      doc.fillColor('#222');
+
       // Sl. No.
-      doc.font('Body').fillColor('#222');
-      doc.text(String(i + 1), cols.sl.x + 2, y + 4, { width: cols.sl.w - 4, align: cols.sl.align });
+      doc.font('Body').fontSize(9).fillColor('#222').text(
+        String(i + 1),
+        cols.sl.x + PAD,
+        y + PAD,
+        { width: cols.sl.w - PAD * 2, align: cols.sl.align },
+      );
 
-      // Description: product name + small SKU + HSN line below
-      doc.text(it.name, cols.desc.x + 2, y + 4, { width: cols.desc.w - 4 });
-      doc
-        .fontSize(7)
-        .fillColor('#777')
-        .text(
-          `SKU ${it.sku}${it.hsnCode ? ` · HSN ${it.hsnCode}` : ''}`,
-          cols.desc.x + 2,
-          y + 4 + descLines,
-          { width: cols.desc.w - 4 },
-        );
+      // Description: name (regular) + SKU (small grey) + HSN (small grey)
+      doc.fontSize(9).fillColor('#1A1A1A').text(it.name, cols.desc.x + PAD, y + PAD, {
+        width: cols.desc.w - PAD * 2,
+      });
+      const subY = y + PAD + descNameH + 1;
+      doc.fontSize(7).fillColor('#777').text(`SKU: ${it.sku}`, cols.desc.x + PAD, subY, {
+        width: cols.desc.w - PAD * 2,
+      });
+      if (it.hsnCode) {
+        doc.text(`HSN: ${it.hsnCode}`, cols.desc.x + PAD, subY + 10, {
+          width: cols.desc.w - PAD * 2,
+        });
+      }
 
-      // Numeric cells (reset font size)
-      doc.fontSize(8).fillColor('#222').font('Body');
-      const cellTopY = y + 4;
-      doc.text(inrPlain(it.unitPrice), cols.rate.x + 2, cellTopY, { width: cols.rate.w - 4, align: 'right' });
-      doc.text(String(it.quantity), cols.qty.x + 2, cellTopY, { width: cols.qty.w - 4, align: 'right' });
-      doc.text(inrPlain(it.taxableValue), cols.net.x + 2, cellTopY, { width: cols.net.w - 4, align: 'right' });
-      doc.text(`${it.taxPercent}%`, cols.pct.x + 2, cellTopY, { width: cols.pct.w - 4, align: 'right' });
-      doc.text(taxType, cols.type.x + 2, cellTopY, { width: cols.type.w - 4, align: 'center' });
+      // Qty
+      doc.fontSize(9).fillColor('#1A1A1A').text(String(it.quantity), cols.qty.x + PAD, y + PAD, {
+        width: cols.qty.w - PAD * 2,
+        align: cols.qty.align,
+      });
+
+      // Unit Price
+      doc.text(inrPlain(it.unitPrice), cols.rate.x + PAD, y + PAD, {
+        width: cols.rate.w - PAD * 2,
+        align: cols.rate.align,
+      });
+
+      // Tax: amount (bold), rate (small), type (small)
       const lineTax = +(it.lineTotal - it.taxableValue).toFixed(2);
-      doc.text(inrPlain(lineTax), cols.tax.x + 2, cellTopY, { width: cols.tax.w - 4, align: 'right' });
-      doc.text(inrPlain(it.lineTotal), cols.tot.x + 2, cellTopY, { width: cols.tot.w - 4, align: 'right' });
+      doc.fontSize(9).font('Body-Bold').fillColor('#1A1A1A').text(
+        inrPlain(lineTax),
+        cols.tax.x + PAD,
+        y + PAD,
+        { width: cols.tax.w - PAD * 2, align: cols.tax.align },
+      );
+      doc.font('Body').fontSize(7).fillColor('#777').text(
+        `${it.taxPercent}% ${taxType}`,
+        cols.tax.x + PAD,
+        y + PAD + 12,
+        { width: cols.tax.w - PAD * 2, align: cols.tax.align },
+      );
 
-      // Row separator
-      doc.moveTo(leftX, y + rowH).lineTo(tableRight, y + rowH).strokeColor('#E8DEC0').stroke();
+      // Total
+      doc.font('Body-Bold').fontSize(9).fillColor('#1A1A1A').text(
+        inrPlain(it.lineTotal),
+        cols.tot.x + PAD,
+        y + PAD,
+        { width: cols.tot.w - PAD * 2, align: cols.tot.align },
+      );
+
+      // Row bottom border
+      doc.moveTo(leftX, y + rowH).lineTo(tableRight, y + rowH).strokeColor('#D4C9B0').stroke();
       y += rowH;
     });
 
-    // ── Totals row ──────────────────────────────────────────────────
-    doc.rect(leftX, y, contentW, 22).fillAndStroke('#F5F1EA', '#CFC5A8');
-    doc.fillColor('#000').font('Body-Bold').fontSize(9);
-    doc.text('TOTAL:', cols.sl.x + 2, y + 6, {
-      width: cols.tax.x - cols.sl.x - 4,
+    // Draw vertical column separators across the body (between header
+    // bottom and the last row), then the outer table border.
+    const tableBottomY = y;
+    doc.strokeColor('#D4C9B0').lineWidth(0.5);
+    Object.values(cols).forEach((c, idx) => {
+      if (idx === 0) return; // skip the very first edge — outer border draws it
+      doc.moveTo(c.x, bodyTopY).lineTo(c.x, tableBottomY).stroke();
+    });
+    doc.strokeColor('#1F1F1F').lineWidth(0.8);
+    doc.rect(leftX, tableTopY, contentW, tableBottomY - tableTopY).stroke();
+    doc.lineWidth(1);
+
+    // ── Totals row (separate, below the table) ──────────────────────
+    y += 4;
+    doc.rect(leftX, y, contentW, 24).fillAndStroke('#1F1F1F', '#1F1F1F');
+    doc.fillColor('#FFFFFF').font('Body-Bold').fontSize(10);
+    doc.text('TOTAL', leftX + PAD, y + 7, {
+      width: cols.tax.x - leftX - PAD * 2,
       align: 'left',
     });
     const totalTaxAmount = +inv.tax.toFixed(2);
-    doc.text(inrPlain(totalTaxAmount), cols.tax.x + 2, y + 6, { width: cols.tax.w - 4, align: 'right' });
-    doc.text(inrPlain(inv.total), cols.tot.x + 2, y + 6, { width: cols.tot.w - 4, align: 'right' });
-    y += 30;
+    doc.text(inrPlain(totalTaxAmount), cols.tax.x + PAD, y + 7, {
+      width: cols.tax.w - PAD * 2,
+      align: 'right',
+    });
+    doc.text(inrPlain(inv.total), cols.tot.x + PAD, y + 7, {
+      width: cols.tot.w - PAD * 2,
+      align: 'right',
+    });
+    y += 32;
 
     // ── Tax breakdown ───────────────────────────────────────────────
-    doc.font('Body').fontSize(8).fillColor('#444');
+    doc.font('Body').fontSize(9).fillColor('#444');
     if (inv.isInterState) {
-      doc.text(`IGST: ${inrPlain(inv.taxBreakdown.igst)}`, leftX, y);
+      doc.text(`IGST: ${inrPlain(inv.taxBreakdown.igst)}`, leftX, y, { width: contentW });
     } else {
       doc.text(
         `CGST: ${inrPlain(inv.taxBreakdown.cgst)}   ·   SGST: ${inrPlain(inv.taxBreakdown.sgst)}`,
         leftX,
         y,
+        { width: contentW },
       );
     }
     if (inv.shipping > 0) {
-      doc.text(`Shipping: ${inrPlain(inv.shipping)}`, leftX, doc.y + 2);
+      doc.text(`Shipping: ${inrPlain(inv.shipping)}`, leftX, doc.y + 2, { width: contentW });
     }
-    y = doc.y + 6;
+    y = doc.y + 10;
 
-    // ── Amount in words ─────────────────────────────────────────────
-    doc.font('Body-Bold').fontSize(9).fillColor('#000').text('Amount in Words:', leftX, y);
+    // ── Amount in words + Signatory side-by-side ────────────────────
+    // Constrain amount-in-words to the left half so long numbers
+    // (e.g. ₹16,014.96 → "Sixteen Thousand...") wrap inside the
+    // invoice instead of overflowing into the signatory area.
+    const wordsBlockY = y;
+    doc.font('Body-Bold').fontSize(9).fillColor('#000').text('Amount in Words:', leftX, wordsBlockY, {
+      width: colW,
+    });
     doc.font('Body').fontSize(9).fillColor('#222').text(
       `${rupeeWords(inv.total)} only.`,
       leftX,
       doc.y + 2,
-      { width: contentW * 0.7 },
+      { width: colW, lineGap: 1 },
     );
+    const wordsEndY = doc.y;
 
-    // ── Signatory block (right) ─────────────────────────────────────
-    const sigBlockY = y;
+    // Signatory on the right
     doc.font('Body-Bold').fontSize(10).fillColor('#000').text(
       `For ${inv.company.name}:`,
       rightX,
-      sigBlockY,
+      wordsBlockY,
       { width: colW, align: 'right' },
     );
-    // 30px space for handwritten signature
-    doc.font('Body-Bold').fontSize(10).fillColor('#000').text('Authorized Signatory', rightX, sigBlockY + 50, {
-      width: colW,
-      align: 'right',
-    });
+    doc.font('Body-Bold').fontSize(10).fillColor('#000').text(
+      'Authorized Signatory',
+      rightX,
+      wordsBlockY + 50,
+      { width: colW, align: 'right' },
+    );
 
-    y = Math.max(doc.y, sigBlockY + 70) + 12;
+    y = Math.max(wordsEndY, wordsBlockY + 70) + 12;
 
     // ── Footer: reverse charge + declaration ────────────────────────
     doc.moveTo(leftX, y).lineTo(leftX + contentW, y).strokeColor('#CFC5A8').stroke();
