@@ -1,16 +1,15 @@
 /**
- * GST-compliant tax invoice generator.
+ * GST-compliant tax invoice generator — Amazon-style layout.
  *
- * Covers the mandatory fields under CGST Rule 46 for a B2B tax invoice:
- *  - Supplier name, address, GSTIN, state + state code
- *  - Recipient name, address, GSTIN (when present)
- *  - Invoice number, date
- *  - HSN/SAC per line item
- *  - Quantity, unit price, taxable value
- *  - CGST + SGST (intra-state) OR IGST (inter-state) with rate + amount
- *  - Place of supply (state name + code)
- *  - Reverse charge applicability
- *  - Authorized signatory block
+ * Matches the structure of an Amazon.in tax invoice the merchant
+ * already receives: two-column header with seller info (left) and
+ * the "Tax Invoice / Bill of Supply / Cash Memo" declaration (right),
+ * separate Billing + Shipping address blocks, items table with HSN
+ * inline in the description, Tax Type column showing IGST or
+ * CGST+SGST, totals + amount-in-words + signatory block + reverse
+ * charge declaration in the footer.
+ *
+ * Covers the mandatory fields under CGST Rule 46 for a B2B invoice.
  */
 import PDFDocument from 'pdfkit';
 
@@ -19,13 +18,13 @@ export interface InvoiceItem {
   sku: string;
   hsnCode: string | null;
   quantity: number;
-  /** Pre-tax unit price (already net of any discount). */
+  /** Pre-tax unit price. */
   unitPrice: number;
   /** Pre-tax line total = unitPrice × quantity (the "taxable value"). */
   taxableValue: number;
   /** Combined GST rate for this line, e.g. 18. */
   taxPercent: number;
-  /** Pre-tax + tax line total — included so we don't recompute. */
+  /** Line total = taxableValue + tax. */
   lineTotal: number;
 }
 
@@ -34,7 +33,9 @@ export interface InvoiceInput {
   date: Date;
   company: {
     name: string;
+    legalName?: string;
     gst?: string;
+    pan?: string;
     address?: string;
     state?: string;
     stateCode?: string;
@@ -47,232 +48,268 @@ export interface InvoiceInput {
     gstNumber?: string;
   };
   placeOfSupply: { name: string; code: string } | null;
-  /** When true, IGST is charged (single column). When false, CGST + SGST split. */
+  /** Inter-state ⇒ IGST single line; intra-state ⇒ CGST + SGST split. */
   isInterState: boolean;
   items: InvoiceItem[];
   subtotal: number;
-  /** Total tax (sum of all line GST amounts). */
   tax: number;
-  /** Tax broken down for the summary block. */
-  taxBreakdown: {
-    cgst: number;
-    sgst: number;
-    igst: number;
-  };
+  taxBreakdown: { cgst: number; sgst: number; igst: number };
   shipping: number;
   total: number;
 }
 
+const PAGE_MARGIN = 36;
+const COL_GAP = 16;
+
 export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 50 });
+    const doc = new PDFDocument({ size: 'A4', margin: PAGE_MARGIN });
     const buffers: Buffer[] = [];
     doc.on('data', (b: Buffer) => buffers.push(b));
     doc.on('end', () => resolve(Buffer.concat(buffers)));
     doc.on('error', reject);
 
     const pageW = doc.page.width;
-    const margin = 50;
-    const contentW = pageW - margin * 2;
+    const contentW = pageW - PAGE_MARGIN * 2;
+    const colW = (contentW - COL_GAP) / 2;
+    const leftX = PAGE_MARGIN;
+    const rightX = PAGE_MARGIN + colW + COL_GAP;
 
-    // ── Header ─────────────────────────────────────────────────────────
-    doc.fontSize(20).fillColor('#A01818').text(inv.company.name, margin, 50, { align: 'left' });
-    let headerY = doc.y;
-    if (inv.company.gst) {
-      doc.fontSize(9).fillColor('#555').text(`GSTIN: ${inv.company.gst}`);
-      headerY = doc.y;
+    // ── Header: seller (left) + invoice declaration (right) ──────────
+    let yTop = PAGE_MARGIN;
+    doc.fontSize(18).fillColor('#A01818').font('Helvetica-Bold').text(inv.company.name, leftX, yTop, {
+      width: colW,
+    });
+    const sellerNameY = doc.y;
+    doc.font('Helvetica').fontSize(9).fillColor('#333');
+    if (inv.company.address) doc.text(inv.company.address, leftX, sellerNameY + 4, { width: colW });
+    if (inv.company.pan) doc.text(`PAN No: ${inv.company.pan}`, leftX, doc.y + 2, { width: colW });
+    if (inv.company.gst) doc.text(`GST Registration No: ${inv.company.gst}`, leftX, doc.y, { width: colW });
+
+    const leftHeaderEndY = doc.y;
+
+    // Right column — invoice declaration
+    doc.font('Helvetica-Bold').fontSize(11).fillColor('#000').text(
+      'Tax Invoice / Bill of Supply / Cash Memo',
+      rightX,
+      yTop + 4,
+      { width: colW, align: 'right' },
+    );
+    doc.font('Helvetica').fontSize(9).fillColor('#555').text('(Triplicate for Supplier)', rightX, doc.y, {
+      width: colW,
+      align: 'right',
+    });
+
+    yTop = Math.max(leftHeaderEndY, doc.y) + 14;
+    doc.moveTo(leftX, yTop).lineTo(leftX + contentW, yTop).strokeColor('#CFC5A8').stroke();
+
+    // ── Order info (left) + Billing/Shipping (right) ─────────────────
+    let y = yTop + 10;
+    const orderInfoY = y;
+
+    doc.font('Helvetica-Bold').fontSize(9).fillColor('#000').text('Order Number:', leftX, y);
+    doc.font('Helvetica').text(inv.orderNumber, leftX + 88, y);
+    doc.font('Helvetica-Bold').text('Order Date:', leftX, y + 14);
+    doc.font('Helvetica').text(inv.date.toLocaleDateString('en-IN'), leftX + 88, y + 14);
+    doc.font('Helvetica-Bold').text('Invoice Number:', leftX, y + 28);
+    doc.font('Helvetica').text(inv.orderNumber, leftX + 88, y + 28);
+    doc.font('Helvetica-Bold').text('Invoice Date:', leftX, y + 42);
+    doc.font('Helvetica').text(inv.date.toLocaleDateString('en-IN'), leftX + 88, y + 42);
+
+    // Right: Billing Address
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#000').text('Billing Address:', rightX, y, {
+      width: colW,
+      align: 'right',
+    });
+    doc.font('Helvetica').fontSize(9).fillColor('#333');
+    doc.text(inv.customer.name, rightX, doc.y + 2, { width: colW, align: 'right' });
+    if (inv.customer.address) doc.text(inv.customer.address, rightX, doc.y, { width: colW, align: 'right' });
+    if (inv.customer.gstNumber) {
+      doc.text(`GSTIN: ${inv.customer.gstNumber}`, rightX, doc.y, { width: colW, align: 'right' });
     }
-    if (inv.company.address) {
-      doc.fontSize(9).fillColor('#555').text(inv.company.address, { width: 280 });
-      headerY = doc.y;
-    }
-    if (inv.company.state) {
-      doc
-        .fontSize(9)
-        .fillColor('#555')
-        .text(
-          `State: ${inv.company.state}${inv.company.stateCode ? ` (Code ${inv.company.stateCode})` : ''}`,
-        );
-      headerY = doc.y;
-    }
-
-    // Right column: TAX INVOICE + meta
-    doc.fontSize(16).fillColor('#000').text('TAX INVOICE', margin, 50, { align: 'right' });
-    doc.fontSize(10).text(`Invoice No.: ${inv.orderNumber}`, { align: 'right' });
-    doc.text(`Date: ${inv.date.toLocaleDateString('en-IN')}`, { align: 'right' });
-    doc.text('Reverse charge applicable: No', { align: 'right' });
-
-    const afterHeaderY = Math.max(headerY, doc.y);
-    doc.y = afterHeaderY + 16;
-
-    // ── Bill To + Place of Supply ──────────────────────────────────────
-    const billToY = doc.y;
-    doc.fontSize(11).fillColor('#000').text('Bill to:', margin, billToY);
-    doc.fontSize(10).fillColor('#333');
-    doc.text(inv.customer.name, margin, doc.y);
-    if (inv.customer.email) doc.text(inv.customer.email);
-    if (inv.customer.phone) doc.text(inv.customer.phone);
-    if (inv.customer.address) doc.text(inv.customer.address, { width: 280 });
-    if (inv.customer.gstNumber) doc.text(`GSTIN: ${inv.customer.gstNumber}`);
-
-    const leftAfterBillY = doc.y;
-
-    // Right side: Place of supply
     if (inv.placeOfSupply) {
-      doc.fontSize(11).fillColor('#000').text('Place of supply:', margin, billToY, { align: 'right' });
+      doc.text(`State/UT Code: ${inv.placeOfSupply.code}`, rightX, doc.y + 2, {
+        width: colW,
+        align: 'right',
+      });
+    }
+
+    // Right: Shipping Address (same as billing in our flow — single ship-to per order)
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#000').text('Shipping Address:', rightX, doc.y + 8, {
+      width: colW,
+      align: 'right',
+    });
+    doc.font('Helvetica').fontSize(9).fillColor('#333');
+    doc.text(inv.customer.name, rightX, doc.y + 2, { width: colW, align: 'right' });
+    if (inv.customer.address) doc.text(inv.customer.address, rightX, doc.y, { width: colW, align: 'right' });
+    if (inv.placeOfSupply) {
+      doc.text(`State/UT Code: ${inv.placeOfSupply.code}`, rightX, doc.y + 2, {
+        width: colW,
+        align: 'right',
+      });
+      doc.font('Helvetica-Bold').text(`Place of supply: ${inv.placeOfSupply.name}`, rightX, doc.y + 2, {
+        width: colW,
+        align: 'right',
+      });
+      doc.text(`Place of delivery: ${inv.placeOfSupply.name}`, rightX, doc.y, {
+        width: colW,
+        align: 'right',
+      });
+    }
+
+    const headerBlockEndY = Math.max(orderInfoY + 60, doc.y);
+    y = headerBlockEndY + 14;
+    doc.moveTo(leftX, y).lineTo(leftX + contentW, y).strokeColor('#CFC5A8').stroke();
+    y += 8;
+
+    // ── Items table ─────────────────────────────────────────────────
+    const taxType = inv.isInterState ? 'IGST' : 'CGST+SGST';
+    const cols = {
+      sl:   { x: leftX,        w: 28,  label: 'Sl.\nNo.', align: 'left' as const },
+      desc: { x: leftX + 32,   w: 200, label: 'Description', align: 'left' as const },
+      rate: { x: leftX + 236,  w: 56,  label: 'Unit\nPrice', align: 'right' as const },
+      qty:  { x: leftX + 296,  w: 26,  label: 'Qty', align: 'right' as const },
+      net:  { x: leftX + 326,  w: 60,  label: 'Net\nAmount', align: 'right' as const },
+      pct:  { x: leftX + 390,  w: 36,  label: 'Tax\nRate', align: 'right' as const },
+      type: { x: leftX + 430,  w: 44,  label: 'Tax\nType', align: 'center' as const },
+      tax:  { x: leftX + 478,  w: 50,  label: 'Tax\nAmount', align: 'right' as const },
+      tot:  { x: leftX + 532,  w: 0,   label: 'Total\nAmount', align: 'right' as const },
+    };
+    cols.tot.w = leftX + contentW - cols.tot.x;
+    const tableRight = leftX + contentW;
+
+    // Header row
+    doc.rect(leftX, y, contentW, 26).fillAndStroke('#F5F1EA', '#CFC5A8');
+    doc.fillColor('#000').fontSize(8).font('Helvetica-Bold');
+    Object.values(cols).forEach((c) => {
+      doc.text(c.label, c.x + 2, y + 4, { width: c.w - 4, align: c.align });
+    });
+    y += 26;
+
+    // Rows
+    doc.font('Helvetica').fontSize(8).fillColor('#222');
+    inv.items.forEach((it, i) => {
+      // Each row's height depends on how long the description wraps.
+      const descLines = doc.heightOfString(it.name, { width: cols.desc.w - 4 });
+      const skuHsnH = 10; // for SKU + HSN sub-line
+      const rowH = Math.max(descLines + skuHsnH + 6, 32);
+
+      if (y + rowH > 760) {
+        doc.addPage();
+        y = PAGE_MARGIN;
+      }
+
+      // Sl. No.
+      doc.font('Helvetica').fillColor('#222');
+      doc.text(String(i + 1), cols.sl.x + 2, y + 4, { width: cols.sl.w - 4, align: cols.sl.align });
+
+      // Description: product name + small SKU + HSN line below
+      doc.text(it.name, cols.desc.x + 2, y + 4, { width: cols.desc.w - 4 });
       doc
-        .fontSize(10)
-        .fillColor('#333')
-        .text(
-          `${inv.placeOfSupply.name} (${inv.placeOfSupply.code})`,
-          margin,
-          doc.y,
-          { align: 'right' },
-        );
-      doc
-        .fontSize(9)
+        .fontSize(7)
         .fillColor('#777')
         .text(
-          inv.isInterState
-            ? 'Inter-state supply — IGST applicable'
-            : 'Intra-state supply — CGST + SGST applicable',
-          margin,
-          doc.y,
-          { align: 'right' },
+          `SKU ${it.sku}${it.hsnCode ? ` · HSN ${it.hsnCode}` : ''}`,
+          cols.desc.x + 2,
+          y + 4 + descLines,
+          { width: cols.desc.w - 4 },
         );
-    }
 
-    doc.y = Math.max(leftAfterBillY, doc.y) + 12;
+      // Numeric cells (reset font size)
+      doc.fontSize(8).fillColor('#222').font('Helvetica');
+      const cellTopY = y + 4;
+      doc.text(inrPlain(it.unitPrice), cols.rate.x + 2, cellTopY, { width: cols.rate.w - 4, align: 'right' });
+      doc.text(String(it.quantity), cols.qty.x + 2, cellTopY, { width: cols.qty.w - 4, align: 'right' });
+      doc.text(inrPlain(it.taxableValue), cols.net.x + 2, cellTopY, { width: cols.net.w - 4, align: 'right' });
+      doc.text(`${it.taxPercent}%`, cols.pct.x + 2, cellTopY, { width: cols.pct.w - 4, align: 'right' });
+      doc.text(taxType, cols.type.x + 2, cellTopY, { width: cols.type.w - 4, align: 'center' });
+      const lineTax = +(it.lineTotal - it.taxableValue).toFixed(2);
+      doc.text(inrPlain(lineTax), cols.tax.x + 2, cellTopY, { width: cols.tax.w - 4, align: 'right' });
+      doc.text(inrPlain(it.lineTotal), cols.tot.x + 2, cellTopY, { width: cols.tot.w - 4, align: 'right' });
 
-    // ── Items table ────────────────────────────────────────────────────
-    // Columns: # · Item · HSN · Qty · Rate · Taxable · GST% · Total
-    const tableTop = doc.y + 4;
-    const col = {
-      n: margin,
-      name: margin + 22,
-      hsn: margin + 230,
-      qty: margin + 290,
-      rate: margin + 325,
-      taxable: margin + 385,
-      gstPct: margin + 445,
-      total: margin + 490,
-    };
-    const tableRight = margin + contentW;
-
-    doc.fontSize(9).fillColor('#000');
-    doc.rect(margin, tableTop, contentW, 18).fillAndStroke('#F5F1EA', '#D4C9B0');
-    doc.fillColor('#000');
-    doc.text('#', col.n + 2, tableTop + 5);
-    doc.text('Item / SKU', col.name + 2, tableTop + 5);
-    doc.text('HSN', col.hsn + 2, tableTop + 5);
-    doc.text('Qty', col.qty + 2, tableTop + 5);
-    doc.text('Rate', col.rate + 2, tableTop + 5);
-    doc.text('Taxable', col.taxable + 2, tableTop + 5);
-    doc.text('GST%', col.gstPct + 2, tableTop + 5);
-    doc.text('Total', col.total + 2, tableTop + 5);
-
-    let y = tableTop + 22;
-    inv.items.forEach((it, i) => {
-      const rowH = 22;
-      if (y + rowH > 720) {
-        doc.addPage();
-        y = 50;
-      }
-      doc.fillColor('#333').fontSize(9);
-      doc.text(String(i + 1), col.n + 2, y, { width: 18 });
-      doc.text(it.name, col.name + 2, y, { width: col.hsn - col.name - 6, ellipsis: true });
-      doc
-        .fontSize(8)
-        .fillColor('#888')
-        .text(`SKU ${it.sku}`, col.name + 2, y + 11, {
-          width: col.hsn - col.name - 6,
-          ellipsis: true,
-        });
-      doc.fontSize(9).fillColor('#333');
-      doc.text(it.hsnCode || '—', col.hsn + 2, y, { width: col.qty - col.hsn - 6 });
-      doc.text(String(it.quantity), col.qty + 2, y, { width: col.rate - col.qty - 6 });
-      doc.text(inr(it.unitPrice), col.rate + 2, y, { width: col.taxable - col.rate - 6 });
-      doc.text(inr(it.taxableValue), col.taxable + 2, y, { width: col.gstPct - col.taxable - 6 });
-      doc.text(`${it.taxPercent}%`, col.gstPct + 2, y, { width: col.total - col.gstPct - 6 });
-      doc.text(inr(it.lineTotal), col.total + 2, y, { width: tableRight - col.total - 4 });
-      doc.moveTo(margin, y + rowH - 2).lineTo(tableRight, y + rowH - 2).strokeColor('#EEE7D6').stroke();
+      // Row separator
+      doc.moveTo(leftX, y + rowH).lineTo(tableRight, y + rowH).strokeColor('#E8DEC0').stroke();
       y += rowH;
     });
 
-    // ── Totals block ───────────────────────────────────────────────────
-    y += 6;
-    doc.strokeColor('#000');
-    const totalsLabelX = margin + 350;
-    const totalsValueX = margin + 460;
+    // ── Totals row ──────────────────────────────────────────────────
+    doc.rect(leftX, y, contentW, 22).fillAndStroke('#F5F1EA', '#CFC5A8');
+    doc.fillColor('#000').font('Helvetica-Bold').fontSize(9);
+    doc.text('TOTAL:', cols.sl.x + 2, y + 6, { width: cols.qty.x + cols.qty.w - cols.sl.x - 4, align: 'left' });
+    const totalTaxAmount = +inv.tax.toFixed(2);
+    doc.text(inrPlain(totalTaxAmount), cols.tax.x + 2, y + 6, { width: cols.tax.w - 4, align: 'right' });
+    doc.text(inrPlain(inv.total), cols.tot.x + 2, y + 6, { width: cols.tot.w - 4, align: 'right' });
+    y += 30;
 
-    function totalRow(label: string, value: string, bold = false) {
-      if (bold) doc.font('Helvetica-Bold');
-      else doc.font('Helvetica');
-      doc.fontSize(10).fillColor(bold ? '#000' : '#333');
-      doc.text(label, totalsLabelX, y, { width: 100 });
-      doc.text(value, totalsValueX, y, { width: tableRight - totalsValueX, align: 'right' });
-      y += 16;
-    }
-
-    totalRow('Subtotal', inr(inv.subtotal));
+    // ── Tax breakdown ───────────────────────────────────────────────
+    doc.font('Helvetica').fontSize(8).fillColor('#444');
     if (inv.isInterState) {
-      totalRow(`IGST`, inr(inv.taxBreakdown.igst));
+      doc.text(`IGST: ${inrPlain(inv.taxBreakdown.igst)}`, leftX, y);
     } else {
-      totalRow(`CGST`, inr(inv.taxBreakdown.cgst));
-      totalRow(`SGST`, inr(inv.taxBreakdown.sgst));
+      doc.text(
+        `CGST: ${inrPlain(inv.taxBreakdown.cgst)}   ·   SGST: ${inrPlain(inv.taxBreakdown.sgst)}`,
+        leftX,
+        y,
+      );
     }
-    if (inv.shipping > 0) totalRow('Shipping', inr(inv.shipping));
-    doc.moveTo(totalsLabelX, y).lineTo(tableRight, y).strokeColor('#000').stroke();
+    if (inv.shipping > 0) {
+      doc.text(`Shipping: ${inrPlain(inv.shipping)}`, leftX, doc.y + 2);
+    }
+    y = doc.y + 6;
+
+    // ── Amount in words ─────────────────────────────────────────────
+    doc.font('Helvetica-Bold').fontSize(9).fillColor('#000').text('Amount in Words:', leftX, y);
+    doc.font('Helvetica').fontSize(9).fillColor('#222').text(
+      `${rupeeWords(inv.total)} only.`,
+      leftX,
+      doc.y + 2,
+      { width: contentW * 0.7 },
+    );
+
+    // ── Signatory block (right) ─────────────────────────────────────
+    const sigBlockY = y;
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#000').text(
+      `For ${inv.company.name}:`,
+      rightX,
+      sigBlockY,
+      { width: colW, align: 'right' },
+    );
+    // 30px space for handwritten signature
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#000').text('Authorized Signatory', rightX, sigBlockY + 50, {
+      width: colW,
+      align: 'right',
+    });
+
+    y = Math.max(doc.y, sigBlockY + 70) + 12;
+
+    // ── Footer: reverse charge + declaration ────────────────────────
+    doc.moveTo(leftX, y).lineTo(leftX + contentW, y).strokeColor('#CFC5A8').stroke();
     y += 6;
-    totalRow('Total payable', inr(inv.total), true);
-
-    // Amount in words
-    doc.font('Helvetica');
-    y += 10;
     doc
-      .fontSize(9)
-      .fillColor('#555')
-      .text(`Amount in words: ${rupeeWords(inv.total)} only.`, margin, y, {
-        width: contentW,
-      });
-    y = doc.y + 16;
-
-    // ── Footer / signatory block ───────────────────────────────────────
-    const footerY = Math.max(y, 720);
-    doc.moveTo(margin, footerY).lineTo(tableRight, footerY).strokeColor('#D4C9B0').stroke();
-
-    doc
+      .font('Helvetica')
       .fontSize(8)
+      .fillColor('#222')
+      .text('Whether tax is payable under reverse charge — No', leftX, y, { width: contentW });
+    y = doc.y + 6;
+    doc
+      .fontSize(7)
       .fillColor('#777')
       .text(
         'Declaration: Goods once sold cannot be taken back without prior approval. Returns and refunds are subject to the policies published at kitchenarykart.com.',
-        margin,
-        footerY + 8,
-        { width: 320 },
+        leftX,
+        y,
+        { width: contentW },
       );
-
-    doc
-      .fontSize(9)
-      .fillColor('#000')
-      .text(`For ${inv.company.name}`, margin + 360, footerY + 30, { width: 180, align: 'right' });
-    doc
-      .fontSize(8)
-      .fillColor('#555')
-      .text('Authorized signatory', margin + 360, footerY + 60, { width: 180, align: 'right' });
 
     doc.end();
   });
 }
 
-function inr(n: number): string {
+/** Currency formatting with the rupee sign, Indian grouping. */
+function inrPlain(n: number): string {
   return '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 }
 
-/**
- * Convert a rupee amount to Indian-English words (e.g. 1234.50 →
- * "One Thousand Two Hundred Thirty Four Rupees and Fifty Paise").
- * Uses the Indian numbering system (lakh, crore).
- */
 function rupeeWords(amount: number): string {
   const rupees = Math.floor(amount);
   const paise = Math.round((amount - rupees) * 100);

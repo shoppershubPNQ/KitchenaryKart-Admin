@@ -27,19 +27,24 @@ export const GET = withAuth(async (_req, { params }) => {
     if (!order) return fail('Not found', 404);
 
     // ── Company / seller info ────────────────────────────────────────
+    // Defaults below match the real business (Shoppers Hub, Pune)
+    // so the invoice prints sensibly even before the admin fills in
+    // the Settings UI. Overridden by whatever the admin has saved.
     const [
       companyName,
       companyGst,
+      companyPan,
       companyAddress,
       companyStateName,
       companyStateCode,
     ] = await Promise.all([
-      getSetting('company_name', 'KitchenaryKart'),
-      getSetting('company_gst'),
-      getSetting('company_address'),
-      // Default seller to Maharashtra (Pune-based business) so the
-      // intra-state vs inter-state branch picks the right tax type
-      // even before the admin fills in the settings UI.
+      getSetting('company_name', 'Shoppers Hub'),
+      getSetting('company_gst', '27AAQPR2976J1ZU'),
+      getSetting('company_pan', 'AAQPR2976J'),
+      getSetting(
+        'company_address',
+        'Near Dmart, Front Of Utsav Banquet Hall,\nKondhwa Budruk, Pune-411048\nPune, Maharashtra, 411048, IN',
+      ),
       getSetting('company_state', 'Maharashtra'),
       getSetting('company_state_code', '27'),
     ]);
@@ -91,8 +96,9 @@ export const GET = withAuth(async (_req, { params }) => {
       orderNumber: order.orderNumber,
       date: order.createdAt,
       company: {
-        name: companyName || 'KitchenaryKart',
+        name: companyName || 'Shoppers Hub',
         gst: companyGst,
+        pan: companyPan,
         address: companyAddress,
         state: companyStateName,
         stateCode: companyStateCode,
