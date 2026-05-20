@@ -12,6 +12,16 @@ const patchSchema = z.object({
   paymentReference: z.string().optional(),
   notes: z.string().optional(),
   internalNotes: z.string().optional(),
+  // Shipping / tracking. All optional; empty string clears the field.
+  carrierName: z.string().nullable().optional(),
+  trackingNumber: z.string().nullable().optional(),
+  trackingUrl: z
+    .string()
+    .nullable()
+    .optional()
+    .refine((v) => !v || /^https?:\/\//i.test(v), {
+      message: 'trackingUrl must start with http:// or https://',
+    }),
 });
 
 export const GET = withAuth(async (_req, { params }) => {
@@ -36,9 +46,29 @@ export const PATCH = withAuth(async (req, { params }) => {
     const current = await prisma.order.findUnique({ where: { id } });
     if (!current) return fail('Not found', 404);
 
+    // Auto-stamp shippedAt / deliveredAt on status transitions so the
+    // customer-facing timeline gets accurate dates without the admin
+    // needing to remember to set them manually.
+    const autoStamps: { shippedAt?: Date; deliveredAt?: Date } = {};
+    if (body.orderStatus === 'shipped' && !current.shippedAt) {
+      autoStamps.shippedAt = new Date();
+    }
+    if (body.orderStatus === 'delivered') {
+      if (!current.shippedAt) autoStamps.shippedAt = new Date();
+      if (!current.deliveredAt) autoStamps.deliveredAt = new Date();
+    }
+
+    // Normalise empty strings to null so the DB doesn't end up with
+    // "" rows that the storefront's `if (trackingNumber)` checks treat
+    // as truthy.
+    const normalised = { ...body, ...autoStamps } as Record<string, unknown>;
+    for (const k of ['carrierName', 'trackingNumber', 'trackingUrl'] as const) {
+      if (normalised[k] === '') normalised[k] = null;
+    }
+
     const order = await prisma.order.update({
       where: { id },
-      data: body,
+      data: normalised as Parameters<typeof prisma.order.update>[0]['data'],
       include: { items: true },
     });
 

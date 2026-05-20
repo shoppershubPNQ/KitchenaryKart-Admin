@@ -245,6 +245,23 @@ model Order {
   /// composed as "KK/<fy>/<padded serial>" on the invoice PDF.
   invoiceFinancialYear  String?  @map("invoice_financial_year") @db.VarChar(7)
 
+  /// Shipping carrier name (e.g. "Shiprocket", "Delhivery", "Bluedart").
+  /// Free-text so admin doesn't need a fixed enum — the customer just
+  /// sees the carrier name on the tracking page.
+  carrierName     String?   @map("carrier_name")
+  /// Carrier's tracking number / AWB. Customer-facing on /track and
+  /// /account/orders/[number].
+  trackingNumber  String?   @map("tracking_number")
+  /// Full URL the customer can click to see live carrier tracking.
+  /// Optional — when blank, the storefront just shows the tracking
+  /// number without a clickable link.
+  trackingUrl     String?   @map("tracking_url")
+  /// Auto-stamped when admin moves the order to "shipped" status.
+  /// Used to drive the order status timeline on the customer page.
+  shippedAt       DateTime? @map("shipped_at")
+  /// Auto-stamped when admin moves the order to "delivered" status.
+  deliveredAt     DateTime? @map("delivered_at")
+
   notes            String?
   internalNotes    String?       @map("internal_notes")
 

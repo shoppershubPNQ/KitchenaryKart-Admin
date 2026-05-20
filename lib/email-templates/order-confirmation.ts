@@ -139,9 +139,15 @@ export function buildOrderConfirmationEmail(o: OrderEmailInput) {
 
           ${shippingBlock}
 
+          <tr>
+            <td style="padding:20px 32px 8px 32px;text-align:center;">
+              <a href="https://kitchenarykart.com/track?order=${encodeURIComponent(o.orderNumber)}" style="display:inline-block;background:#A01818;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:6px;letter-spacing:0.3px;">Track this order →</a>
+            </td>
+          </tr>
+
           ${o.paymentReference
             ? `<tr>
-                 <td style="padding:8px 32px 16px 32px;color:#999;font-size:12px;">Payment reference: ${escapeHtml(o.paymentReference)}</td>
+                 <td style="padding:8px 32px 16px 32px;color:#999;font-size:12px;text-align:center;">Payment reference: ${escapeHtml(o.paymentReference)}</td>
                </tr>`
             : ''}
 
@@ -173,7 +179,9 @@ GST: ${inr(o.taxAmount)}
 Shipping: ${inr(o.shippingCost)}
 Total paid: ${inr(o.totalAmount)}
 
-${o.shippingAddress ? `Shipping to:\n${o.shippingAddress}\n\n` : ''}${o.paymentReference ? `Payment reference: ${o.paymentReference}\n\n` : ''}Questions? Reply or write to support@kitchenarykart.com.
+${o.shippingAddress ? `Shipping to:\n${o.shippingAddress}\n\n` : ''}Track your order: https://kitchenarykart.com/track?order=${encodeURIComponent(o.orderNumber)}
+
+${o.paymentReference ? `Payment reference: ${o.paymentReference}\n\n` : ''}Questions? Reply or write to support@kitchenarykart.com.
 
 — KitchenaryKart`;
 

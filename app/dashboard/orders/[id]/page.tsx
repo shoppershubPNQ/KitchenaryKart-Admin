@@ -31,6 +31,11 @@ interface Order {
   notes: string | null;
   internalNotes: string | null;
   createdAt: string;
+  carrierName: string | null;
+  trackingNumber: string | null;
+  trackingUrl: string | null;
+  shippedAt: string | null;
+  deliveredAt: string | null;
   items: OrderItem[];
 }
 
@@ -142,6 +147,9 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
         </div>
       )}
 
+      <TrackingCard order={order} onSaved={load} />
+
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="card p-4">
           <div className="label">Customer notes</div>
@@ -151,6 +159,116 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
           <div className="label">Internal notes</div>
           <div className="text-sm whitespace-pre-line">{order.internalNotes || <span className="text-slate-400">None</span>}</div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Shipping & Tracking card. Three editable fields (carrier, AWB,
+ * tracking URL) + a Save button that PATCHes the order. The PATCH
+ * route auto-stamps shippedAt/deliveredAt when orderStatus moves to
+ * 'shipped' / 'delivered', so we don't expose those as inputs.
+ */
+function TrackingCard({ order, onSaved }: { order: Order; onSaved: () => void | Promise<void> }) {
+  const [carrierName, setCarrierName] = useState(order.carrierName ?? '');
+  const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber ?? '');
+  const [trackingUrl, setTrackingUrl] = useState(order.trackingUrl ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Reset locals if the underlying order reloads with different values
+  useEffect(() => {
+    setCarrierName(order.carrierName ?? '');
+    setTrackingNumber(order.trackingNumber ?? '');
+    setTrackingUrl(order.trackingUrl ?? '');
+  }, [order.carrierName, order.trackingNumber, order.trackingUrl]);
+
+  const dirty =
+    (carrierName || '') !== (order.carrierName ?? '') ||
+    (trackingNumber || '') !== (order.trackingNumber ?? '') ||
+    (trackingUrl || '') !== (order.trackingUrl ?? '');
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    try {
+      await api(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          carrierName: carrierName.trim() || null,
+          trackingNumber: trackingNumber.trim() || null,
+          trackingUrl: trackingUrl.trim() || null,
+        }),
+      });
+      await onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="card p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="label">Shipping & tracking</div>
+        {order.shippedAt && (
+          <div className="text-xs text-slate-500">
+            Shipped {dateShort(order.shippedAt)}
+            {order.deliveredAt && ` · Delivered ${dateShort(order.deliveredAt)}`}
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div>
+          <label className="block text-xs text-slate-500 mb-1">Carrier</label>
+          <input
+            className="input"
+            placeholder="e.g. Shiprocket"
+            value={carrierName}
+            onChange={(e) => setCarrierName(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-slate-500 mb-1">Tracking / AWB number</label>
+          <input
+            className="input font-mono"
+            placeholder="e.g. SR123456789"
+            value={trackingNumber}
+            onChange={(e) => setTrackingNumber(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-slate-500 mb-1">Tracking URL (optional)</label>
+          <input
+            className="input"
+            placeholder="https://shiprocket.in/tracking/..."
+            value={trackingUrl}
+            onChange={(e) => setTrackingUrl(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {error && (
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+          {error}
+        </div>
+      )}
+
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={save}
+          disabled={saving || !dirty}
+        >
+          {saving ? 'Saving…' : 'Save tracking'}
+        </button>
+        <span className="text-xs text-slate-500">
+          Customer sees this on /track and /account/orders/{order.orderNumber}.
+        </span>
       </div>
     </div>
   );
