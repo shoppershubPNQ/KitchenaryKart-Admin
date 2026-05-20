@@ -2,16 +2,18 @@
 const nextConfig = {
   reactStrictMode: true,
   // PDFKit ships font metric files (Helvetica.afm etc.) inside its
-  // package's `js/data/` folder and resolves them with fs.readFile at
-  // runtime. Next.js's serverless bundler tree-shakes these out by
-  // default, causing ENOENT errors in production. Force-include them
-  // for the route that generates invoice PDFs.
+  // own `js/data/` folder and resolves them with fs.readFileSync at
+  // runtime relative to its bundled location. Next.js's serverless
+  // bundler tree-shakes these AFM files out, and bundling pdfkit at
+  // all rewrites the data-path lookups so they break.
+  //
+  // Marking pdfkit as an external server package tells Next.js to
+  // leave it in node_modules and require it at runtime — the data
+  // files stay colocated with the JS that reads them. Vercel's
+  // serverless trace already pulls in node_modules of any package
+  // imported from a server function, so the AFM files come along.
   experimental: {
-    outputFileTracingIncludes: {
-      '/api/orders/[id]/invoice': [
-        './node_modules/pdfkit/js/data/**/*',
-      ],
-    },
+    serverComponentsExternalPackages: ['pdfkit'],
   },
   async headers() {
     return [

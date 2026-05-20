@@ -2,24 +2,101 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { fail, handleError } from '@/lib/api';
-import { renderInvoicePdf } from '@/lib/invoice';
+import { renderInvoicePdf, type InvoiceItem } from '@/lib/invoice';
+import { detectStateFromAddress, GST_STATES } from '@/lib/gst-states';
+
+/**
+ * Fetch a setting value from the DB (with a static fallback so a
+ * fresh install without seeded settings doesn't 500 the invoice).
+ */
+async function getSetting(key: string, fallback?: string): Promise<string | undefined> {
+  const row = await prisma.setting.findUnique({ where: { key } });
+  return row?.value ?? fallback;
+}
 
 export const GET = withAuth(async (_req, { params }) => {
   try {
     const id = parseInt(params.id);
     const order = await prisma.order.findUnique({
       where: { id },
-      include: { items: true, customer: true },
+      include: {
+        items: { include: { product: true } },
+        customer: true,
+      },
     });
     if (!order) return fail('Not found', 404);
 
-    const companyName = (await prisma.setting.findUnique({ where: { key: 'company_name' } }))?.value || 'KitchenaryKart';
-    const companyGst = (await prisma.setting.findUnique({ where: { key: 'company_gst' } }))?.value || undefined;
+    // ── Company / seller info ────────────────────────────────────────
+    const [
+      companyName,
+      companyGst,
+      companyAddress,
+      companyStateName,
+      companyStateCode,
+    ] = await Promise.all([
+      getSetting('company_name', 'KitchenaryKart'),
+      getSetting('company_gst'),
+      getSetting('company_address'),
+      // Default seller to Maharashtra (Pune-based business) so the
+      // intra-state vs inter-state branch picks the right tax type
+      // even before the admin fills in the settings UI.
+      getSetting('company_state', 'Maharashtra'),
+      getSetting('company_state_code', '27'),
+    ]);
+
+    // ── Buyer / place-of-supply detection ───────────────────────────
+    // The shipping address is a single free-text string. Match against
+    // Indian state names + aliases to figure out the state. Fall back
+    // to the seller's state when nothing matches — that's the safer
+    // default (charges CGST + SGST as if local) and is rare in
+    // practice because most Indian addresses end with a state name.
+    const detected = detectStateFromAddress(order.shippingAddress)
+      ?? detectStateFromAddress(order.customer?.billingAddress)
+      ?? GST_STATES.find((s) => s.name === companyStateName)
+      ?? null;
+    const placeOfSupply = detected ? { name: detected.name, code: detected.code } : null;
+    const isInterState = !!(detected && detected.code !== companyStateCode);
+
+    // ── Items + per-line breakdown ──────────────────────────────────
+    // Each line's `lineTotal` in the DB already includes tax (the
+    // checkout totalAmount uses it). The "taxable value" is the
+    // pre-tax portion, derived as lineTotal / (1 + rate/100).
+    const items: InvoiceItem[] = order.items.map((it) => {
+      const taxPercent = Number(it.taxPercent);
+      const lineTotal = Number(it.lineTotal);
+      const taxableValue = +(lineTotal / (1 + taxPercent / 100)).toFixed(2);
+      return {
+        name: it.productName || '',
+        sku: it.productSku || '',
+        hsnCode: it.product?.hsnCode ?? null,
+        quantity: it.quantity,
+        unitPrice: Number(it.unitPrice),
+        taxableValue,
+        taxPercent,
+        lineTotal,
+      };
+    });
+
+    const subtotal = items.reduce((s, i) => s + i.taxableValue, 0);
+    const totalTax = items.reduce((s, i) => s + (i.lineTotal - i.taxableValue), 0);
+    const taxBreakdown = isInterState
+      ? { cgst: 0, sgst: 0, igst: +totalTax.toFixed(2) }
+      : {
+          cgst: +(totalTax / 2).toFixed(2),
+          sgst: +(totalTax / 2).toFixed(2),
+          igst: 0,
+        };
 
     const pdf = await renderInvoicePdf({
       orderNumber: order.orderNumber,
       date: order.createdAt,
-      company: { name: companyName, gst: companyGst },
+      company: {
+        name: companyName || 'KitchenaryKart',
+        gst: companyGst,
+        address: companyAddress,
+        state: companyStateName,
+        stateCode: companyStateCode,
+      },
       customer: {
         name: order.customerName || order.customer?.name || 'Customer',
         email: order.customerEmail || order.customer?.email || undefined,
@@ -27,16 +104,12 @@ export const GET = withAuth(async (_req, { params }) => {
         address: order.shippingAddress || order.customer?.billingAddress || undefined,
         gstNumber: order.customer?.gstNumber || undefined,
       },
-      items: order.items.map(i => ({
-        name: i.productName || '',
-        sku: i.productSku || '',
-        quantity: i.quantity,
-        unitPrice: Number(i.unitPrice),
-        taxPercent: Number(i.taxPercent),
-        lineTotal: Number(i.lineTotal),
-      })),
-      subtotal: Number(order.subtotal || 0),
-      tax: Number(order.taxAmount || 0),
+      placeOfSupply,
+      isInterState,
+      items,
+      subtotal: +subtotal.toFixed(2),
+      tax: +totalTax.toFixed(2),
+      taxBreakdown,
       shipping: Number(order.shippingCost || 0),
       total: Number(order.totalAmount || 0),
     });
