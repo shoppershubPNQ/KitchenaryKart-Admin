@@ -12,25 +12,24 @@
  * Covers the mandatory fields under CGST Rule 46 for a B2B invoice.
  */
 import PDFDocument from 'pdfkit';
-import path from 'node:path';
+import { ROBOTO_REGULAR_B64, ROBOTO_BOLD_B64 } from './roboto-embedded';
 
 /**
- * Roboto TTF font path — Roboto includes the ₹ (U+20B9) and full
- * Unicode currency block, which PDFKit's built-in Helvetica (WinAnsi
- * encoded) doesn't. We register it at the top of every render so
- * every text call can use 'Body' / 'Body-Bold' instead of Helvetica.
+ * Roboto TTF fonts — Roboto includes the ₹ (U+20B9) and full Unicode
+ * currency block, which PDFKit's built-in Helvetica (WinAnsi encoded)
+ * doesn't. We register them at the top of every render so all text
+ * calls can use 'Body' / 'Body-Bold' instead of Helvetica.
  *
- * The font files are pulled in via outputFileTracingIncludes in
- * next.config.js so Vercel's serverless trace includes them.
+ * The TTF binaries are read from node_modules at install/build time
+ * (scripts/embed-font.cjs) and embedded as base64 into the bundle.
+ * This is the only way to guarantee they ship inside the Vercel
+ * serverless function — outputFileTracingIncludes wasn't reliable
+ * for these binary assets.
  */
-const FONT_REGULAR = path.join(
-  process.cwd(),
-  'node_modules/roboto-fontface/fonts/Roboto/Roboto-Regular.ttf',
-);
-const FONT_BOLD = path.join(
-  process.cwd(),
-  'node_modules/roboto-fontface/fonts/Roboto/Roboto-Bold.ttf',
-);
+const FONT_REGULAR_BUFFER =
+  ROBOTO_REGULAR_B64.length > 0 ? Buffer.from(ROBOTO_REGULAR_B64, 'base64') : null;
+const FONT_BOLD_BUFFER =
+  ROBOTO_BOLD_B64.length > 0 ? Buffer.from(ROBOTO_BOLD_B64, 'base64') : null;
 
 export interface InvoiceItem {
   name: string;
@@ -95,15 +94,15 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     doc.on('error', reject);
 
     // Register Roboto under 'Body' / 'Body-Bold' aliases so the rest
-    // of the renderer reads naturally. If the TTF can't be loaded for
-    // any reason (e.g. running locally without the font installed),
-    // fall back to PDFKit's built-in Helvetica — the layout will still
-    // render, only the ₹ glyph will be missing.
-    try {
-      doc.registerFont('Body', FONT_REGULAR);
-      doc.registerFont('Body-Bold', FONT_BOLD);
-    } catch (e) {
-      console.warn('[invoice] Roboto font load failed, falling back to Helvetica:', e);
+    // of the renderer reads naturally. Falls back to PDFKit's built-in
+    // Helvetica if the embedded base64 buffers are empty (happens when
+    // the build script ran before roboto-fontface was installed) — the
+    // layout still renders, only the ₹ glyph goes missing in that case.
+    if (FONT_REGULAR_BUFFER && FONT_BOLD_BUFFER) {
+      doc.registerFont('Body', FONT_REGULAR_BUFFER);
+      doc.registerFont('Body-Bold', FONT_BOLD_BUFFER);
+    } else {
+      console.warn('[invoice] Roboto buffers are empty, falling back to Helvetica (₹ glyph will be missing)');
       doc.registerFont('Body', 'Helvetica');
       doc.registerFont('Body-Bold', 'Helvetica-Bold');
     }

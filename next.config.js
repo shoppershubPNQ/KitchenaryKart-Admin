@@ -15,16 +15,11 @@ const nextConfig = {
   experimental: {
     // pdfkit reads font AFM files at runtime relative to its own
     // bundled location, so leaving it in node_modules keeps those
-    // files where pdfkit looks for them. The TTF font we register
-    // explicitly (Roboto, for ₹ + Unicode currency support) needs
-    // its own files bundled via outputFileTracingIncludes below.
+    // files where pdfkit looks for them.
+    // (The Roboto TTFs for ₹ rendering are embedded as base64 inside
+    // lib/roboto-embedded.ts by scripts/embed-font.cjs — no bundling
+    // hack needed for those.)
     serverComponentsExternalPackages: ['pdfkit'],
-    outputFileTracingIncludes: {
-      '/api/orders/[id]/invoice': [
-        './node_modules/roboto-fontface/fonts/Roboto/Roboto-Regular.ttf',
-        './node_modules/roboto-fontface/fonts/Roboto/Roboto-Bold.ttf',
-      ],
-    },
   },
   async headers() {
     return [
