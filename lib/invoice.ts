@@ -116,14 +116,20 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     doc.font('Helvetica-Bold').text('Invoice Date:', leftX, y + 42);
     doc.font('Helvetica').text(inv.date.toLocaleDateString('en-IN'), leftX + 88, y + 42);
 
-    // Right: Billing Address
+    // Right: Billing Address.
+    // Don't render customer.name separately because shippingAddress is
+    // built by the storefront as "<Name> · <Phone>\n<full address>" —
+    // rendering name above the address printed the name twice.
     doc.font('Helvetica-Bold').fontSize(10).fillColor('#000').text('Billing Address:', rightX, y, {
       width: colW,
       align: 'right',
     });
     doc.font('Helvetica').fontSize(9).fillColor('#333');
-    doc.text(inv.customer.name, rightX, doc.y + 2, { width: colW, align: 'right' });
-    if (inv.customer.address) doc.text(inv.customer.address, rightX, doc.y, { width: colW, align: 'right' });
+    if (inv.customer.address) {
+      doc.text(inv.customer.address, rightX, doc.y + 2, { width: colW, align: 'right' });
+    } else {
+      doc.text(inv.customer.name, rightX, doc.y + 2, { width: colW, align: 'right' });
+    }
     if (inv.customer.gstNumber) {
       doc.text(`GSTIN: ${inv.customer.gstNumber}`, rightX, doc.y, { width: colW, align: 'right' });
     }
@@ -140,8 +146,11 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
       align: 'right',
     });
     doc.font('Helvetica').fontSize(9).fillColor('#333');
-    doc.text(inv.customer.name, rightX, doc.y + 2, { width: colW, align: 'right' });
-    if (inv.customer.address) doc.text(inv.customer.address, rightX, doc.y, { width: colW, align: 'right' });
+    if (inv.customer.address) {
+      doc.text(inv.customer.address, rightX, doc.y + 2, { width: colW, align: 'right' });
+    } else {
+      doc.text(inv.customer.name, rightX, doc.y + 2, { width: colW, align: 'right' });
+    }
     if (inv.placeOfSupply) {
       doc.text(`State/UT Code: ${inv.placeOfSupply.code}`, rightX, doc.y + 2, {
         width: colW,
@@ -163,19 +172,21 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     y += 8;
 
     // ── Items table ─────────────────────────────────────────────────
+    // Column widths must sum to <= contentW (523pt on A4 with 36pt
+    // margins). Previous layout put the Total column at x=532, off the
+    // page — Total Amount was clipped on every printed invoice.
     const taxType = inv.isInterState ? 'IGST' : 'CGST+SGST';
     const cols = {
-      sl:   { x: leftX,        w: 28,  label: 'Sl.\nNo.', align: 'left' as const },
-      desc: { x: leftX + 32,   w: 200, label: 'Description', align: 'left' as const },
-      rate: { x: leftX + 236,  w: 56,  label: 'Unit\nPrice', align: 'right' as const },
-      qty:  { x: leftX + 296,  w: 26,  label: 'Qty', align: 'right' as const },
-      net:  { x: leftX + 326,  w: 60,  label: 'Net\nAmount', align: 'right' as const },
-      pct:  { x: leftX + 390,  w: 36,  label: 'Tax\nRate', align: 'right' as const },
-      type: { x: leftX + 430,  w: 44,  label: 'Tax\nType', align: 'center' as const },
-      tax:  { x: leftX + 478,  w: 50,  label: 'Tax\nAmount', align: 'right' as const },
-      tot:  { x: leftX + 532,  w: 0,   label: 'Total\nAmount', align: 'right' as const },
+      sl:   { x: leftX,        w: 24,  label: 'Sl.\nNo.', align: 'left' as const },
+      desc: { x: leftX + 26,   w: 170, label: 'Description', align: 'left' as const },
+      rate: { x: leftX + 198,  w: 46,  label: 'Unit\nPrice', align: 'right' as const },
+      qty:  { x: leftX + 246,  w: 24,  label: 'Qty', align: 'right' as const },
+      net:  { x: leftX + 272,  w: 50,  label: 'Net\nAmount', align: 'right' as const },
+      pct:  { x: leftX + 324,  w: 30,  label: 'Tax\nRate', align: 'right' as const },
+      type: { x: leftX + 356,  w: 46,  label: 'Tax\nType', align: 'center' as const },
+      tax:  { x: leftX + 404,  w: 52,  label: 'Tax\nAmount', align: 'right' as const },
+      tot:  { x: leftX + 458,  w: 65,  label: 'Total\nAmount', align: 'right' as const },
     };
-    cols.tot.w = leftX + contentW - cols.tot.x;
     const tableRight = leftX + contentW;
 
     // Header row
@@ -235,7 +246,10 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     // ── Totals row ──────────────────────────────────────────────────
     doc.rect(leftX, y, contentW, 22).fillAndStroke('#F5F1EA', '#CFC5A8');
     doc.fillColor('#000').font('Helvetica-Bold').fontSize(9);
-    doc.text('TOTAL:', cols.sl.x + 2, y + 6, { width: cols.qty.x + cols.qty.w - cols.sl.x - 4, align: 'left' });
+    doc.text('TOTAL:', cols.sl.x + 2, y + 6, {
+      width: cols.tax.x - cols.sl.x - 4,
+      align: 'left',
+    });
     const totalTaxAmount = +inv.tax.toFixed(2);
     doc.text(inrPlain(totalTaxAmount), cols.tax.x + 2, y + 6, { width: cols.tax.w - 4, align: 'right' });
     doc.text(inrPlain(inv.total), cols.tot.x + 2, y + 6, { width: cols.tot.w - 4, align: 'right' });
@@ -314,7 +328,7 @@ function rupeeWords(amount: number): string {
   const rupees = Math.floor(amount);
   const paise = Math.round((amount - rupees) * 100);
   const parts: string[] = [];
-  parts.push(`${numberToIndianWords(rupees)} Rupees`);
+  parts.push(`${numberToIndianWords(rupees)} Rupee${rupees === 1 ? '' : 's'}`);
   if (paise > 0) parts.push(`${numberToIndianWords(paise)} Paise`);
   return parts.join(' and ');
 }
