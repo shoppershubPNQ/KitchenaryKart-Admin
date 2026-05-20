@@ -27,9 +27,11 @@ export const GET = withAuth(async (_req, { params }) => {
     if (!order) return fail('Not found', 404);
 
     // ── Company / seller info ────────────────────────────────────────
-    // Defaults below match the real business (Shoppers Hub, Pune)
-    // so the invoice prints sensibly even before the admin fills in
-    // the Settings UI. Overridden by whatever the admin has saved.
+    // Defaults match the Kitchenary Kart trade name used on the D2C
+    // storefront. Same legal entity / GSTIN / PAN as "Shoppers Hub"
+    // (the marketplace seller name) — just a different display name
+    // and registered address per the GST additional-place-of-business
+    // entry. Admin can override each value in the Settings UI.
     const [
       companyName,
       companyGst,
@@ -38,12 +40,12 @@ export const GET = withAuth(async (_req, { params }) => {
       companyStateName,
       companyStateCode,
     ] = await Promise.all([
-      getSetting('company_name', 'Shoppers Hub'),
+      getSetting('company_name', 'Kitchenary Kart'),
       getSetting('company_gst', '27AAQPR2976J1ZU'),
       getSetting('company_pan', 'AAQPR2976J'),
       getSetting(
         'company_address',
-        'Near Dmart, Front Of Utsav Banquet Hall,\nKondhwa Budruk, Pune-411048\nPune, Maharashtra, 411048, IN',
+        'A2/103, Parshwanagar, Opp. Swami Vivekanand Garden,\nKondhwa Budruk, Pune-411048\nMaharashtra, India',
       ),
       getSetting('company_state', 'Maharashtra'),
       getSetting('company_state_code', '27'),
@@ -96,7 +98,7 @@ export const GET = withAuth(async (_req, { params }) => {
       orderNumber: order.orderNumber,
       date: order.createdAt,
       company: {
-        name: companyName || 'Shoppers Hub',
+        name: companyName || 'Kitchenary Kart',
         gst: companyGst,
         pan: companyPan,
         address: companyAddress,
