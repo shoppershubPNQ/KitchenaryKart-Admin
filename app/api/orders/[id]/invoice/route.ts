@@ -109,7 +109,14 @@ export const GET = withAuth(async (_req, { params }) => {
         name: order.customerName || order.customer?.name || 'Customer',
         email: order.customerEmail || order.customer?.email || undefined,
         phone: order.customerPhone || order.customer?.phone || undefined,
-        address: order.shippingAddress || order.customer?.billingAddress || undefined,
+        // Billing and shipping are tracked separately so B2B / gift-order
+        // flows where they differ render correctly. Today the Order
+        // model only stores shippingAddress, so billing falls back to
+        // the customer's stored billingAddress and then to the
+        // shippingAddress — both blocks end up showing the same string
+        // for typical D2C orders, which is fine.
+        billingAddress: order.customer?.billingAddress || order.shippingAddress || undefined,
+        shippingAddress: order.shippingAddress || order.customer?.billingAddress || undefined,
         gstNumber: order.customer?.gstNumber || undefined,
       },
       placeOfSupply,

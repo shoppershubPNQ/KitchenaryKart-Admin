@@ -44,7 +44,13 @@ export interface InvoiceInput {
     name: string;
     email?: string;
     phone?: string;
-    address?: string;
+    /** Address printed in the Billing Address block. Falls back to
+     *  shippingAddress when empty so the block never renders blank. */
+    billingAddress?: string;
+    /** Address printed in the Shipping Address block. Independent
+     *  of billingAddress so B2B / gift-order flows where the two
+     *  differ render correctly. */
+    shippingAddress?: string;
     gstNumber?: string;
   };
   placeOfSupply: { name: string; code: string } | null;
@@ -117,16 +123,20 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     doc.font('Helvetica').text(inv.date.toLocaleDateString('en-IN'), leftX + 88, y + 42);
 
     // Right: Billing Address.
-    // Don't render customer.name separately because shippingAddress is
-    // built by the storefront as "<Name> · <Phone>\n<full address>" —
-    // rendering name above the address printed the name twice.
+    // Render only the address — the shippingAddress field is built
+    // by the storefront as "<Name> · <Phone>\n<full address>" so the
+    // name + phone already appear inline; rendering inv.customer.name
+    // above it would print the name twice.
+    const billingAddr = inv.customer.billingAddress || inv.customer.shippingAddress;
+    const shippingAddr = inv.customer.shippingAddress || inv.customer.billingAddress;
+
     doc.font('Helvetica-Bold').fontSize(10).fillColor('#000').text('Billing Address:', rightX, y, {
       width: colW,
       align: 'right',
     });
     doc.font('Helvetica').fontSize(9).fillColor('#333');
-    if (inv.customer.address) {
-      doc.text(inv.customer.address, rightX, doc.y + 2, { width: colW, align: 'right' });
+    if (billingAddr) {
+      doc.text(billingAddr, rightX, doc.y + 2, { width: colW, align: 'right' });
     } else {
       doc.text(inv.customer.name, rightX, doc.y + 2, { width: colW, align: 'right' });
     }
@@ -140,14 +150,17 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
       });
     }
 
-    // Right: Shipping Address (same as billing in our flow — single ship-to per order)
+    // Right: Shipping Address — independent of billing so B2B and
+    // gift-order flows where ship-to differs from bill-to render
+    // correctly. When the order only has one address, both blocks
+    // show the same value (which is fine).
     doc.font('Helvetica-Bold').fontSize(10).fillColor('#000').text('Shipping Address:', rightX, doc.y + 8, {
       width: colW,
       align: 'right',
     });
     doc.font('Helvetica').fontSize(9).fillColor('#333');
-    if (inv.customer.address) {
-      doc.text(inv.customer.address, rightX, doc.y + 2, { width: colW, align: 'right' });
+    if (shippingAddr) {
+      doc.text(shippingAddr, rightX, doc.y + 2, { width: colW, align: 'right' });
     } else {
       doc.text(inv.customer.name, rightX, doc.y + 2, { width: colW, align: 'right' });
     }
