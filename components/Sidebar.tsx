@@ -45,6 +45,7 @@ const NAV: NavItem[] = [
   { href: '/dashboard/policies', label: 'Policies', icon: '📄' },
   { href: '/dashboard/social', label: 'Social links', icon: '🔗', roles: ['admin'] },
   { href: '/dashboard/analytics', label: 'Analytics', icon: '📉' },
+  { href: '/dashboard/gst-reports', label: 'GST Reports', icon: '📑', roles: ['admin', 'accounts'] },
   { href: '/dashboard/users', label: 'Admin users', icon: '🔐', roles: ['admin'] },
   { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', roles: ['admin'] },
 ];

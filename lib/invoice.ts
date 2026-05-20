@@ -49,7 +49,13 @@ export interface InvoiceItem {
 }
 
 export interface InvoiceInput {
+  /** Customer-facing order ref (e.g. "KKMPDPIVW8") — the storefront's
+   *  identifier. Distinct from the GST invoice number below. */
   orderNumber: string;
+  /** GST invoice serial in `KK/<FY>/<padded>` form (e.g.
+   *  "KK/2026-27/0001"). Required for GST compliance — see Rule 46(b).
+   *  Allocated lazily in lib/invoice-serial.ts. */
+  invoiceNumber: string;
   date: Date;
   company: {
     name: string;
@@ -86,10 +92,20 @@ export interface InvoiceInput {
 
 const PAGE_MARGIN = 36;
 const COL_GAP = 16;
+// A4 in PDFKit points = 595.28 × 841.89. We stop drawing rows at this Y
+// so the per-page "Page X of Y" footer + bottom margin always have room.
+const PAGE_ROW_LIMIT_Y = 770;
+// Vertical space the totals + amount-in-words + signatory + footer
+// block needs at the bottom of the last page. Used to decide whether
+// to push the totals to a fresh page after the items table ends.
+const FOOTER_RESERVE = 180;
 
 export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: PAGE_MARGIN });
+    // bufferPages lets us go back to earlier pages after the layout
+    // is done to draw per-page verticals/borders and the "Page X of Y"
+    // footer. Without it, switchToPage() throws.
+    const doc = new PDFDocument({ size: 'A4', margin: PAGE_MARGIN, bufferPages: true });
     const buffers: Buffer[] = [];
     doc.on('data', (b: Buffer) => buffers.push(b));
     doc.on('end', () => resolve(Buffer.concat(buffers)));
@@ -151,7 +167,7 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     doc.font('Body-Bold').text('Order Date:', leftX, y + 14);
     doc.font('Body').text(inv.date.toLocaleDateString('en-IN'), leftX + 88, y + 14);
     doc.font('Body-Bold').text('Invoice Number:', leftX, y + 28);
-    doc.font('Body').text(inv.orderNumber, leftX + 88, y + 28);
+    doc.font('Body').text(inv.invoiceNumber, leftX + 88, y + 28);
     doc.font('Body-Bold').text('Invoice Date:', leftX, y + 42);
     doc.font('Body').text(inv.date.toLocaleDateString('en-IN'), leftX + 88, y + 42);
 
@@ -221,6 +237,12 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     // 6 columns with vertical borders. Tax column stacks the amount,
     // rate %, and tax type (CGST+SGST or IGST) so the per-line tax
     // info is all visible without needing 3 separate columns.
+    //
+    // Multi-page handling: when a row would overflow PAGE_ROW_LIMIT_Y,
+    // we record the current page's table extent, start a new page,
+    // redraw the table header, and continue. After all rows are
+    // rendered, we revisit each page (bufferedPages) to draw the
+    // vertical column separators and outer table border per page.
     const taxType = inv.isInterState ? 'IGST' : 'CGST+SGST';
     const PAD = 5;
     const cols = {
@@ -234,18 +256,39 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     const tableRight = leftX + contentW;
     const HEADER_H = 22;
 
-    // Capture the table's top Y so we can draw the outer border + vertical
-    // separators in one shot after all rows are rendered.
-    const tableTopY = y;
+    // Per-page table bounds, populated as we lay out rows. Used after
+    // the items loop to draw verticals + outer border on each page.
+    const tablePages: Array<{
+      pageIdx: number;
+      tableTopY: number;
+      bodyTopY: number;
+      bodyBottomY: number;
+    }> = [];
 
-    // Header row with background + bottom border
-    doc.rect(leftX, y, contentW, HEADER_H).fillAndStroke('#1F1F1F', '#1F1F1F');
-    doc.fillColor('#FFFFFF').fontSize(9).font('Body-Bold');
-    Object.values(cols).forEach((c) => {
-      doc.text(c.label, c.x + PAD, y + 6, { width: c.w - PAD * 2, align: c.align });
-    });
-    y += HEADER_H;
-    const bodyTopY = y;
+    const drawTableHeaderAt = (yPos: number): number => {
+      doc.rect(leftX, yPos, contentW, HEADER_H).fillAndStroke('#1F1F1F', '#1F1F1F');
+      doc.fillColor('#FFFFFF').fontSize(9).font('Body-Bold');
+      Object.values(cols).forEach((c) => {
+        // `height` is critical — without it, PDFKit's line-wrapper will
+        // call addPage() itself when the cell text wraps near the page
+        // bottom, breaking our own pagination logic.
+        doc.text(c.label, c.x + PAD, yPos + 6, {
+          width: c.w - PAD * 2,
+          height: HEADER_H,
+          align: c.align,
+        });
+      });
+      return yPos + HEADER_H;
+    };
+
+    // Open the first page's table section
+    let currentTable = {
+      pageIdx: doc.bufferedPageRange().count - 1,
+      tableTopY: y,
+      bodyTopY: drawTableHeaderAt(y),
+      bodyBottomY: 0,
+    };
+    y = currentTable.bodyTopY;
 
     // Rows
     doc.font('Body').fontSize(9).fillColor('#222');
@@ -257,9 +300,20 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
       const taxBlockH = 32; // amount + rate + type stacked
       const rowH = Math.max(descNameH + subLineH + PAD * 2, taxBlockH + PAD * 2, 40);
 
-      if (y + rowH > 760) {
+      if (y + rowH > PAGE_ROW_LIMIT_Y) {
+        // Close current page's table extent, then open a new page
+        currentTable.bodyBottomY = y;
+        tablePages.push(currentTable);
         doc.addPage();
-        y = PAGE_MARGIN;
+        const newTop = PAGE_MARGIN;
+        const newBodyTop = drawTableHeaderAt(newTop);
+        currentTable = {
+          pageIdx: doc.bufferedPageRange().count - 1,
+          tableTopY: newTop,
+          bodyTopY: newBodyTop,
+          bodyBottomY: 0,
+        };
+        y = newBodyTop;
       }
 
       // Subtle alternating row tint to make rows easier to read
@@ -268,25 +322,36 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
       }
       doc.fillColor('#222');
 
+      // `lineBreak: false` + `height` are both critical here. Without
+      // them PDFKit's LineWrapper.nextSection() will call
+      // continueOnNewPage when a cell is drawn near the page bottom
+      // (even with explicit y coords), creating phantom blank pages.
+      // Setting `height` makes nextSection() truncate with ellipsis
+      // instead of paginating — see line_wrapper.js in pdfkit.
+      const cellOpts = { lineBreak: false as const, height: rowH };
+
       // Sl. No.
       doc.font('Body').fontSize(9).fillColor('#222').text(
         String(i + 1),
         cols.sl.x + PAD,
         y + PAD,
-        { width: cols.sl.w - PAD * 2, align: cols.sl.align },
+        { width: cols.sl.w - PAD * 2, align: cols.sl.align, ...cellOpts },
       );
 
       // Description: name (regular) + SKU (small grey) + HSN (small grey)
       doc.fontSize(9).fillColor('#1A1A1A').text(it.name, cols.desc.x + PAD, y + PAD, {
         width: cols.desc.w - PAD * 2,
+        height: rowH,
       });
       const subY = y + PAD + descNameH + 1;
       doc.fontSize(7).fillColor('#777').text(`SKU: ${it.sku}`, cols.desc.x + PAD, subY, {
         width: cols.desc.w - PAD * 2,
+        ...cellOpts,
       });
       if (it.hsnCode) {
         doc.text(`HSN: ${it.hsnCode}`, cols.desc.x + PAD, subY + 10, {
           width: cols.desc.w - PAD * 2,
+          ...cellOpts,
         });
       }
 
@@ -294,12 +359,14 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
       doc.fontSize(9).fillColor('#1A1A1A').text(String(it.quantity), cols.qty.x + PAD, y + PAD, {
         width: cols.qty.w - PAD * 2,
         align: cols.qty.align,
+        ...cellOpts,
       });
 
       // Unit Price
       doc.text(inrPlain(it.unitPrice), cols.rate.x + PAD, y + PAD, {
         width: cols.rate.w - PAD * 2,
         align: cols.rate.align,
+        ...cellOpts,
       });
 
       // Tax: amount (bold), rate (small), type (small)
@@ -308,13 +375,13 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
         inrPlain(lineTax),
         cols.tax.x + PAD,
         y + PAD,
-        { width: cols.tax.w - PAD * 2, align: cols.tax.align },
+        { width: cols.tax.w - PAD * 2, align: cols.tax.align, ...cellOpts },
       );
       doc.font('Body').fontSize(7).fillColor('#777').text(
         `${it.taxPercent}% ${taxType}`,
         cols.tax.x + PAD,
         y + PAD + 12,
-        { width: cols.tax.w - PAD * 2, align: cols.tax.align },
+        { width: cols.tax.w - PAD * 2, align: cols.tax.align, ...cellOpts },
       );
 
       // Total
@@ -322,7 +389,7 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
         inrPlain(it.lineTotal),
         cols.tot.x + PAD,
         y + PAD,
-        { width: cols.tot.w - PAD * 2, align: cols.tot.align },
+        { width: cols.tot.w - PAD * 2, align: cols.tot.align, ...cellOpts },
       );
 
       // Row bottom border
@@ -330,17 +397,35 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
       y += rowH;
     });
 
-    // Draw vertical column separators across the body (between header
-    // bottom and the last row), then the outer table border.
-    const tableBottomY = y;
-    doc.strokeColor('#D4C9B0').lineWidth(0.5);
-    Object.values(cols).forEach((c, idx) => {
-      if (idx === 0) return; // skip the very first edge — outer border draws it
-      doc.moveTo(c.x, bodyTopY).lineTo(c.x, tableBottomY).stroke();
+    // Close the final page's table extent
+    currentTable.bodyBottomY = y;
+    tablePages.push(currentTable);
+
+    // Draw verticals + outer border per page. We do this in a second
+    // pass so the rectangles don't paint over rows on subsequent
+    // pages and the extents are known for sure.
+    const lastTablePageIdx = currentTable.pageIdx;
+    tablePages.forEach((ext) => {
+      doc.switchToPage(ext.pageIdx);
+      doc.strokeColor('#D4C9B0').lineWidth(0.5);
+      Object.values(cols).forEach((c, idx) => {
+        if (idx === 0) return; // outer border draws the leftmost edge
+        doc.moveTo(c.x, ext.bodyTopY).lineTo(c.x, ext.bodyBottomY).stroke();
+      });
+      doc.strokeColor('#1F1F1F').lineWidth(0.8);
+      doc.rect(leftX, ext.tableTopY, contentW, ext.bodyBottomY - ext.tableTopY).stroke();
     });
-    doc.strokeColor('#1F1F1F').lineWidth(0.8);
-    doc.rect(leftX, tableTopY, contentW, tableBottomY - tableTopY).stroke();
     doc.lineWidth(1);
+
+    // Continue drawing on whichever page the items table ended on
+    doc.switchToPage(lastTablePageIdx);
+
+    // If the totals + signatory block wouldn't fit on the current
+    // page, push it to a fresh page so nothing gets clipped.
+    if (y + FOOTER_RESERVE > PAGE_ROW_LIMIT_Y) {
+      doc.addPage();
+      y = PAGE_MARGIN;
+    }
 
     // ── Totals row (separate, below the table) ──────────────────────
     y += 4;
@@ -428,6 +513,31 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
         y,
         { width: contentW },
       );
+
+    // ── Per-page footer: invoice number (left) + "Page X of Y" (right)
+    // Runs after all content is laid out so we know the final page
+    // count. `lineBreak: false` is critical here: footerY sits ~20pt
+    // above page bottom, and without it PDFKit's wrap check thinks
+    // the text might overflow and auto-adds a new page — which would
+    // then itself need a footer and cascade endlessly.
+    const range = doc.bufferedPageRange();
+    for (let i = 0; i < range.count; i++) {
+      doc.switchToPage(range.start + i);
+      const footerY = doc.page.height - 22;
+      doc.font('Body').fontSize(7).fillColor('#999');
+      doc.text(inv.invoiceNumber, PAGE_MARGIN, footerY, {
+        width: contentW / 2,
+        align: 'left',
+        height: 20,
+        lineBreak: false,
+      });
+      doc.text(`Page ${i + 1} of ${range.count}`, PAGE_MARGIN + contentW / 2, footerY, {
+        width: contentW / 2,
+        align: 'right',
+        height: 20,
+        lineBreak: false,
+      });
+    }
 
     doc.end();
   });

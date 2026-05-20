@@ -4,6 +4,7 @@ import { withAuth } from '@/lib/auth';
 import { fail, handleError } from '@/lib/api';
 import { renderInvoicePdf, type InvoiceItem } from '@/lib/invoice';
 import { detectStateFromAddress, GST_STATES } from '@/lib/gst-states';
+import { ensureInvoiceNumber } from '@/lib/invoice-serial';
 
 /**
  * Fetch a setting value from the DB (with a static fallback so a
@@ -94,8 +95,13 @@ export const GET = withAuth(async (_req, { params }) => {
           igst: 0,
         };
 
+    // Allocate (or fetch existing) GST invoice number — KK/<FY>/<NNNN>.
+    // Lazy so pending/cancelled orders never burn a serial.
+    const { formatted: invoiceNumber } = await ensureInvoiceNumber(order.id);
+
     const pdf = await renderInvoicePdf({
       orderNumber: order.orderNumber,
+      invoiceNumber,
       date: order.createdAt,
       company: {
         name: companyName || 'Kitchenary Kart',

@@ -236,6 +236,15 @@ model Order {
   paymentReference String?       @map("payment_reference")
   razorpayOrderId  String?       @map("razorpay_order_id")
 
+  /// Sequential GST invoice serial within a financial year. Allocated
+  /// lazily on first invoice download (see lib/invoice-serial.ts) so
+  /// pending/cancelled orders don't create gaps. NULL until allocated.
+  invoiceSerial         Int?     @map("invoice_serial")
+  /// Indian financial year string in "YYYY-YY" form (e.g. "2026-27"
+  /// for 1 April 2026 → 31 March 2027). Together with invoiceSerial,
+  /// composed as "KK/<fy>/<padded serial>" on the invoice PDF.
+  invoiceFinancialYear  String?  @map("invoice_financial_year") @db.VarChar(7)
+
   notes            String?
   internalNotes    String?       @map("internal_notes")
 
@@ -245,9 +254,11 @@ model Order {
   items            OrderItem[]
   payments         Payment[]
 
+  @@unique([invoiceFinancialYear, invoiceSerial], name: "invoice_fy_serial_unique")
   @@index([orderStatus])
   @@index([paymentStatus])
   @@index([createdAt])
+  @@index([invoiceFinancialYear])
   @@map("orders")
 }
 
