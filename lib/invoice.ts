@@ -12,6 +12,25 @@
  * Covers the mandatory fields under CGST Rule 46 for a B2B invoice.
  */
 import PDFDocument from 'pdfkit';
+import path from 'node:path';
+
+/**
+ * Roboto TTF font path — Roboto includes the ₹ (U+20B9) and full
+ * Unicode currency block, which PDFKit's built-in Helvetica (WinAnsi
+ * encoded) doesn't. We register it at the top of every render so
+ * every text call can use 'Body' / 'Body-Bold' instead of Helvetica.
+ *
+ * The font files are pulled in via outputFileTracingIncludes in
+ * next.config.js so Vercel's serverless trace includes them.
+ */
+const FONT_REGULAR = path.join(
+  process.cwd(),
+  'node_modules/roboto-fontface/fonts/Roboto/Roboto-Regular.ttf',
+);
+const FONT_BOLD = path.join(
+  process.cwd(),
+  'node_modules/roboto-fontface/fonts/Roboto/Roboto-Bold.ttf',
+);
 
 export interface InvoiceItem {
   name: string;
@@ -75,6 +94,20 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     doc.on('end', () => resolve(Buffer.concat(buffers)));
     doc.on('error', reject);
 
+    // Register Roboto under 'Body' / 'Body-Bold' aliases so the rest
+    // of the renderer reads naturally. If the TTF can't be loaded for
+    // any reason (e.g. running locally without the font installed),
+    // fall back to PDFKit's built-in Helvetica — the layout will still
+    // render, only the ₹ glyph will be missing.
+    try {
+      doc.registerFont('Body', FONT_REGULAR);
+      doc.registerFont('Body-Bold', FONT_BOLD);
+    } catch (e) {
+      console.warn('[invoice] Roboto font load failed, falling back to Helvetica:', e);
+      doc.registerFont('Body', 'Helvetica');
+      doc.registerFont('Body-Bold', 'Helvetica-Bold');
+    }
+
     const pageW = doc.page.width;
     const contentW = pageW - PAGE_MARGIN * 2;
     const colW = (contentW - COL_GAP) / 2;
@@ -83,11 +116,11 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
 
     // ── Header: seller (left) + invoice declaration (right) ──────────
     let yTop = PAGE_MARGIN;
-    doc.fontSize(18).fillColor('#A01818').font('Helvetica-Bold').text(inv.company.name, leftX, yTop, {
+    doc.fontSize(18).fillColor('#A01818').font('Body-Bold').text(inv.company.name, leftX, yTop, {
       width: colW,
     });
     const sellerNameY = doc.y;
-    doc.font('Helvetica').fontSize(9).fillColor('#333');
+    doc.font('Body').fontSize(9).fillColor('#333');
     if (inv.company.address) doc.text(inv.company.address, leftX, sellerNameY + 4, { width: colW });
     if (inv.company.pan) doc.text(`PAN No: ${inv.company.pan}`, leftX, doc.y + 2, { width: colW });
     if (inv.company.gst) doc.text(`GST Registration No: ${inv.company.gst}`, leftX, doc.y, { width: colW });
@@ -95,13 +128,13 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     const leftHeaderEndY = doc.y;
 
     // Right column — invoice declaration
-    doc.font('Helvetica-Bold').fontSize(11).fillColor('#000').text(
+    doc.font('Body-Bold').fontSize(11).fillColor('#000').text(
       'Tax Invoice / Bill of Supply / Cash Memo',
       rightX,
       yTop + 4,
       { width: colW, align: 'right' },
     );
-    doc.font('Helvetica').fontSize(9).fillColor('#555').text('(Triplicate for Supplier)', rightX, doc.y, {
+    doc.font('Body').fontSize(9).fillColor('#555').text('(Triplicate for Supplier)', rightX, doc.y, {
       width: colW,
       align: 'right',
     });
@@ -113,14 +146,14 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     let y = yTop + 10;
     const orderInfoY = y;
 
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#000').text('Order Number:', leftX, y);
-    doc.font('Helvetica').text(inv.orderNumber, leftX + 88, y);
-    doc.font('Helvetica-Bold').text('Order Date:', leftX, y + 14);
-    doc.font('Helvetica').text(inv.date.toLocaleDateString('en-IN'), leftX + 88, y + 14);
-    doc.font('Helvetica-Bold').text('Invoice Number:', leftX, y + 28);
-    doc.font('Helvetica').text(inv.orderNumber, leftX + 88, y + 28);
-    doc.font('Helvetica-Bold').text('Invoice Date:', leftX, y + 42);
-    doc.font('Helvetica').text(inv.date.toLocaleDateString('en-IN'), leftX + 88, y + 42);
+    doc.font('Body-Bold').fontSize(9).fillColor('#000').text('Order Number:', leftX, y);
+    doc.font('Body').text(inv.orderNumber, leftX + 88, y);
+    doc.font('Body-Bold').text('Order Date:', leftX, y + 14);
+    doc.font('Body').text(inv.date.toLocaleDateString('en-IN'), leftX + 88, y + 14);
+    doc.font('Body-Bold').text('Invoice Number:', leftX, y + 28);
+    doc.font('Body').text(inv.orderNumber, leftX + 88, y + 28);
+    doc.font('Body-Bold').text('Invoice Date:', leftX, y + 42);
+    doc.font('Body').text(inv.date.toLocaleDateString('en-IN'), leftX + 88, y + 42);
 
     // Right: Billing Address.
     // Render only the address — the shippingAddress field is built
@@ -130,11 +163,11 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     const billingAddr = inv.customer.billingAddress || inv.customer.shippingAddress;
     const shippingAddr = inv.customer.shippingAddress || inv.customer.billingAddress;
 
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#000').text('Billing Address:', rightX, y, {
+    doc.font('Body-Bold').fontSize(10).fillColor('#000').text('Billing Address:', rightX, y, {
       width: colW,
       align: 'right',
     });
-    doc.font('Helvetica').fontSize(9).fillColor('#333');
+    doc.font('Body').fontSize(9).fillColor('#333');
     if (billingAddr) {
       doc.text(billingAddr, rightX, doc.y + 2, { width: colW, align: 'right' });
     } else {
@@ -154,11 +187,11 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     // gift-order flows where ship-to differs from bill-to render
     // correctly. When the order only has one address, both blocks
     // show the same value (which is fine).
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#000').text('Shipping Address:', rightX, doc.y + 8, {
+    doc.font('Body-Bold').fontSize(10).fillColor('#000').text('Shipping Address:', rightX, doc.y + 8, {
       width: colW,
       align: 'right',
     });
-    doc.font('Helvetica').fontSize(9).fillColor('#333');
+    doc.font('Body').fontSize(9).fillColor('#333');
     if (shippingAddr) {
       doc.text(shippingAddr, rightX, doc.y + 2, { width: colW, align: 'right' });
     } else {
@@ -169,7 +202,7 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
         width: colW,
         align: 'right',
       });
-      doc.font('Helvetica-Bold').text(`Place of supply: ${inv.placeOfSupply.name}`, rightX, doc.y + 2, {
+      doc.font('Body-Bold').text(`Place of supply: ${inv.placeOfSupply.name}`, rightX, doc.y + 2, {
         width: colW,
         align: 'right',
       });
@@ -204,14 +237,14 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
 
     // Header row
     doc.rect(leftX, y, contentW, 26).fillAndStroke('#F5F1EA', '#CFC5A8');
-    doc.fillColor('#000').fontSize(8).font('Helvetica-Bold');
+    doc.fillColor('#000').fontSize(8).font('Body-Bold');
     Object.values(cols).forEach((c) => {
       doc.text(c.label, c.x + 2, y + 4, { width: c.w - 4, align: c.align });
     });
     y += 26;
 
     // Rows
-    doc.font('Helvetica').fontSize(8).fillColor('#222');
+    doc.font('Body').fontSize(8).fillColor('#222');
     inv.items.forEach((it, i) => {
       // Each row's height depends on how long the description wraps.
       const descLines = doc.heightOfString(it.name, { width: cols.desc.w - 4 });
@@ -224,7 +257,7 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
       }
 
       // Sl. No.
-      doc.font('Helvetica').fillColor('#222');
+      doc.font('Body').fillColor('#222');
       doc.text(String(i + 1), cols.sl.x + 2, y + 4, { width: cols.sl.w - 4, align: cols.sl.align });
 
       // Description: product name + small SKU + HSN line below
@@ -240,7 +273,7 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
         );
 
       // Numeric cells (reset font size)
-      doc.fontSize(8).fillColor('#222').font('Helvetica');
+      doc.fontSize(8).fillColor('#222').font('Body');
       const cellTopY = y + 4;
       doc.text(inrPlain(it.unitPrice), cols.rate.x + 2, cellTopY, { width: cols.rate.w - 4, align: 'right' });
       doc.text(String(it.quantity), cols.qty.x + 2, cellTopY, { width: cols.qty.w - 4, align: 'right' });
@@ -258,7 +291,7 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
 
     // ── Totals row ──────────────────────────────────────────────────
     doc.rect(leftX, y, contentW, 22).fillAndStroke('#F5F1EA', '#CFC5A8');
-    doc.fillColor('#000').font('Helvetica-Bold').fontSize(9);
+    doc.fillColor('#000').font('Body-Bold').fontSize(9);
     doc.text('TOTAL:', cols.sl.x + 2, y + 6, {
       width: cols.tax.x - cols.sl.x - 4,
       align: 'left',
@@ -269,7 +302,7 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     y += 30;
 
     // ── Tax breakdown ───────────────────────────────────────────────
-    doc.font('Helvetica').fontSize(8).fillColor('#444');
+    doc.font('Body').fontSize(8).fillColor('#444');
     if (inv.isInterState) {
       doc.text(`IGST: ${inrPlain(inv.taxBreakdown.igst)}`, leftX, y);
     } else {
@@ -285,8 +318,8 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     y = doc.y + 6;
 
     // ── Amount in words ─────────────────────────────────────────────
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#000').text('Amount in Words:', leftX, y);
-    doc.font('Helvetica').fontSize(9).fillColor('#222').text(
+    doc.font('Body-Bold').fontSize(9).fillColor('#000').text('Amount in Words:', leftX, y);
+    doc.font('Body').fontSize(9).fillColor('#222').text(
       `${rupeeWords(inv.total)} only.`,
       leftX,
       doc.y + 2,
@@ -295,14 +328,14 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
 
     // ── Signatory block (right) ─────────────────────────────────────
     const sigBlockY = y;
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#000').text(
+    doc.font('Body-Bold').fontSize(10).fillColor('#000').text(
       `For ${inv.company.name}:`,
       rightX,
       sigBlockY,
       { width: colW, align: 'right' },
     );
     // 30px space for handwritten signature
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#000').text('Authorized Signatory', rightX, sigBlockY + 50, {
+    doc.font('Body-Bold').fontSize(10).fillColor('#000').text('Authorized Signatory', rightX, sigBlockY + 50, {
       width: colW,
       align: 'right',
     });
@@ -313,7 +346,7 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     doc.moveTo(leftX, y).lineTo(leftX + contentW, y).strokeColor('#CFC5A8').stroke();
     y += 6;
     doc
-      .font('Helvetica')
+      .font('Body')
       .fontSize(8)
       .fillColor('#222')
       .text('Whether tax is payable under reverse charge — No', leftX, y, { width: contentW });

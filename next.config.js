@@ -13,7 +13,18 @@ const nextConfig = {
   // serverless trace already pulls in node_modules of any package
   // imported from a server function, so the AFM files come along.
   experimental: {
+    // pdfkit reads font AFM files at runtime relative to its own
+    // bundled location, so leaving it in node_modules keeps those
+    // files where pdfkit looks for them. The TTF font we register
+    // explicitly (Roboto, for ₹ + Unicode currency support) needs
+    // its own files bundled via outputFileTracingIncludes below.
     serverComponentsExternalPackages: ['pdfkit'],
+    outputFileTracingIncludes: {
+      '/api/orders/[id]/invoice': [
+        './node_modules/roboto-fontface/fonts/Roboto/Roboto-Regular.ttf',
+        './node_modules/roboto-fontface/fonts/Roboto/Roboto-Bold.ttf',
+      ],
+    },
   },
   async headers() {
     return [
