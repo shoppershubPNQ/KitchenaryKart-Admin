@@ -64,10 +64,13 @@ export async function PUT(req: NextRequest) {
       include: { items: true },
     });
 
-    // Fire the order-confirmation email. Awaited so any thrown error is
-    // caught by handleError, but the email helper is non-throwing and
-    // returns false on failure — email delivery never blocks the API
-    // returning success to the storefront.
+    // Send the order-confirmation email. MUST be awaited — Vercel serverless
+    // functions terminate immediately after returning the response, which
+    // cancels any in-flight `void`/fire-and-forget HTTP requests mid-flight
+    // (the Resend SDK then errors out with "Unable to fetch data"). Adds
+    // ~500ms to the response time, which is acceptable for a checkout call
+    // that already takes a few seconds for Razorpay verification + DB write.
+    // sendEmail() never throws — returns false on failure and logs it.
     if (order.customerEmail) {
       const { subject, html, text } = buildOrderConfirmationEmail({
         orderNumber: order.orderNumber,
@@ -86,8 +89,7 @@ export async function PUT(req: NextRequest) {
           lineTotal: Number(it.lineTotal),
         })),
       });
-      // Fire and forget — log internally if it fails but don't fail the response.
-      void sendEmail({
+      await sendEmail({
         to: order.customerEmail,
         subject,
         html,
