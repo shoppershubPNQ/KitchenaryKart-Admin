@@ -20,11 +20,13 @@ import { ROBOTO_REGULAR_B64, ROBOTO_BOLD_B64 } from './roboto-embedded';
  * doesn't. We register them at the top of every render so all text
  * calls can use 'Body' / 'Body-Bold' instead of Helvetica.
  *
- * The TTF binaries are read from node_modules at install/build time
- * (scripts/embed-font.cjs) and embedded as base64 into the bundle.
- * This is the only way to guarantee they ship inside the Vercel
- * serverless function — outputFileTracingIncludes wasn't reliable
- * for these binary assets.
+ * The TTF binaries live in admin/assets/fonts/ (committed to the repo,
+ * Apache 2.0 from googlefonts/roboto), and scripts/embed-font.cjs
+ * base64-encodes them into this file at install/build time. Embedding
+ * inside the JS bundle is the only way to guarantee they ship inside
+ * the Vercel serverless function — outputFileTracingIncludes wasn't
+ * reliable for these binary assets, and roboto-fontface / @fontsource
+ * both ship only .woff/.woff2 (which PDFKit cannot read).
  */
 const FONT_REGULAR_BUFFER =
   ROBOTO_REGULAR_B64.length > 0 ? Buffer.from(ROBOTO_REGULAR_B64, 'base64') : null;
@@ -94,15 +96,14 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     doc.on('error', reject);
 
     // Register Roboto under 'Body' / 'Body-Bold' aliases so the rest
-    // of the renderer reads naturally. Falls back to PDFKit's built-in
-    // Helvetica if the embedded base64 buffers are empty (happens when
-    // the build script ran before roboto-fontface was installed) — the
-    // layout still renders, only the ₹ glyph goes missing in that case.
+    // of the renderer reads naturally. Falls back to Helvetica only as
+    // a last resort (the embed script now fails the build if the TTFs
+    // are missing, so this branch should be unreachable in practice).
     if (FONT_REGULAR_BUFFER && FONT_BOLD_BUFFER) {
       doc.registerFont('Body', FONT_REGULAR_BUFFER);
       doc.registerFont('Body-Bold', FONT_BOLD_BUFFER);
     } else {
-      console.warn('[invoice] Roboto buffers are empty, falling back to Helvetica (₹ glyph will be missing)');
+      console.error('[invoice] Roboto buffers empty — Helvetica fallback, ₹ glyph will be missing');
       doc.registerFont('Body', 'Helvetica');
       doc.registerFont('Body-Bold', 'Helvetica-Bold');
     }
