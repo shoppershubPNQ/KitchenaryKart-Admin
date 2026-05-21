@@ -128,6 +128,7 @@ model Product {
   variants        ProductVariant[]
   orderItems      OrderItem[]
   movements       InventoryMovement[]
+  reviews         Review[]
 
   @@index([category])
   @@index([status])
@@ -202,6 +203,7 @@ model Customer {
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
   orders          Order[]
+  reviews         Review[]
 
   @@index([customerType])
   @@index([signupSource])
@@ -492,4 +494,50 @@ model Reel {
   @@index([position])
   @@index([isActive])
   @@map("reels")
+}
+
+/// Customer product reviews. Identified by productSku (not productId)
+/// so reviews survive catalog re-imports the same way orders + reels do.
+///
+/// Verified buyer: customerId must be set, and the customer must have
+/// at least one Order containing this SKU. Enforced at write time in
+/// the storefront POST /api/reviews handler — DB layer just stores
+/// the data.
+///
+/// Moderation: reviews default to isApproved=true (v1: customer-trust
+/// model). Admin can flip to false from /dashboard/reviews if abusive.
+model Review {
+  id            Int       @id @default(autoincrement())
+  productSku    String    @map("product_sku")
+  productId     Int?      @map("product_id")
+  product       Product?  @relation(fields: [productId], references: [id])
+
+  customerId    Int       @map("customer_id")
+  customer      Customer  @relation(fields: [customerId], references: [id])
+  /// Snapshot of the customer's display name at the time of writing
+  /// — keeps the review attribution stable even if the customer
+  /// renames their account.
+  customerName  String    @map("customer_name")
+
+  /// 1-5 integer rating. Validated client-side + on POST.
+  rating        Int
+  /// Optional short title (max ~80 chars enforced in the route).
+  title         String?
+  /// Required body, max ~2000 chars enforced in the route.
+  body          String
+  /// Defaults to true (v1 customer-trust). Admin can unapprove abusive
+  /// reviews via /dashboard/reviews — only approved reviews count
+  /// toward the displayed average + review list on the PDP.
+  isApproved    Boolean   @default(true) @map("is_approved")
+
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  /// One review per (sku, customer) — re-submitting overwrites the
+  /// existing review rather than creating duplicates.
+  @@unique([productSku, customerId], name: "review_sku_customer_unique")
+  @@index([productSku, isApproved])
+  @@index([customerId])
+  @@index([createdAt])
+  @@map("reviews")
 }

@@ -42,6 +42,7 @@ const NAV: NavItem[] = [
     ],
   },
   { href: '/dashboard/reels', label: 'Reels', icon: '🎬' },
+  { href: '/dashboard/reviews', label: 'Reviews', icon: '⭐' },
   { href: '/dashboard/policies', label: 'Policies', icon: '📄' },
   { href: '/dashboard/social', label: 'Social links', icon: '🔗', roles: ['admin'] },
   { href: '/dashboard/analytics', label: 'Analytics', icon: '📉' },
