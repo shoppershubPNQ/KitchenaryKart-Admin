@@ -512,11 +512,17 @@ model Review {
   productId     Int?      @map("product_id")
   product       Product?  @relation(fields: [productId], references: [id])
 
-  customerId    Int       @map("customer_id")
-  customer      Customer  @relation(fields: [customerId], references: [id])
+  /// Nullable so admin can seed demo / marketing reviews without
+  /// inventing a fake customer record. Storefront writes always
+  /// populate this (verified-buyer flow). With customerId NULL,
+  /// Postgres allows multiple admin-authored reviews per SKU under
+  /// the unique constraint — exactly what we want for seeded content.
+  customerId    Int?      @map("customer_id")
+  customer      Customer? @relation(fields: [customerId], references: [id])
   /// Snapshot of the customer's display name at the time of writing
   /// — keeps the review attribution stable even if the customer
-  /// renames their account.
+  /// renames their account. For admin-authored reviews this is the
+  /// display name the admin types in (e.g. "Rajesh K.").
   customerName  String    @map("customer_name")
 
   /// 1-5 integer rating. Validated client-side + on POST.
