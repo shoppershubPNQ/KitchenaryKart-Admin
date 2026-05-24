@@ -45,9 +45,15 @@ export const GET = withAuth(async (req) => {
     if (category) where.category = category;
     if (status) where.status = status as any;
     if (search) {
+      // Match against parent name / parent SKU AND variant SKU suffix
+      // so admins can paste a variant SKU (e.g. KKHE0049-CMM3C) and
+      // land on the parent product row that owns it. Variants stay
+      // managed inline under the parent's edit page — one row per
+      // parent is still the right model for the list view.
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { sku: { contains: search, mode: 'insensitive' } },
+        { variants: { some: { skuSuffix: { contains: search, mode: 'insensitive' } } } },
       ];
     }
     if (lowStock) {
