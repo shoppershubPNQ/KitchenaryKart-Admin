@@ -9,7 +9,7 @@
  * Size: Small, Size: Medium, Color: Red, etc. Each row is one (type, value)
  * pair with its own SKU suffix, price modifier, and stock.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/fetch';
 
 interface Variant {
@@ -20,6 +20,7 @@ interface Variant {
   skuSuffix: string | null;
   priceModifier: number | string;
   stock: number;
+  imageUrl: string | null;
 }
 
 interface Draft {
@@ -126,6 +127,7 @@ export function ProductVariants({ productId }: { productId: number }) {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-y border-slate-200">
             <tr>
+              <Th>Image</Th>
               <Th>Type</Th>
               <Th>Value</Th>
               <Th>SKU suffix</Th>
@@ -136,13 +138,23 @@ export function ProductVariants({ productId }: { productId: number }) {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading && (
-              <tr><td colSpan={6} className="p-4 text-center text-slate-400">Loading…</td></tr>
+              <tr><td colSpan={7} className="p-4 text-center text-slate-400">Loading…</td></tr>
             )}
             {!loading && variants.length === 0 && (
-              <tr><td colSpan={6} className="p-4 text-center text-slate-400">No variants yet.</td></tr>
+              <tr><td colSpan={7} className="p-4 text-center text-slate-400">No variants yet.</td></tr>
             )}
             {variants.map((v) => (
               <tr key={v.id} className="hover:bg-slate-50">
+                <td className="px-2 py-1.5">
+                  <VariantImageCell
+                    variant={v}
+                    onChange={(nextUrl) =>
+                      setVariants((prev) =>
+                        prev.map((x) => (x.id === v.id ? { ...x, imageUrl: nextUrl } : x)),
+                      )
+                    }
+                  />
+                </td>
                 <td className="px-2 py-1.5">
                   <input
                     className="input input-sm w-full"
@@ -273,5 +285,116 @@ function Th({
     >
       {children}
     </th>
+  );
+}
+
+/**
+ * Tiny image-upload cell embedded in each variant row.
+ *
+ * Click the empty box → file picker → uploads to Cloudinary via
+ * POST /api/variants/[id]/image → preview swaps to the new image.
+ * Hover an existing thumb → small × button removes it.
+ *
+ * `onChange` lets the parent table update its local row so the new
+ * imageUrl is reflected immediately (saves a re-fetch round-trip).
+ */
+function VariantImageCell({
+  variant,
+  onChange,
+}: {
+  variant: Variant;
+  onChange: (url: string | null) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function upload(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setErr(null);
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.append('file', files[0]);
+      const res = await fetch(`/api/variants/${variant.id}/image`, {
+        method: 'POST',
+        body: form,
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      onChange(data.imageUrl);
+    } catch (e: any) {
+      setErr(e.message || 'Upload failed');
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  }
+
+  async function clear() {
+    if (!confirm('Remove this variant image?')) return;
+    setErr(null);
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/variants/${variant.id}/image`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Remove failed');
+      onChange(null);
+    } catch (e: any) {
+      setErr(e.message || 'Remove failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="relative w-12 h-12">
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".jpg,.jpeg,.png,.webp,.gif"
+        className="hidden"
+        onChange={(e) => upload(e.target.files)}
+      />
+      {variant.imageUrl ? (
+        <div className="relative w-12 h-12 rounded border border-slate-200 bg-slate-50 overflow-hidden group">
+          <img
+            src={variant.imageUrl}
+            alt=""
+            className="w-full h-full object-contain cursor-pointer"
+            onClick={() => !busy && fileRef.current?.click()}
+            title="Click to replace"
+          />
+          <button
+            type="button"
+            onClick={clear}
+            disabled={busy}
+            aria-label="Remove image"
+            className="absolute top-0 right-0 w-4 h-4 grid place-items-center rounded-bl bg-red-600 text-white text-[10px] leading-none opacity-0 group-hover:opacity-100 hover:bg-red-700 disabled:opacity-30"
+          >
+            ×
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => !busy && fileRef.current?.click()}
+          disabled={busy}
+          title="Upload variant image"
+          className="w-12 h-12 rounded border border-dashed border-slate-300 text-slate-400 grid place-items-center text-xl hover:border-brand hover:text-brand disabled:opacity-50"
+        >
+          {busy ? '…' : '+'}
+        </button>
+      )}
+      {err && (
+        <div className="absolute top-full left-0 mt-1 text-[10px] text-red-600 whitespace-nowrap z-10 bg-white border border-red-200 rounded px-1.5 py-0.5">
+          {err}
+        </div>
+      )}
+    </div>
   );
 }
