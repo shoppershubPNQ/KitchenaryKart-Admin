@@ -26,6 +26,7 @@ type NavItem = NavLeaf | NavGroup;
 const NAV: NavItem[] = [
   { href: '/dashboard', label: 'Overview', icon: '📊' },
   { href: '/dashboard/products', label: 'Products', icon: '📦' },
+  { href: '/dashboard/variants', label: 'Variants', icon: '🔀' },
   { href: '/dashboard/collections', label: 'Collections', icon: '🗂️' },
   { href: '/dashboard/orders', label: 'Orders', icon: '🛒' },
   { href: '/dashboard/customers', label: 'Customers', icon: '👥' },
