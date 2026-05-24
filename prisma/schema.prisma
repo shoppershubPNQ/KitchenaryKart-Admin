@@ -150,12 +150,17 @@ model ProductVariant {
   priceModifier Decimal  @default(0) @db.Decimal(10, 2) @map("price_modifier")
   stock         Int      @default(0)
 
-  /// Optional per-variant image (Cloudinary URL). When set, the
-  /// storefront swaps the PDP main image to this one as soon as the
-  /// customer picks the variant. Falls back to the parent product's
-  /// imageUrl when blank — most variants share the same photo and
-  /// don't need their own.
+  /// Per-variant primary image (Cloudinary URL). Mirrors the
+  /// Product.imageUrl convention — first of `images` is set here
+  /// for fast list-card rendering without parsing the JSON.
   imageUrl      String?  @map("image_url")
+
+  /// Full per-variant image gallery — JSON array of Cloudinary URLs.
+  /// Populated via /api/variants/[id]/image (POST appends, DELETE
+  /// removes). When non-empty, the storefront PDP shows this gallery
+  /// instead of the parent's `images` when this variant is selected.
+  /// Falls back to parent.images when empty.
+  images        Json?
 
   createdAt     DateTime @default(now()) @map("created_at")
 

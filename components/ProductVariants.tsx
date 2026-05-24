@@ -21,6 +21,7 @@ interface Variant {
   priceModifier: number | string;
   stock: number;
   imageUrl: string | null;
+  images?: string[] | null;
 }
 
 interface Draft {
@@ -148,9 +149,11 @@ export function ProductVariants({ productId }: { productId: number }) {
                 <td className="px-2 py-1.5">
                   <VariantImageCell
                     variant={v}
-                    onChange={(nextUrl) =>
+                    onChange={(next) =>
                       setVariants((prev) =>
-                        prev.map((x) => (x.id === v.id ? { ...x, imageUrl: nextUrl } : x)),
+                        prev.map((x) =>
+                          x.id === v.id ? { ...x, imageUrl: next.imageUrl, images: next.images } : x,
+                        ),
                       )
                     }
                   />
@@ -289,25 +292,32 @@ function Th({
 }
 
 /**
- * Tiny image-upload cell embedded in each variant row.
+ * Mini-gallery cell embedded in each variant row.
  *
- * Click the empty box → file picker → uploads to Cloudinary via
- * POST /api/variants/[id]/image → preview swaps to the new image.
- * Hover an existing thumb → small × button removes it.
+ * - First slot = primary thumbnail (the imageUrl). Hover for × to remove.
+ *   Click to expand the gallery.
+ * - Expanded view = horizontal strip of all variant images + a "+"
+ *   tile to add more. Click any image to make it primary, hover for ×
+ *   to remove. Click outside (or press the chevron) to collapse.
  *
- * `onChange` lets the parent table update its local row so the new
- * imageUrl is reflected immediately (saves a re-fetch round-trip).
+ * Multi-file picker — admin can drop 3 photos at once and they all
+ * upload in a single POST (form field `files`). Files append to
+ * the variant's images array; imageUrl is set to the first if blank.
  */
 function VariantImageCell({
   variant,
   onChange,
 }: {
   variant: Variant;
-  onChange: (url: string | null) => void;
+  onChange: (next: { imageUrl: string | null; images: string[] }) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  const images = variant.images ?? [];
+  const primary = variant.imageUrl;
 
   async function upload(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -315,7 +325,7 @@ function VariantImageCell({
     setBusy(true);
     try {
       const form = new FormData();
-      form.append('file', files[0]);
+      for (const f of Array.from(files)) form.append('files', f);
       const res = await fetch(`/api/variants/${variant.id}/image`, {
         method: 'POST',
         body: form,
@@ -323,7 +333,9 @@ function VariantImageCell({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Upload failed');
-      onChange(data.imageUrl);
+      onChange({ imageUrl: data.imageUrl, images: data.images || [] });
+      // Auto-expand after first upload so the new images are visible
+      if ((data.images || []).length > 1) setExpanded(true);
     } catch (e: any) {
       setErr(e.message || 'Upload failed');
     } finally {
@@ -332,18 +344,20 @@ function VariantImageCell({
     }
   }
 
-  async function clear() {
-    if (!confirm('Remove this variant image?')) return;
+  async function removeOne(url: string) {
+    if (!confirm('Remove this image?')) return;
     setErr(null);
     setBusy(true);
     try {
       const res = await fetch(`/api/variants/${variant.id}/image`, {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
         credentials: 'include',
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Remove failed');
-      onChange(null);
+      onChange({ imageUrl: data.imageUrl, images: data.images || [] });
     } catch (e: any) {
       setErr(e.message || 'Remove failed');
     } finally {
@@ -351,45 +365,158 @@ function VariantImageCell({
     }
   }
 
-  return (
-    <div className="relative w-12 h-12">
-      <input
-        ref={fileRef}
-        type="file"
-        accept=".jpg,.jpeg,.png,.webp,.gif"
-        className="hidden"
-        onChange={(e) => upload(e.target.files)}
-      />
-      {variant.imageUrl ? (
-        <div className="relative w-12 h-12 rounded border border-slate-200 bg-slate-50 overflow-hidden group">
-          <img
-            src={variant.imageUrl}
-            alt=""
-            className="w-full h-full object-contain cursor-pointer"
-            onClick={() => !busy && fileRef.current?.click()}
-            title="Click to replace"
-          />
-          <button
-            type="button"
-            onClick={clear}
-            disabled={busy}
-            aria-label="Remove image"
-            className="absolute top-0 right-0 w-4 h-4 grid place-items-center rounded-bl bg-red-600 text-white text-[10px] leading-none opacity-0 group-hover:opacity-100 hover:bg-red-700 disabled:opacity-30"
-          >
-            ×
-          </button>
-        </div>
-      ) : (
+  async function setAsPrimary(url: string) {
+    setErr(null);
+    setBusy(true);
+    try {
+      const reordered = [url, ...images.filter((u) => u !== url)];
+      const res = await fetch(`/api/variants/${variant.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: url }),
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Update failed');
+      onChange({ imageUrl: url, images: reordered });
+    } catch (e: any) {
+      setErr(e.message || 'Update failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Empty state — no images yet
+  if (!primary && images.length === 0) {
+    return (
+      <div className="relative w-12 h-12">
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".jpg,.jpeg,.png,.webp,.gif"
+          multiple
+          className="hidden"
+          onChange={(e) => upload(e.target.files)}
+        />
         <button
           type="button"
           onClick={() => !busy && fileRef.current?.click()}
           disabled={busy}
-          title="Upload variant image"
+          title="Upload variant images (multi-select supported)"
           className="w-12 h-12 rounded border border-dashed border-slate-300 text-slate-400 grid place-items-center text-xl hover:border-brand hover:text-brand disabled:opacity-50"
         >
           {busy ? '…' : '+'}
         </button>
-      )}
+        {err && (
+          <div className="absolute top-full left-0 mt-1 text-[10px] text-red-600 whitespace-nowrap z-10 bg-white border border-red-200 rounded px-1.5 py-0.5">
+            {err}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Collapsed view: just the primary, with a counter badge if multiple
+  if (!expanded) {
+    return (
+      <div className="relative w-12 h-12">
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".jpg,.jpeg,.png,.webp,.gif"
+          multiple
+          className="hidden"
+          onChange={(e) => upload(e.target.files)}
+        />
+        <div className="relative w-12 h-12 rounded border border-slate-200 bg-slate-50 overflow-hidden group">
+          {primary && (
+            <img
+              src={primary}
+              alt=""
+              className="w-full h-full object-contain cursor-pointer"
+              onClick={() => setExpanded(true)}
+              title={`Click to manage ${images.length || 1} image${(images.length || 1) === 1 ? '' : 's'}`}
+            />
+          )}
+          {images.length > 1 && (
+            <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] font-semibold text-center py-0.5 leading-none pointer-events-none">
+              {images.length}
+            </span>
+          )}
+        </div>
+        {err && (
+          <div className="absolute top-full left-0 mt-1 text-[10px] text-red-600 whitespace-nowrap z-10 bg-white border border-red-200 rounded px-1.5 py-0.5">
+            {err}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Expanded view: horizontal strip of all images + add tile
+  return (
+    <div className="relative">
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".jpg,.jpeg,.png,.webp,.gif"
+        multiple
+        className="hidden"
+        onChange={(e) => upload(e.target.files)}
+      />
+      <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-md p-1.5 shadow-sm">
+        {images.map((u) => {
+          const isPrimary = u === primary;
+          return (
+            <div
+              key={u}
+              className={`relative w-12 h-12 rounded overflow-hidden border-2 group ${
+                isPrimary ? 'border-brand' : 'border-slate-200'
+              }`}
+            >
+              <img
+                src={u}
+                alt=""
+                className="w-full h-full object-contain bg-slate-50 cursor-pointer"
+                onClick={() => !isPrimary && !busy && setAsPrimary(u)}
+                title={isPrimary ? 'Primary image' : 'Click to set as primary'}
+              />
+              {isPrimary && (
+                <span className="absolute top-0 left-0 bg-brand text-white text-[8px] font-bold px-1 leading-tight">
+                  MAIN
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => removeOne(u)}
+                disabled={busy}
+                aria-label="Remove image"
+                className="absolute top-0 right-0 w-4 h-4 grid place-items-center rounded-bl bg-red-600 text-white text-[10px] leading-none opacity-0 group-hover:opacity-100 hover:bg-red-700 disabled:opacity-30"
+              >
+                ×
+              </button>
+            </div>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => !busy && fileRef.current?.click()}
+          disabled={busy}
+          title="Add image(s) — multi-select supported"
+          className="w-12 h-12 rounded border border-dashed border-slate-300 text-slate-400 grid place-items-center text-xl hover:border-brand hover:text-brand disabled:opacity-50 shrink-0"
+        >
+          {busy ? '…' : '+'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          aria-label="Collapse"
+          title="Collapse"
+          className="w-6 h-6 grid place-items-center text-slate-400 hover:text-ink text-sm ml-1"
+        >
+          ‹
+        </button>
+      </div>
       {err && (
         <div className="absolute top-full left-0 mt-1 text-[10px] text-red-600 whitespace-nowrap z-10 bg-white border border-red-200 rounded px-1.5 py-0.5">
           {err}
