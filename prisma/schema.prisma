@@ -276,6 +276,12 @@ model Order {
   /// Auto-stamped when admin moves the order to "delivered" status.
   deliveredAt     DateTime? @map("delivered_at")
 
+  /// Set when admin clicks "Mark contacted" on the abandoned-carts
+  /// page after sending a WhatsApp recovery message. Lets us hide
+  /// already-contacted carts from the active queue + measure recovery
+  /// rate (contacted → paid).
+  contactedAt     DateTime? @map("contacted_at")
+
   notes            String?
   internalNotes    String?       @map("internal_notes")
 
