@@ -64,6 +64,45 @@ export async function PUT(req: NextRequest) {
       include: { items: true },
     });
 
+    // Record coupon redemption — ONLY now that payment is confirmed, so
+    // abandoned/failed orders never burn a coupon's usage count. Guarded
+    // against double-verify (one redemption per order). Wrapped in
+    // try/catch so a coupon-bookkeeping hiccup never fails an order that
+    // the customer has already paid for.
+    if (order.couponCode) {
+      try {
+        const coupon = await prisma.coupon.findUnique({
+          where: { code: order.couponCode },
+          select: { id: true },
+        });
+        if (coupon) {
+          const already = await prisma.couponRedemption.findFirst({
+            where: { couponId: coupon.id, orderId: order.id },
+            select: { id: true },
+          });
+          if (!already) {
+            await prisma.$transaction([
+              prisma.couponRedemption.create({
+                data: {
+                  couponId: coupon.id,
+                  orderId: order.id,
+                  customerPhone: order.customerPhone,
+                  customerEmail: order.customerEmail,
+                  discountAmount: order.discountAmount,
+                },
+              }),
+              prisma.coupon.update({
+                where: { id: coupon.id },
+                data: { usageCount: { increment: 1 } },
+              }),
+            ]);
+          }
+        }
+      } catch (e) {
+        console.error('[checkout] coupon redemption recording failed', e);
+      }
+    }
+
     // Send the order-confirmation email. MUST be awaited — Vercel serverless
     // functions terminate immediately after returning the response, which
     // cancels any in-flight `void`/fire-and-forget HTTP requests mid-flight

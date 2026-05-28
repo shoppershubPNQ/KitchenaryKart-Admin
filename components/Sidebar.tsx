@@ -30,6 +30,7 @@ const NAV: NavItem[] = [
   { href: '/dashboard/collections', label: 'Collections', icon: '🗂️' },
   { href: '/dashboard/orders', label: 'Orders', icon: '🛒' },
   { href: '/dashboard/abandoned-carts', label: 'Abandoned carts', icon: '🛟' },
+  { href: '/dashboard/coupons', label: 'Coupons', icon: '🎟️' },
   { href: '/dashboard/customers', label: 'Customers', icon: '👥' },
   { href: '/dashboard/inventory', label: 'Inventory', icon: '📈' },
   { href: '/dashboard/inquiries', label: 'Inquiries', icon: '💬' },

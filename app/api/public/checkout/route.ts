@@ -7,12 +7,16 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { fail, handleError, ok } from '@/lib/api';
 import { createRazorpayOrder } from '@/lib/integrations/razorpay';
+import { validateCoupon } from '@/lib/coupon';
 
 const schema = z.object({
   customerName: z.string().min(1),
   customerEmail: z.string().email().optional().or(z.literal('')),
   customerPhone: z.string().min(1),
   shippingAddress: z.string().min(1),
+  /** Optional coupon code. Re-validated server-side — the client-sent
+   *  discount (if any) is never trusted. */
+  couponCode: z.string().optional().nullable(),
   items: z
     .array(
       z.object({
@@ -53,7 +57,26 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    const totalAmount = subtotal;
+    // Coupon: re-validate server-side (NEVER trust a client-sent
+    // discount). The discount computed here is what we actually charge.
+    let discountAmount = 0;
+    let appliedCouponCode: string | null = null;
+    if (body.couponCode && body.couponCode.trim()) {
+      const result = await validateCoupon({
+        code: body.couponCode,
+        subtotal,
+        customerPhone: body.customerPhone,
+      });
+      if (!result.valid) {
+        // Reject the order so the customer can fix/remove the coupon
+        // rather than silently charging full price.
+        return fail(result.message, 400);
+      }
+      discountAmount = result.discountAmount;
+      appliedCouponCode = result.coupon?.code ?? null;
+    }
+
+    const totalAmount = Math.max(0, subtotal - discountAmount);
     const orderNumber = `KK${Date.now().toString(36).toUpperCase()}`;
 
     const order = await prisma.order.create({
@@ -64,6 +87,8 @@ export async function POST(req: NextRequest) {
         customerPhone: body.customerPhone,
         shippingAddress: body.shippingAddress,
         subtotal,
+        discountAmount,
+        couponCode: appliedCouponCode,
         totalAmount,
         orderStatus: 'pending',
         paymentStatus: 'pending',
@@ -86,6 +111,9 @@ export async function POST(req: NextRequest) {
       razorpayKeyId: process.env.RAZORPAY_KEY_ID || '',
       amount: rz.amount,
       currency: rz.currency,
+      subtotal,
+      discountAmount,
+      couponCode: appliedCouponCode,
       customerName: body.customerName,
       customerEmail: body.customerEmail || '',
       customerPhone: body.customerPhone,
