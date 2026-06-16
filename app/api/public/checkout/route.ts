@@ -9,6 +9,12 @@ import { fail, handleError, ok } from '@/lib/api';
 import { createRazorpayOrder } from '@/lib/integrations/razorpay';
 import { validateCoupon } from '@/lib/coupon';
 
+// Shipping: free once the after-discount amount reaches the threshold,
+// flat fee below it. Keep in sync with web/lib/shipping.ts and the
+// Merchant Center shipping policy.
+const FREE_SHIPPING_THRESHOLD = 3000;
+const SHIPPING_FEE = 399;
+
 const schema = z.object({
   customerName: z.string().min(1),
   customerEmail: z.string().email().optional().or(z.literal('')),
@@ -76,7 +82,12 @@ export async function POST(req: NextRequest) {
       appliedCouponCode = result.coupon?.code ?? null;
     }
 
-    const totalAmount = Math.max(0, subtotal - discountAmount);
+    // Shipping is charged on the after-discount amount (free at/above the
+    // threshold). This is the binding amount the customer actually pays.
+    const afterDiscount = Math.max(0, subtotal - discountAmount);
+    const shippingCost =
+      afterDiscount >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
+    const totalAmount = afterDiscount + shippingCost;
     const orderNumber = `KK${Date.now().toString(36).toUpperCase()}`;
 
     const order = await prisma.order.create({
@@ -88,6 +99,7 @@ export async function POST(req: NextRequest) {
         shippingAddress: body.shippingAddress,
         subtotal,
         discountAmount,
+        shippingCost,
         couponCode: appliedCouponCode,
         totalAmount,
         orderStatus: 'pending',
@@ -113,6 +125,7 @@ export async function POST(req: NextRequest) {
       currency: rz.currency,
       subtotal,
       discountAmount,
+      shippingCost,
       couponCode: appliedCouponCode,
       customerName: body.customerName,
       customerEmail: body.customerEmail || '',
