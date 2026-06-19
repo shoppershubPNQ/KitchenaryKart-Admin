@@ -16,6 +16,11 @@ const FREE_SHIPPING_THRESHOLD = 3000;
 const SHIPPING_FEE = 399;
 
 const schema = z.object({
+  /** Logged-in customer's account id (from the web auth session). Optional
+   *  + verified server-side, so a missing/invalid id never blocks the
+   *  order — it just falls back to an unlinked order, as before. Links the
+   *  paid order to the account so it shows in "My Orders". */
+  customerId: z.number().int().positive().optional(),
   customerName: z.string().min(1),
   customerEmail: z.string().email().optional().or(z.literal('')),
   customerPhone: z.string().min(1),
@@ -90,9 +95,23 @@ export async function POST(req: NextRequest) {
     const totalAmount = afterDiscount + shippingCost;
     const orderNumber = `KK${Date.now().toString(36).toUpperCase()}`;
 
+    // Link the order to the logged-in account so it appears in "My Orders".
+    // Verified against the DB first: an invalid id can NEVER break order
+    // creation (no FK error) — it simply falls back to an unlinked order,
+    // exactly the prior behaviour.
+    let linkedCustomerId: number | null = null;
+    if (body.customerId != null) {
+      const acct = await prisma.customer.findUnique({
+        where: { id: body.customerId },
+        select: { id: true },
+      });
+      linkedCustomerId = acct?.id ?? null;
+    }
+
     const order = await prisma.order.create({
       data: {
         orderNumber,
+        customerId: linkedCustomerId,
         customerName: body.customerName,
         customerEmail: body.customerEmail || null,
         customerPhone: body.customerPhone,
