@@ -214,6 +214,7 @@ function TrackingCard({ order, onSaved }: { order: Order; onSaved: () => void | 
   const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber ?? '');
   const [trackingUrl, setTrackingUrl] = useState(order.trackingUrl ?? '');
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Reset locals if the underlying order reloads with different values
@@ -241,6 +242,8 @@ function TrackingCard({ order, onSaved }: { order: Order; onSaved: () => void | 
         }),
       });
       await onSaved();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save');
     } finally {
@@ -299,15 +302,21 @@ function TrackingCard({ order, onSaved }: { order: Order; onSaved: () => void | 
       <div className="flex items-center gap-3">
         <button
           type="button"
-          className="btn-primary"
+          className={saved ? 'btn-primary !bg-emerald-600' : 'btn-primary'}
           onClick={save}
           disabled={saving || !dirty}
         >
-          {saving ? 'Saving…' : 'Save tracking'}
+          {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save tracking'}
         </button>
+        {saved ? (
+          <span className="text-sm text-emerald-600 font-medium">
+            Saved — order marked Shipped &amp; customer notified ✅
+          </span>
+        ) : (
         <span className="text-xs text-slate-500">
           Customer sees this on /track and /account/orders/{order.orderNumber}.
         </span>
+        )}
       </div>
     </div>
   );
