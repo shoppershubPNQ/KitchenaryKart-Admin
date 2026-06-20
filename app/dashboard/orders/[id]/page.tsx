@@ -23,6 +23,8 @@ interface Order {
   shippingAddress: string | null;
   subtotal: number | null;
   taxAmount: number | null;
+  discountAmount: number | null;
+  couponCode: string | null;
   shippingCost: number | null;
   totalAmount: number | null;
   orderStatus: string;
@@ -132,10 +134,38 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
             ))}
           </tbody>
           <tfoot className="bg-slate-50 text-sm">
-            <tr><td colSpan={5} className="px-4 py-2 text-right text-slate-500">Subtotal</td><td className="px-4 py-2 text-right">{inr(order.subtotal)}</td></tr>
-            <tr><td colSpan={5} className="px-4 py-2 text-right text-slate-500">GST</td><td className="px-4 py-2 text-right">{inr(order.taxAmount)}</td></tr>
-            <tr><td colSpan={5} className="px-4 py-2 text-right text-slate-500">Shipping</td><td className="px-4 py-2 text-right">{inr(order.shippingCost)}</td></tr>
-            <tr><td colSpan={5} className="px-4 py-3 text-right font-semibold">Total</td><td className="px-4 py-3 text-right font-semibold text-brand">{inr(order.totalAmount)}</td></tr>
+            {(() => {
+              // Subtotal is the GST-inclusive item total. Derive the GST
+              // (taxAmount isn't stored) and the taxable value so the rows
+              // reconcile, and show the coupon discount as a percentage so
+              // it's clear how the Total dropped below the item subtotal.
+              const sub = Number(order.subtotal ?? 0);
+              const gst = order.items.reduce((s, it) => {
+                const lt = Number(it.lineTotal);
+                return s + (lt - lt / (1 + Number(it.taxPercent) / 100));
+              }, 0);
+              const taxable = sub - gst;
+              const rates = [...new Set(order.items.map((i) => Number(i.taxPercent)))];
+              const rateLbl = rates.length === 1 ? ` @ ${rates[0]}%` : '';
+              const disc = Number(order.discountAmount ?? 0);
+              const discPct = sub > 0 && disc > 0 ? (disc / sub) * 100 : 0;
+              const discLbl = discPct > 0
+                ? ` (${Number.isInteger(+discPct.toFixed(2)) ? discPct.toFixed(0) : discPct.toFixed(1)}%)`
+                : '';
+              const cell = 'px-4 py-2 text-right';
+              return (
+                <>
+                  <tr><td colSpan={5} className={`${cell} text-slate-500`}>Taxable Value (excl. GST)</td><td className={cell}>{inr(taxable)}</td></tr>
+                  <tr><td colSpan={5} className={`${cell} text-slate-500`}>GST{rateLbl}</td><td className={cell}>{inr(gst)}</td></tr>
+                  <tr><td colSpan={5} className={`${cell} text-slate-500`}>Subtotal (incl. GST)</td><td className={cell}>{inr(sub)}</td></tr>
+                  {disc > 0 && (
+                    <tr><td colSpan={5} className={`${cell} text-emerald-600`}>Discount{discLbl}</td><td className={`${cell} text-emerald-600`}>− {inr(disc)}</td></tr>
+                  )}
+                  <tr><td colSpan={5} className={`${cell} text-slate-500`}>Shipping</td><td className={cell}>{inr(order.shippingCost)}</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-3 text-right font-semibold">Total</td><td className="px-4 py-3 text-right font-semibold text-brand">{inr(order.totalAmount)}</td></tr>
+                </>
+              );
+            })()}
           </tfoot>
         </table>
       </div>
