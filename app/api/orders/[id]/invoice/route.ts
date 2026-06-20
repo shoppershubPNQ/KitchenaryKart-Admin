@@ -2,9 +2,10 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { fail, handleError } from '@/lib/api';
-import { renderInvoicePdf, type InvoiceItem } from '@/lib/invoice';
+import { renderInvoicePdf } from '@/lib/invoice';
 import { detectStateFromAddress, GST_STATES } from '@/lib/gst-states';
 import { ensureInvoiceNumber } from '@/lib/invoice-serial';
+import { computeOrderSummary } from '@/lib/order-summary';
 
 /**
  * Fetch a setting value from the DB (with a static fallback so a
@@ -65,33 +66,26 @@ export const GET = withAuth(async (_req, { params }) => {
     const placeOfSupply = detected ? { name: detected.name, code: detected.code } : null;
     const isInterState = !!(detected && detected.code !== companyStateCode);
 
-    // ── Items + per-line breakdown ──────────────────────────────────
-    // Each line's `lineTotal` in the DB already includes tax (the
-    // checkout totalAmount uses it). The "taxable value" is the
-    // pre-tax portion, derived as lineTotal / (1 + rate/100).
-    const items: InvoiceItem[] = order.items.map((it) => {
-      const taxPercent = Number(it.taxPercent);
-      const lineTotal = Number(it.lineTotal);
-      const taxableValue = +(lineTotal / (1 + taxPercent / 100)).toFixed(2);
-      return {
+    // ── Items + per-line breakdown (shared helper = identical to the
+    // website/admin/print). GST is computed on the DISCOUNTED net value;
+    // each line's stored lineTotal is GST-inclusive. ────────────────────
+    const summary = computeOrderSummary(
+      order.items.map((it) => ({
         name: it.productName || '',
         sku: it.productSku || '',
         hsnCode: it.product?.hsnCode ?? null,
+        lineInclusive: Number(it.lineTotal),
         quantity: it.quantity,
-        unitPrice: Number(it.unitPrice),
-        taxableValue,
-        taxPercent,
-        lineTotal,
-      };
-    });
-
-    const subtotal = items.reduce((s, i) => s + i.taxableValue, 0);
-    const totalTax = items.reduce((s, i) => s + (i.lineTotal - i.taxableValue), 0);
+        taxPercent: Number(it.taxPercent),
+      })),
+      Number(order.discountAmount || 0),
+      Number(order.shippingCost || 0),
+    );
     const taxBreakdown = isInterState
-      ? { cgst: 0, sgst: 0, igst: +totalTax.toFixed(2) }
+      ? { cgst: 0, sgst: 0, igst: summary.gstAmount }
       : {
-          cgst: +(totalTax / 2).toFixed(2),
-          sgst: +(totalTax / 2).toFixed(2),
+          cgst: +(summary.gstAmount / 2).toFixed(2),
+          sgst: +(summary.gstAmount / 2).toFixed(2),
           igst: 0,
         };
 
@@ -127,14 +121,8 @@ export const GET = withAuth(async (_req, { params }) => {
       },
       placeOfSupply,
       isInterState,
-      items,
-      subtotal: +subtotal.toFixed(2),
-      tax: +totalTax.toFixed(2),
       taxBreakdown,
-      shipping: Number(order.shippingCost || 0),
-      total: Number(order.totalAmount || 0),
-      discount: Number(order.discountAmount || 0),
-      couponCode: order.couponCode || undefined,
+      summary,
     });
 
     return new Response(new Uint8Array(pdf), {

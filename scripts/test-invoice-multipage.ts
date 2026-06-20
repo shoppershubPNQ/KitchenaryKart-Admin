@@ -6,22 +6,21 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { renderInvoicePdf } from '../lib/invoice';
+import { computeOrderSummary } from '../lib/order-summary';
 
 const ITEM_COUNT = parseInt(process.env.ITEMS || '30');
-const items = Array.from({ length: ITEM_COUNT }, (_, i) => ({
-  name: `Product ${i + 1}`,
-  sku: `KK${String(i + 1).padStart(4, '0')}`,
-  hsnCode: '84198190',
-  quantity: 1,
-  unitPrice: 1000,
-  taxableValue: 1000,
-  taxPercent: 18,
-  lineTotal: 1180,
-}));
-
-const subtotal = items.reduce((s, i) => s + i.taxableValue, 0);
-const totalTax = items.reduce((s, i) => s + (i.lineTotal - i.taxableValue), 0);
-const total = items.reduce((s, i) => s + i.lineTotal, 0);
+const summary = computeOrderSummary(
+  Array.from({ length: ITEM_COUNT }, (_, i) => ({
+    name: `Product ${i + 1}`,
+    sku: `KK${String(i + 1).padStart(4, '0')}`,
+    hsnCode: '84198190',
+    lineInclusive: 1180,
+    quantity: 1,
+    taxPercent: 18,
+  })),
+  0,
+  0,
+);
 
 renderInvoicePdf({
   orderNumber: 'KKTEST0001',
@@ -43,18 +42,14 @@ renderInvoicePdf({
   },
   placeOfSupply: { name: 'Maharashtra', code: '27' },
   isInterState: false,
-  items,
-  subtotal: +subtotal.toFixed(2),
-  tax: +totalTax.toFixed(2),
   taxBreakdown: {
-    cgst: +(totalTax / 2).toFixed(2),
-    sgst: +(totalTax / 2).toFixed(2),
+    cgst: +(summary.gstAmount / 2).toFixed(2),
+    sgst: +(summary.gstAmount / 2).toFixed(2),
     igst: 0,
   },
-  shipping: 0,
-  total: +total.toFixed(2),
+  summary,
 }).then((pdf) => {
   const outPath = path.join(__dirname, 'invoice-multipage-test.pdf');
   fs.writeFileSync(outPath, pdf);
-  console.log(`Wrote ${outPath} (${pdf.length} bytes, ${items.length} items)`);
+  console.log(`Wrote ${outPath} (${pdf.length} bytes, ${summary.lines.length} items)`);
 });

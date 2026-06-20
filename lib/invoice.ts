@@ -33,20 +33,7 @@ const FONT_REGULAR_BUFFER =
 const FONT_BOLD_BUFFER =
   ROBOTO_BOLD_B64.length > 0 ? Buffer.from(ROBOTO_BOLD_B64, 'base64') : null;
 
-export interface InvoiceItem {
-  name: string;
-  sku: string;
-  hsnCode: string | null;
-  quantity: number;
-  /** Pre-tax unit price. */
-  unitPrice: number;
-  /** Pre-tax line total = unitPrice × quantity (the "taxable value"). */
-  taxableValue: number;
-  /** Combined GST rate for this line, e.g. 18. */
-  taxPercent: number;
-  /** Line total = taxableValue + tax. */
-  lineTotal: number;
-}
+import type { OrderSummary } from './order-summary';
 
 export interface InvoiceInput {
   /** Customer-facing order ref (e.g. "KKMPDPIVW8") — the storefront's
@@ -82,18 +69,11 @@ export interface InvoiceInput {
   placeOfSupply: { name: string; code: string } | null;
   /** Inter-state ⇒ IGST single line; intra-state ⇒ CGST + SGST split. */
   isInterState: boolean;
-  items: InvoiceItem[];
-  subtotal: number;
-  tax: number;
   taxBreakdown: { cgst: number; sgst: number; igst: number };
-  shipping: number;
-  total: number;
-  /** Order-level discount (e.g. a coupon). Printed as a deduction so the
-   *  Net Payable visibly reconciles with the GST-inclusive item subtotal —
-   *  otherwise the total looks lower than the items with no explanation. */
-  discount?: number;
-  /** Coupon code applied, printed next to the discount line for clarity. */
-  couponCode?: string;
+  /** The full price breakdown (per-line + totals) from the shared helper —
+   *  same numbers + labels as the website, admin and print view. GST is on
+   *  the discounted net value. */
+  summary: OrderSummary;
 }
 
 const PAGE_MARGIN = 36;
@@ -249,18 +229,21 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     // redraw the table header, and continue. After all rows are
     // rendered, we revisit each page (bufferedPages) to draw the
     // vertical column separators and outer table border per page.
-    const taxType = inv.isInterState ? 'IGST' : 'CGST+SGST';
     const PAD = 5;
+    // Proportional widths (≈ % of contentW) so columns stay compact and
+    // balanced — no large blank gap after the description. Sl 5 · Desc 35 ·
+    // Qty 8 · Unit Price 18 · Discount 14 · GST 10 · Total 10.
     const cols = {
-      sl:   { x: leftX,        w: 28,  label: 'Sl.\nNo.', align: 'center' as const },
-      desc: { x: leftX + 28,   w: 250, label: 'Description', align: 'left' as const },
-      qty:  { x: leftX + 278,  w: 36,  label: 'Qty', align: 'center' as const },
-      rate: { x: leftX + 314,  w: 60,  label: 'Unit Price', align: 'right' as const },
-      tax:  { x: leftX + 374,  w: 80,  label: 'Tax', align: 'right' as const },
-      tot:  { x: leftX + 454,  w: 69,  label: 'Total', align: 'right' as const },
+      sl:   { x: leftX,        w: 26,  label: 'Sl.', align: 'center' as const },
+      desc: { x: leftX + 26,   w: 183, label: 'Description', align: 'left' as const },
+      qty:  { x: leftX + 209,  w: 42,  label: 'Qty', align: 'center' as const },
+      unit: { x: leftX + 251,  w: 94,  label: 'Unit Price\n(Excl. GST)', align: 'right' as const },
+      disc: { x: leftX + 345,  w: 73,  label: 'Discount', align: 'right' as const },
+      gst:  { x: leftX + 418,  w: 52,  label: 'GST', align: 'right' as const },
+      tot:  { x: leftX + 470,  w: 53,  label: 'Total', align: 'right' as const },
     };
     const tableRight = leftX + contentW;
-    const HEADER_H = 22;
+    const HEADER_H = 26;
 
     // Per-page table bounds, populated as we lay out rows. Used after
     // the items loop to draw verticals + outer border on each page.
@@ -298,16 +281,14 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
 
     // Rows
     doc.font('Body').fontSize(9).fillColor('#222');
-    inv.items.forEach((it, i) => {
-      // Row height driven by description wrap + SKU/HSN sub-lines
+    inv.summary.lines.forEach((it, i) => {
+      // Row height driven by the (fully wrapped) description + sub-lines.
       doc.fontSize(9);
       const descNameH = doc.heightOfString(it.name, { width: cols.desc.w - PAD * 2 });
-      const subLineH = it.hsnCode ? 22 : 11; // SKU line + HSN line if present
-      const taxBlockH = 32; // amount + rate + type stacked
-      const rowH = Math.max(descNameH + subLineH + PAD * 2, taxBlockH + PAD * 2, 40);
+      const subLineH = it.hsnCode ? 22 : 11; // SKU line + optional HSN line
+      const rowH = Math.max(descNameH + subLineH + PAD * 2, 34);
 
       if (y + rowH > PAGE_ROW_LIMIT_Y) {
-        // Close current page's table extent, then open a new page
         currentTable.bodyBottomY = y;
         tablePages.push(currentTable);
         doc.addPage();
@@ -322,83 +303,68 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
         y = newBodyTop;
       }
 
-      // Subtle alternating row tint to make rows easier to read
       if (i % 2 === 0) {
         doc.rect(leftX, y, contentW, rowH).fill('#FAF7EE');
       }
       doc.fillColor('#222');
-
-      // `lineBreak: false` + `height` are both critical here. Without
-      // them PDFKit's LineWrapper.nextSection() will call
-      // continueOnNewPage when a cell is drawn near the page bottom
-      // (even with explicit y coords), creating phantom blank pages.
-      // Setting `height` makes nextSection() truncate with ellipsis
-      // instead of paginating — see line_wrapper.js in pdfkit.
+      // lineBreak:false + height keep cells single-line (or truncate) so
+      // PDFKit's wrapper never triggers its own pagination — see the
+      // original note in git history.
       const cellOpts = { lineBreak: false as const, height: rowH };
 
-      // Sl. No.
+      // Sl.
       doc.font('Body').fontSize(9).fillColor('#222').text(
-        String(i + 1),
-        cols.sl.x + PAD,
-        y + PAD,
+        String(i + 1), cols.sl.x + PAD, y + PAD,
         { width: cols.sl.w - PAD * 2, align: cols.sl.align, ...cellOpts },
       );
 
-      // Description: name (regular) + SKU (small grey) + HSN (small grey)
+      // Description: full wrapped name + SKU (+ HSN)
       doc.fontSize(9).fillColor('#1A1A1A').text(it.name, cols.desc.x + PAD, y + PAD, {
         width: cols.desc.w - PAD * 2,
         height: rowH,
       });
       const subY = y + PAD + descNameH + 1;
       doc.fontSize(7).fillColor('#777').text(`SKU: ${it.sku}`, cols.desc.x + PAD, subY, {
-        width: cols.desc.w - PAD * 2,
-        ...cellOpts,
+        width: cols.desc.w - PAD * 2, ...cellOpts,
       });
       if (it.hsnCode) {
         doc.text(`HSN: ${it.hsnCode}`, cols.desc.x + PAD, subY + 10, {
-          width: cols.desc.w - PAD * 2,
-          ...cellOpts,
+          width: cols.desc.w - PAD * 2, ...cellOpts,
         });
       }
 
       // Qty
-      doc.fontSize(9).fillColor('#1A1A1A').text(String(it.quantity), cols.qty.x + PAD, y + PAD, {
-        width: cols.qty.w - PAD * 2,
-        align: cols.qty.align,
-        ...cellOpts,
-      });
-
-      // Unit Price
-      doc.text(inrPlain(it.unitPrice), cols.rate.x + PAD, y + PAD, {
-        width: cols.rate.w - PAD * 2,
-        align: cols.rate.align,
-        ...cellOpts,
-      });
-
-      // Tax: amount (bold), rate (small), type (small)
-      const lineTax = +(it.lineTotal - it.taxableValue).toFixed(2);
-      doc.fontSize(9).font('Body-Bold').fillColor('#1A1A1A').text(
-        inrPlain(lineTax),
-        cols.tax.x + PAD,
-        y + PAD,
-        { width: cols.tax.w - PAD * 2, align: cols.tax.align, ...cellOpts },
-      );
-      doc.font('Body').fontSize(7).fillColor('#777').text(
-        `${it.taxPercent}% ${taxType}`,
-        cols.tax.x + PAD,
-        y + PAD + 12,
-        { width: cols.tax.w - PAD * 2, align: cols.tax.align, ...cellOpts },
+      doc.font('Body').fontSize(9).fillColor('#1A1A1A').text(
+        String(it.quantity), cols.qty.x + PAD, y + PAD,
+        { width: cols.qty.w - PAD * 2, align: cols.qty.align, ...cellOpts },
       );
 
-      // Total
+      // Unit Price (excl. GST)
+      doc.text(inrPlain(it.unitNetPrice), cols.unit.x + PAD, y + PAD, {
+        width: cols.unit.w - PAD * 2, align: cols.unit.align, ...cellOpts,
+      });
+
+      // Discount (ex-GST amount, or — when none)
+      doc.fillColor(it.lineDiscount > 0 ? '#0A7D33' : '#777').text(
+        it.lineDiscount > 0 ? `- ${inrPlain(it.lineDiscount)}` : '—',
+        cols.disc.x + PAD, y + PAD,
+        { width: cols.disc.w - PAD * 2, align: cols.disc.align, ...cellOpts },
+      );
+
+      // GST: amount (on discounted value) + small rate
+      doc.fillColor('#1A1A1A').fontSize(9).text(inrPlain(it.lineGst), cols.gst.x + PAD, y + PAD, {
+        width: cols.gst.w - PAD * 2, align: cols.gst.align, ...cellOpts,
+      });
+      doc.fontSize(7).fillColor('#777').text(`${it.taxPercent}%`, cols.gst.x + PAD, y + PAD + 11, {
+        width: cols.gst.w - PAD * 2, align: cols.gst.align, ...cellOpts,
+      });
+
+      // Total (Net Value + GST)
       doc.font('Body-Bold').fontSize(9).fillColor('#1A1A1A').text(
-        inrPlain(it.lineTotal),
-        cols.tot.x + PAD,
-        y + PAD,
+        inrPlain(it.lineTotal), cols.tot.x + PAD, y + PAD,
         { width: cols.tot.w - PAD * 2, align: cols.tot.align, ...cellOpts },
       );
 
-      // Row bottom border
       doc.moveTo(leftX, y + rowH).lineTo(tableRight, y + rowH).strokeColor('#D4C9B0').stroke();
       y += rowH;
     });
@@ -439,10 +405,11 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     // columns, ending in a bold Net Payable bar — so the lower total is
     // fully explained instead of looking like an unexplained number.
     y += 6;
+    const s = inv.summary;
     const sumLabelX = leftX + PAD;
-    const sumLabelW = cols.tax.x - leftX - PAD * 2;
-    const sumValX = cols.tax.x;
-    const sumValW = tableRight - cols.tax.x - PAD;
+    const sumLabelW = cols.gst.x - leftX - PAD * 2;
+    const sumValX = cols.gst.x;
+    const sumValW = tableRight - cols.gst.x - PAD;
     const sumRow = (
       label: string,
       value: string,
@@ -450,67 +417,25 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     ) => {
       const h = 17;
       doc.font(o.bold ? 'Body-Bold' : 'Body').fontSize(9).fillColor(o.color || '#333');
-      doc.text(label, sumLabelX, y + 4, {
-        width: sumLabelW,
-        align: 'right',
-        lineBreak: false,
-        height: h,
-      });
-      doc.text(value, sumValX, y + 4, {
-        width: sumValW,
-        align: 'right',
-        lineBreak: false,
-        height: h,
-      });
+      doc.text(label, sumLabelX, y + 4, { width: sumLabelW, align: 'right', lineBreak: false, height: h });
+      doc.text(value, sumValX, y + 4, { width: sumValW, align: 'right', lineBreak: false, height: h });
       y += h;
     };
-    // Show the GST rate in the label. Derived from the line items so it
-    // stays correct for any rate; only printed when the whole order is a
-    // single rate (mixed-rate orders just show "IGST"/"CGST" without %).
-    const gstRates = [...new Set(inv.items.map((i) => i.taxPercent))];
-    const oneRate = gstRates.length === 1 ? gstRates[0] : null;
-    const igstLbl = oneRate != null ? `IGST @ ${oneRate}%` : 'IGST';
-    const cgstLbl = oneRate != null ? `CGST @ ${oneRate / 2}%` : 'CGST';
-    const sgstLbl = oneRate != null ? `SGST @ ${oneRate / 2}%` : 'SGST';
-    sumRow('Taxable Value (excl. GST)', inrPlain(inv.subtotal));
-    if (inv.isInterState) {
-      sumRow(igstLbl, inrPlain(inv.taxBreakdown.igst));
-    } else {
-      sumRow(cgstLbl, inrPlain(inv.taxBreakdown.cgst));
-      sumRow(sgstLbl, inrPlain(inv.taxBreakdown.sgst));
+    // GST-compliant ladder — identical labels + numbers across website,
+    // admin and print. GST is on the discounted Net Value.
+    sumRow('Excluding GST Price (Net Price)', inrPlain(s.netPrice));
+    if (s.discountPct > 0) {
+      sumRow(`Discount (${s.discountPct}%)`, `- ${inrPlain(s.discountAmount)}`, { color: '#0A7D33' });
     }
-    sumRow('Total (incl. GST)', inrPlain(inv.subtotal + inv.tax), { bold: true });
-    if (inv.discount && inv.discount > 0) {
-      // Show the effective discount percentage (derived from the amount
-      // vs the gross), NOT the coupon code. Whole percentages print as
-      // integers (e.g. "10%"), otherwise one decimal.
-      const gross = inv.subtotal + inv.tax;
-      const pct = gross > 0 ? (inv.discount / gross) * 100 : 0;
-      const pctLabel =
-        pct > 0
-          ? ` (${Number.isInteger(+pct.toFixed(2)) ? pct.toFixed(0) : pct.toFixed(1)}%)`
-          : '';
-      sumRow(`Discount${pctLabel}`, `- ${inrPlain(inv.discount)}`, { color: '#0A7D33' });
-    }
-    if (inv.shipping > 0) {
-      sumRow('Shipping', inrPlain(inv.shipping));
-    }
-    // Net Payable — bold black bar spanning the label + value area.
+    sumRow('Net Value', inrPlain(s.netValue));
+    sumRow(`GST (${s.gstRateLabel})`, inrPlain(s.gstAmount));
+    sumRow(`Shipping Cost${s.shipping === 0 ? ' (Free)' : ''}`, inrPlain(s.shipping));
+    // Net Payable Amount — bold black bar.
     y += 3;
     doc.rect(leftX, y, contentW, 26).fillAndStroke('#1F1F1F', '#1F1F1F');
     doc.fillColor('#FFFFFF').font('Body-Bold').fontSize(11);
-    doc.text('Net Payable', sumLabelX, y + 7, {
-      width: sumLabelW,
-      align: 'right',
-      lineBreak: false,
-      height: 26,
-    });
-    doc.text(inrPlain(inv.total), sumValX, y + 7, {
-      width: sumValW,
-      align: 'right',
-      lineBreak: false,
-      height: 26,
-    });
+    doc.text('Net Payable Amount', sumLabelX, y + 7, { width: sumLabelW, align: 'right', lineBreak: false, height: 26 });
+    doc.text(inrPlain(s.netPayable), sumValX, y + 7, { width: sumValW, align: 'right', lineBreak: false, height: 26 });
     y += 36;
     doc.fillColor('#444');
 
@@ -523,7 +448,7 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
       width: colW,
     });
     doc.font('Body').fontSize(9).fillColor('#222').text(
-      `${rupeeWords(inv.total)} only.`,
+      `${rupeeWords(inv.summary.netPayable)} only.`,
       leftX,
       doc.y + 2,
       { width: colW, lineGap: 1 },
