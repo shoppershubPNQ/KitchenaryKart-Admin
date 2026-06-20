@@ -133,6 +133,8 @@ export const GET = withAuth(async (_req, { params }) => {
       taxBreakdown,
       shipping: Number(order.shippingCost || 0),
       total: Number(order.totalAmount || 0),
+      discount: Number(order.discountAmount || 0),
+      couponCode: order.couponCode || undefined,
     });
 
     return new Response(new Uint8Array(pdf), {

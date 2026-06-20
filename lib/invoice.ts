@@ -88,6 +88,12 @@ export interface InvoiceInput {
   taxBreakdown: { cgst: number; sgst: number; igst: number };
   shipping: number;
   total: number;
+  /** Order-level discount (e.g. a coupon). Printed as a deduction so the
+   *  Net Payable visibly reconciles with the GST-inclusive item subtotal —
+   *  otherwise the total looks lower than the items with no explanation. */
+  discount?: number;
+  /** Coupon code applied, printed next to the discount line for clarity. */
+  couponCode?: string;
 }
 
 const PAGE_MARGIN = 36;
@@ -98,7 +104,7 @@ const PAGE_ROW_LIMIT_Y = 770;
 // Vertical space the totals + amount-in-words + signatory + footer
 // block needs at the bottom of the last page. Used to decide whether
 // to push the totals to a fresh page after the items table ends.
-const FOOTER_RESERVE = 180;
+const FOOTER_RESERVE = 210;
 
 export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -446,17 +452,33 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     });
     y += 32;
 
-    // ── Tax breakdown ───────────────────────────────────────────────
+    // ── Price breakdown (ex-GST → GST → incl-GST → discount) ─────────
+    // Makes the GST split explicit and shows the coupon deduction, so the
+    // Net Payable above reconciles with the items instead of looking like
+    // an unexplained lower number.
     doc.font('Body').fontSize(9).fillColor('#444');
+    doc.text(`Taxable Value (excl. GST): ${inrPlain(inv.subtotal)}`, leftX, y, { width: contentW });
     if (inv.isInterState) {
-      doc.text(`IGST: ${inrPlain(inv.taxBreakdown.igst)}`, leftX, y, { width: contentW });
+      doc.text(`IGST: ${inrPlain(inv.taxBreakdown.igst)}`, leftX, doc.y + 2, { width: contentW });
     } else {
       doc.text(
         `CGST: ${inrPlain(inv.taxBreakdown.cgst)}   ·   SGST: ${inrPlain(inv.taxBreakdown.sgst)}`,
         leftX,
-        y,
+        doc.y + 2,
         { width: contentW },
       );
+    }
+    doc.text(`Total (incl. GST): ${inrPlain(inv.subtotal + inv.tax)}`, leftX, doc.y + 2, {
+      width: contentW,
+    });
+    if (inv.discount && inv.discount > 0) {
+      doc.fillColor('#0A7D33').text(
+        `Discount${inv.couponCode ? ` (${inv.couponCode})` : ''}: - ${inrPlain(inv.discount)}`,
+        leftX,
+        doc.y + 2,
+        { width: contentW },
+      );
+      doc.fillColor('#444');
     }
     if (inv.shipping > 0) {
       doc.text(`Shipping: ${inrPlain(inv.shipping)}`, leftX, doc.y + 2, { width: contentW });
