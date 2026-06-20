@@ -104,7 +104,7 @@ const PAGE_ROW_LIMIT_Y = 770;
 // Vertical space the totals + amount-in-words + signatory + footer
 // block needs at the bottom of the last page. Used to decide whether
 // to push the totals to a fresh page after the items table ends.
-const FOOTER_RESERVE = 210;
+const FOOTER_RESERVE = 270;
 
 export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -433,57 +433,73 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
       y = PAGE_MARGIN;
     }
 
-    // ── Totals row (separate, below the table) ──────────────────────
-    y += 4;
-    doc.rect(leftX, y, contentW, 24).fillAndStroke('#1F1F1F', '#1F1F1F');
-    doc.fillColor('#FFFFFF').font('Body-Bold').fontSize(10);
-    doc.text('TOTAL', leftX + PAD, y + 7, {
-      width: cols.tax.x - leftX - PAD * 2,
-      align: 'left',
-    });
-    const totalTaxAmount = +inv.tax.toFixed(2);
-    doc.text(inrPlain(totalTaxAmount), cols.tax.x + PAD, y + 7, {
-      width: cols.tax.w - PAD * 2,
-      align: 'right',
-    });
-    doc.text(inrPlain(inv.total), cols.tot.x + PAD, y + 7, {
-      width: cols.tot.w - PAD * 2,
-      align: 'right',
-    });
-    y += 32;
-
-    // ── Price breakdown (ex-GST → GST → incl-GST → discount) ─────────
-    // Makes the GST split explicit and shows the coupon deduction, so the
-    // Net Payable above reconciles with the items instead of looking like
-    // an unexplained lower number.
-    doc.font('Body').fontSize(9).fillColor('#444');
-    doc.text(`Taxable Value (excl. GST): ${inrPlain(inv.subtotal)}`, leftX, y, { width: contentW });
+    // ── Summary (right-aligned rows, aligned to the table columns) ───
+    // Reads as a continuation of the items table: the GST split and the
+    // coupon discount are laid out as label→value rows under the amount
+    // columns, ending in a bold Net Payable bar — so the lower total is
+    // fully explained instead of looking like an unexplained number.
+    y += 6;
+    const sumLabelX = leftX + PAD;
+    const sumLabelW = cols.tax.x - leftX - PAD * 2;
+    const sumValX = cols.tax.x;
+    const sumValW = tableRight - cols.tax.x - PAD;
+    const sumRow = (
+      label: string,
+      value: string,
+      o: { bold?: boolean; color?: string } = {},
+    ) => {
+      const h = 17;
+      doc.font(o.bold ? 'Body-Bold' : 'Body').fontSize(9).fillColor(o.color || '#333');
+      doc.text(label, sumLabelX, y + 4, {
+        width: sumLabelW,
+        align: 'right',
+        lineBreak: false,
+        height: h,
+      });
+      doc.text(value, sumValX, y + 4, {
+        width: sumValW,
+        align: 'right',
+        lineBreak: false,
+        height: h,
+      });
+      y += h;
+    };
+    sumRow('Taxable Value (excl. GST)', inrPlain(inv.subtotal));
     if (inv.isInterState) {
-      doc.text(`IGST: ${inrPlain(inv.taxBreakdown.igst)}`, leftX, doc.y + 2, { width: contentW });
+      sumRow('IGST', inrPlain(inv.taxBreakdown.igst));
     } else {
-      doc.text(
-        `CGST: ${inrPlain(inv.taxBreakdown.cgst)}   ·   SGST: ${inrPlain(inv.taxBreakdown.sgst)}`,
-        leftX,
-        doc.y + 2,
-        { width: contentW },
-      );
+      sumRow('CGST', inrPlain(inv.taxBreakdown.cgst));
+      sumRow('SGST', inrPlain(inv.taxBreakdown.sgst));
     }
-    doc.text(`Total (incl. GST): ${inrPlain(inv.subtotal + inv.tax)}`, leftX, doc.y + 2, {
-      width: contentW,
-    });
+    sumRow('Total (incl. GST)', inrPlain(inv.subtotal + inv.tax), { bold: true });
     if (inv.discount && inv.discount > 0) {
-      doc.fillColor('#0A7D33').text(
-        `Discount${inv.couponCode ? ` (${inv.couponCode})` : ''}: - ${inrPlain(inv.discount)}`,
-        leftX,
-        doc.y + 2,
-        { width: contentW },
+      sumRow(
+        `Discount${inv.couponCode ? ` (${inv.couponCode})` : ''}`,
+        `- ${inrPlain(inv.discount)}`,
+        { color: '#0A7D33' },
       );
-      doc.fillColor('#444');
     }
     if (inv.shipping > 0) {
-      doc.text(`Shipping: ${inrPlain(inv.shipping)}`, leftX, doc.y + 2, { width: contentW });
+      sumRow('Shipping', inrPlain(inv.shipping));
     }
-    y = doc.y + 10;
+    // Net Payable — bold black bar spanning the label + value area.
+    y += 3;
+    doc.rect(leftX, y, contentW, 26).fillAndStroke('#1F1F1F', '#1F1F1F');
+    doc.fillColor('#FFFFFF').font('Body-Bold').fontSize(11);
+    doc.text('Net Payable', sumLabelX, y + 7, {
+      width: sumLabelW,
+      align: 'right',
+      lineBreak: false,
+      height: 26,
+    });
+    doc.text(inrPlain(inv.total), sumValX, y + 7, {
+      width: sumValW,
+      align: 'right',
+      lineBreak: false,
+      height: 26,
+    });
+    y += 36;
+    doc.fillColor('#444');
 
     // ── Amount in words + Signatory side-by-side ────────────────────
     // Constrain amount-in-words to the left half so long numbers
