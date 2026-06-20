@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, inr, dateShort } from '@/lib/fetch';
+import { computeOrderSummary } from '@/lib/order-summary';
 
 interface OrderItem {
   id: number;
@@ -108,66 +109,69 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card overflow-x-auto">
         <div className="px-4 py-3 border-b border-slate-200 font-semibold">Items</div>
-        <table className="w-full text-sm">
-          <thead className="text-xs text-slate-500 uppercase bg-slate-50">
-            <tr>
-              <th className="px-4 py-2 text-left">SKU</th>
-              <th className="px-4 py-2 text-left">Name</th>
-              <th className="px-4 py-2 text-right">Qty</th>
-              <th className="px-4 py-2 text-right">Unit</th>
-              <th className="px-4 py-2 text-right">GST%</th>
-              <th className="px-4 py-2 text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {order.items.map(it => (
-              <tr key={it.id}>
-                <td className="px-4 py-2 font-mono text-xs">{it.productSku}</td>
-                <td className="px-4 py-2">{it.productName}</td>
-                <td className="px-4 py-2 text-right">{it.quantity}</td>
-                <td className="px-4 py-2 text-right">{inr(it.unitPrice)}</td>
-                <td className="px-4 py-2 text-right">{Number(it.taxPercent)}</td>
-                <td className="px-4 py-2 text-right font-medium">{inr(it.lineTotal)}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot className="bg-slate-50 text-sm">
-            {(() => {
-              // Subtotal is the GST-inclusive item total. Derive the GST
-              // (taxAmount isn't stored) and the taxable value so the rows
-              // reconcile, and show the coupon discount as a percentage so
-              // it's clear how the Total dropped below the item subtotal.
-              const sub = Number(order.subtotal ?? 0);
-              const gst = order.items.reduce((s, it) => {
-                const lt = Number(it.lineTotal);
-                return s + (lt - lt / (1 + Number(it.taxPercent) / 100));
-              }, 0);
-              const taxable = sub - gst;
-              const rates = [...new Set(order.items.map((i) => Number(i.taxPercent)))];
-              const rateLbl = rates.length === 1 ? ` @ ${rates[0]}%` : '';
-              const disc = Number(order.discountAmount ?? 0);
-              const discPct = sub > 0 && disc > 0 ? (disc / sub) * 100 : 0;
-              const discLbl = discPct > 0
-                ? ` (${Number.isInteger(+discPct.toFixed(2)) ? discPct.toFixed(0) : discPct.toFixed(1)}%)`
-                : '';
-              const cell = 'px-4 py-2 text-right';
-              return (
-                <>
-                  <tr><td colSpan={5} className={`${cell} text-slate-500`}>Taxable Value (excl. GST)</td><td className={cell}>{inr(taxable)}</td></tr>
-                  <tr><td colSpan={5} className={`${cell} text-slate-500`}>GST{rateLbl}</td><td className={cell}>{inr(gst)}</td></tr>
-                  <tr><td colSpan={5} className={`${cell} text-slate-500`}>Subtotal (incl. GST)</td><td className={cell}>{inr(sub)}</td></tr>
-                  {disc > 0 && (
-                    <tr><td colSpan={5} className={`${cell} text-emerald-600`}>Discount{discLbl}</td><td className={`${cell} text-emerald-600`}>− {inr(disc)}</td></tr>
-                  )}
-                  <tr><td colSpan={5} className={`${cell} text-slate-500`}>Shipping</td><td className={cell}>{inr(order.shippingCost)}</td></tr>
-                  <tr><td colSpan={5} className="px-4 py-3 text-right font-semibold">Total</td><td className="px-4 py-3 text-right font-semibold text-brand">{inr(order.totalAmount)}</td></tr>
-                </>
-              );
-            })()}
-          </tfoot>
-        </table>
+        {(() => {
+          // Shared helper = same numbers + labels as the invoice / website /
+          // print. GST on the discounted Net Value.
+          const summary = computeOrderSummary(
+            order.items.map((it) => ({
+              name: it.productName,
+              sku: it.productSku,
+              hsnCode: null,
+              lineInclusive: Number(it.lineTotal),
+              quantity: it.quantity,
+              taxPercent: Number(it.taxPercent),
+            })),
+            Number(order.discountAmount ?? 0),
+            Number(order.shippingCost ?? 0),
+          );
+          const cell = 'px-4 py-2 text-right';
+          const labelSpan = 6;
+          return (
+            <table className="w-full text-sm min-w-[640px]">
+              <thead className="text-xs text-slate-500 uppercase bg-slate-50">
+                <tr>
+                  <th className="px-4 py-2 text-left">Description</th>
+                  <th className="px-4 py-2 text-right">Qty</th>
+                  <th className="px-4 py-2 text-right">Unit Price</th>
+                  <th className="px-4 py-2 text-right">Discount</th>
+                  <th className="px-4 py-2 text-right">GST</th>
+                  <th className="px-4 py-2 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {summary.lines.map((l, i) => (
+                  <tr key={i}>
+                    <td className="px-4 py-2">
+                      <div>{l.name}</div>
+                      <div className="font-mono text-[11px] text-slate-400">SKU: {l.sku}</div>
+                    </td>
+                    <td className="px-4 py-2 text-right">{l.quantity}</td>
+                    <td className="px-4 py-2 text-right">{inr(l.unitNetPrice)}</td>
+                    <td className="px-4 py-2 text-right text-emerald-600">
+                      {l.lineDiscount > 0 ? inr(l.lineDiscount) : '—'}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {inr(l.lineGst)} <span className="text-slate-400 text-xs">({l.taxPercent}%)</span>
+                    </td>
+                    <td className="px-4 py-2 text-right font-medium">{inr(l.lineTotal)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-slate-50 text-sm">
+                <tr><td colSpan={labelSpan} className={`${cell} text-slate-500`}>Excluding GST Price (Net Price)</td><td className={cell}>{inr(summary.netPrice)}</td></tr>
+                {summary.discountPct > 0 && (
+                  <tr><td colSpan={labelSpan} className={`${cell} text-emerald-600`}>Discount ({summary.discountPct}%)</td><td className={`${cell} text-emerald-600`}>− {inr(summary.discountAmount)}</td></tr>
+                )}
+                <tr><td colSpan={labelSpan} className={`${cell} text-slate-500`}>Net Value</td><td className={cell}>{inr(summary.netValue)}</td></tr>
+                <tr><td colSpan={labelSpan} className={`${cell} text-slate-500`}>GST ({summary.gstRateLabel})</td><td className={cell}>{inr(summary.gstAmount)}</td></tr>
+                <tr><td colSpan={labelSpan} className={`${cell} text-slate-500`}>Shipping Cost{summary.shipping === 0 ? ' (Free)' : ''}</td><td className={cell}>{inr(summary.shipping)}</td></tr>
+                <tr><td colSpan={labelSpan} className="px-4 py-3 text-right font-semibold">Net Payable Amount</td><td className="px-4 py-3 text-right font-semibold text-brand">{inr(summary.netPayable)}</td></tr>
+              </tfoot>
+            </table>
+          );
+        })()}
       </div>
 
       {order.shippingAddress && (
