@@ -427,9 +427,14 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     if (s.discountPct > 0) {
       sumRow(`Discount (${s.discountPct}%)`, `- ${inrPlain(s.discountAmount)}`, { color: '#0A7D33' });
     }
-    sumRow('Net Value', inrPlain(s.netValue));
+    if (s.discountPct > 0) {
+      sumRow('Net Value', inrPlain(s.netValue));
+    }
+    sumRow(`Shipping Fee${s.shipping === 0 ? ' (Free)' : ''}`, inrPlain(s.shipping));
     sumRow(`GST (${s.gstRateLabel})`, inrPlain(s.gstAmount));
-    sumRow(`Shipping Cost${s.shipping === 0 ? ' (Free)' : ''}`, inrPlain(s.shipping));
+    if (s.roundOff !== 0) {
+      sumRow('Round Off', `${s.roundOff > 0 ? '+ ' : '- '}${inrPlain(Math.abs(s.roundOff))}`);
+    }
     // Net Payable Amount — bold black bar.
     y += 3;
     doc.rect(leftX, y, contentW, 26).fillAndStroke('#1F1F1F', '#1F1F1F');

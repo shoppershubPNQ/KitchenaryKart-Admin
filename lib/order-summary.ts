@@ -54,6 +54,8 @@ export interface OrderSummary {
   gstAmount: number;
   gstRateLabel: string;
   shipping: number;
+  /** Adjustment to reach a whole-rupee Net Payable (can be + or −). */
+  roundOff: number;
   netPayable: number;
   lines: SummaryLine[];
 }
@@ -91,9 +93,20 @@ export function computeOrderSummary(
 
   const netPrice = round2(lines.reduce((s, l) => s + l.lineNetPrice, 0));
   const netValue = round2(lines.reduce((s, l) => s + l.lineNetValue, 0));
-  const gstAmount = round2(lines.reduce((s, l) => s + l.lineGst, 0));
+  const goodsGst = round2(lines.reduce((s, l) => s + l.lineGst, 0));
   const rates = [...new Set(items.map((i) => i.taxPercent))];
   const gstRateLabel = rates.length === 1 ? `${rates[0]}%` : '';
+
+  // Shipping/freight is part of the taxable value (CGST Act s.15) — GST is
+  // charged on (Net Value + Shipping), taxed at the order's single rate (or
+  // 18% for a mixed-rate cart).
+  const shippingRate = rates.length === 1 ? rates[0] : 18;
+  const gstAmount = round2(goodsGst + shipping * (shippingRate / 100));
+
+  // Round the final payable to a whole rupee; the difference is the
+  // "Round Off" line (standard on Indian GST invoices).
+  const exactPayable = round2(netValue + shipping + gstAmount);
+  const netPayable = Math.round(exactPayable);
 
   return {
     netPrice,
@@ -103,7 +116,8 @@ export function computeOrderSummary(
     gstAmount,
     gstRateLabel,
     shipping: round2(shipping),
-    netPayable: round2(netValue + gstAmount + shipping),
+    roundOff: round2(netPayable - exactPayable),
+    netPayable,
     lines,
   };
 }

@@ -92,7 +92,16 @@ export async function POST(req: NextRequest) {
     const afterDiscount = Math.max(0, subtotal - discountAmount);
     const shippingCost =
       afterDiscount >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
-    const totalAmount = afterDiscount + shippingCost;
+    // Shipping/freight is taxable (CGST Act s.15) — add GST on it at the
+    // order's rate (or 18% for a mixed-rate cart). Charge a whole-rupee
+    // amount; the paise round-off shows on the invoice. shippingCost stays
+    // ex-GST (the invoice adds the GST). Keep in sync with
+    // computeOrderSummary().
+    const orderRates = [...new Set(itemsToCreate.map((i) => i.taxPercent))];
+    const shippingRate = orderRates.length === 1 ? orderRates[0] : 18;
+    const totalAmount = Math.round(
+      afterDiscount + shippingCost * (1 + shippingRate / 100),
+    );
     const orderNumber = `KK${Date.now().toString(36).toUpperCase()}`;
 
     // Link the order to the logged-in account so it appears in "My Orders".

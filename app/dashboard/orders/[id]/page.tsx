@@ -164,9 +164,14 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
                 {summary.discountPct > 0 && (
                   <tr><td colSpan={labelSpan} className={`${cell} text-emerald-600`}>Discount ({summary.discountPct}%)</td><td className={`${cell} text-emerald-600`}>− {inr(summary.discountAmount)}</td></tr>
                 )}
-                <tr><td colSpan={labelSpan} className={`${cell} text-slate-500`}>Net Value</td><td className={cell}>{inr(summary.netValue)}</td></tr>
+                {summary.discountPct > 0 && (
+                  <tr><td colSpan={labelSpan} className={`${cell} text-slate-500`}>Net Value</td><td className={cell}>{inr(summary.netValue)}</td></tr>
+                )}
+                <tr><td colSpan={labelSpan} className={`${cell} text-slate-500`}>Shipping Fee{summary.shipping === 0 ? ' (Free)' : ''}</td><td className={cell}>{inr(summary.shipping)}</td></tr>
                 <tr><td colSpan={labelSpan} className={`${cell} text-slate-500`}>GST ({summary.gstRateLabel})</td><td className={cell}>{inr(summary.gstAmount)}</td></tr>
-                <tr><td colSpan={labelSpan} className={`${cell} text-slate-500`}>Shipping Cost{summary.shipping === 0 ? ' (Free)' : ''}</td><td className={cell}>{inr(summary.shipping)}</td></tr>
+                {summary.roundOff !== 0 && (
+                  <tr><td colSpan={labelSpan} className={`${cell} text-slate-500`}>Round Off</td><td className={cell}>{summary.roundOff > 0 ? '+ ' : '− '}{inr(Math.abs(summary.roundOff))}</td></tr>
+                )}
                 <tr><td colSpan={labelSpan} className="px-4 py-3 text-right font-semibold">Net Payable Amount</td><td className="px-4 py-3 text-right font-semibold text-brand">{inr(summary.netPayable)}</td></tr>
               </tfoot>
             </table>
