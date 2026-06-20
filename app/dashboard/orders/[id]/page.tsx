@@ -215,6 +215,7 @@ function TrackingCard({ order, onSaved }: { order: Order; onSaved: () => void | 
   const [trackingUrl, setTrackingUrl] = useState(order.trackingUrl ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [toast, setToast] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Reset locals if the underlying order reloads with different values
@@ -229,6 +230,11 @@ function TrackingCard({ order, onSaved }: { order: Order; onSaved: () => void | 
     (trackingNumber || '') !== (order.trackingNumber ?? '') ||
     (trackingUrl || '') !== (order.trackingUrl ?? '');
 
+  // Tracking already persisted on the order → keep showing the green
+  // "✓ Saved" resting state (not a red "Save tracking" that looks unsaved).
+  const hasSavedTracking = !!(order.trackingNumber ?? '').trim();
+  const showSavedState = saved || (!dirty && hasSavedTracking);
+
   async function save() {
     setSaving(true);
     setError(null);
@@ -241,9 +247,12 @@ function TrackingCard({ order, onSaved }: { order: Order; onSaved: () => void | 
           trackingUrl: trackingUrl.trim() || null,
         }),
       });
-      await onSaved();
+      // Confirm immediately — don't gate the feedback on the reload below
+      // (the PATCH also sends the customer email, so onSaved() can be slow).
       setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
+      setToast(true);
+      setTimeout(() => setToast(false), 4000);
+      await onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save');
     } finally {
@@ -252,6 +261,19 @@ function TrackingCard({ order, onSaved }: { order: Order; onSaved: () => void | 
   }
 
   return (
+    <>
+    {toast && (
+      <div
+        role="status"
+        className="fixed top-4 right-4 z-[400] flex items-center gap-3 rounded-lg bg-emerald-600 text-white px-4 py-3 shadow-xl"
+      >
+        <span className="text-xl leading-none">✅</span>
+        <div>
+          <div className="font-semibold text-sm">Tracking saved</div>
+          <div className="text-xs text-emerald-50">Order marked Shipped &amp; customer notified</div>
+        </div>
+      </div>
+    )}
     <div className="card p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="label">Shipping & tracking</div>
@@ -302,13 +324,13 @@ function TrackingCard({ order, onSaved }: { order: Order; onSaved: () => void | 
       <div className="flex items-center gap-3">
         <button
           type="button"
-          className={saved ? 'btn-primary !bg-emerald-600' : 'btn-primary'}
+          className={showSavedState ? 'btn-primary !bg-emerald-600' : 'btn-primary'}
           onClick={save}
-          disabled={saving || !dirty}
+          disabled={saving || (!dirty && hasSavedTracking)}
         >
-          {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save tracking'}
+          {saving ? 'Saving…' : showSavedState ? '✓ Saved' : 'Save tracking'}
         </button>
-        {saved ? (
+        {showSavedState ? (
           <span className="text-sm text-emerald-600 font-medium">
             Saved — order marked Shipped &amp; customer notified ✅
           </span>
@@ -319,5 +341,6 @@ function TrackingCard({ order, onSaved }: { order: Order; onSaved: () => void | 
         )}
       </div>
     </div>
+    </>
   );
 }
