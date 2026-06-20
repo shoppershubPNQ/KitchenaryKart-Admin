@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { fail, handleError, ok } from '@/lib/api';
 import { notifyOrderStatus } from '@/lib/integrations/whatsapp';
+import { sendEmail } from '@/lib/integrations/resend';
+import { buildShippingNotificationEmail } from '@/lib/email-templates/shipping-notification';
 
 const patchSchema = z.object({
   orderStatus: z.enum(['pending', 'processing', 'shipped', 'delivered', 'cancelled']).optional(),
@@ -46,14 +48,25 @@ export const PATCH = withAuth(async (req, { params }) => {
     const current = await prisma.order.findUnique({ where: { id } });
     if (!current) return fail('Not found', 404);
 
+    // "Save tracking" (a tracking number being added) auto-advances the
+    // order to "shipped" in one step — the admin doesn't also have to
+    // change the status dropdown.
+    const trackingJustAdded =
+      body.trackingNumber != null &&
+      body.trackingNumber !== '' &&
+      !current.trackingNumber &&
+      current.orderStatus !== 'shipped' &&
+      current.orderStatus !== 'delivered';
+    const newStatus = body.orderStatus ?? (trackingJustAdded ? 'shipped' : undefined);
+
     // Auto-stamp shippedAt / deliveredAt on status transitions so the
     // customer-facing timeline gets accurate dates without the admin
     // needing to remember to set them manually.
     const autoStamps: { shippedAt?: Date; deliveredAt?: Date } = {};
-    if (body.orderStatus === 'shipped' && !current.shippedAt) {
+    if (newStatus === 'shipped' && !current.shippedAt) {
       autoStamps.shippedAt = new Date();
     }
-    if (body.orderStatus === 'delivered') {
+    if (newStatus === 'delivered') {
       if (!current.shippedAt) autoStamps.shippedAt = new Date();
       if (!current.deliveredAt) autoStamps.deliveredAt = new Date();
     }
@@ -62,6 +75,7 @@ export const PATCH = withAuth(async (req, { params }) => {
     // "" rows that the storefront's `if (trackingNumber)` checks treat
     // as truthy.
     const normalised = { ...body, ...autoStamps } as Record<string, unknown>;
+    if (newStatus) normalised.orderStatus = newStatus;
     for (const k of ['carrierName', 'trackingNumber', 'trackingUrl'] as const) {
       if (normalised[k] === '') normalised[k] = null;
     }
@@ -93,11 +107,32 @@ export const PATCH = withAuth(async (req, { params }) => {
       }
     }
 
-    // Notify customer if status moved
-    if (body.orderStatus && body.orderStatus !== current.orderStatus && order.customerPhone) {
-      notifyOrderStatus(order.customerPhone, order.orderNumber, body.orderStatus).catch(err =>
-        console.error('whatsapp error:', err)
+    const statusChanged = !!newStatus && newStatus !== current.orderStatus;
+
+    // WhatsApp status update (existing behaviour).
+    if (statusChanged && order.customerPhone) {
+      notifyOrderStatus(order.customerPhone, order.orderNumber, newStatus!).catch((err) =>
+        console.error('whatsapp error:', err),
       );
+    }
+
+    // Email the customer their tracking details the moment the order ships.
+    if (statusChanged && newStatus === 'shipped' && order.customerEmail) {
+      const mail = buildShippingNotificationEmail({
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        carrierName: order.carrierName,
+        trackingNumber: order.trackingNumber,
+        trackingUrl: order.trackingUrl,
+        trackUrl: `https://kitchenarykart.com/account/orders/${encodeURIComponent(order.orderNumber)}`,
+      });
+      await sendEmail({
+        to: order.customerEmail,
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
+        category: 'shipping-notification',
+      });
     }
 
     return ok({ order });

@@ -50,6 +50,8 @@ export async function PUT(req: NextRequest) {
       where: { id: body.orderId },
       data: {
         paymentStatus: 'completed',
+        // Paid orders move straight into the fulfilment queue.
+        orderStatus: 'processing',
         paymentMethod: 'razorpay',
         paymentReference: body.razorpayPaymentId,
         payments: {
