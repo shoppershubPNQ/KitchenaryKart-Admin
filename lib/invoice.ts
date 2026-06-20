@@ -464,20 +464,33 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
       });
       y += h;
     };
+    // Show the GST rate in the label. Derived from the line items so it
+    // stays correct for any rate; only printed when the whole order is a
+    // single rate (mixed-rate orders just show "IGST"/"CGST" without %).
+    const gstRates = [...new Set(inv.items.map((i) => i.taxPercent))];
+    const oneRate = gstRates.length === 1 ? gstRates[0] : null;
+    const igstLbl = oneRate != null ? `IGST @ ${oneRate}%` : 'IGST';
+    const cgstLbl = oneRate != null ? `CGST @ ${oneRate / 2}%` : 'CGST';
+    const sgstLbl = oneRate != null ? `SGST @ ${oneRate / 2}%` : 'SGST';
     sumRow('Taxable Value (excl. GST)', inrPlain(inv.subtotal));
     if (inv.isInterState) {
-      sumRow('IGST', inrPlain(inv.taxBreakdown.igst));
+      sumRow(igstLbl, inrPlain(inv.taxBreakdown.igst));
     } else {
-      sumRow('CGST', inrPlain(inv.taxBreakdown.cgst));
-      sumRow('SGST', inrPlain(inv.taxBreakdown.sgst));
+      sumRow(cgstLbl, inrPlain(inv.taxBreakdown.cgst));
+      sumRow(sgstLbl, inrPlain(inv.taxBreakdown.sgst));
     }
     sumRow('Total (incl. GST)', inrPlain(inv.subtotal + inv.tax), { bold: true });
     if (inv.discount && inv.discount > 0) {
-      sumRow(
-        `Discount${inv.couponCode ? ` (${inv.couponCode})` : ''}`,
-        `- ${inrPlain(inv.discount)}`,
-        { color: '#0A7D33' },
-      );
+      // Show the effective discount percentage (derived from the amount
+      // vs the gross), NOT the coupon code. Whole percentages print as
+      // integers (e.g. "10%"), otherwise one decimal.
+      const gross = inv.subtotal + inv.tax;
+      const pct = gross > 0 ? (inv.discount / gross) * 100 : 0;
+      const pctLabel =
+        pct > 0
+          ? ` (${Number.isInteger(+pct.toFixed(2)) ? pct.toFixed(0) : pct.toFixed(1)}%)`
+          : '';
+      sumRow(`Discount${pctLabel}`, `- ${inrPlain(inv.discount)}`, { color: '#0A7D33' });
     }
     if (inv.shipping > 0) {
       sumRow('Shipping', inrPlain(inv.shipping));
