@@ -142,14 +142,16 @@ export async function PUT(req: NextRequest) {
     // watching the dashboard. Awaited (Vercel cancels in-flight requests
     // after the response); sendEmail never throws. Recipient is
     // configurable via env, falling back to the seed admin / business box.
-    // Notify BOTH the business Gmail and the kitchenarykart.com inbox.
-    // ADMIN_NOTIFY_EMAIL (comma-separated) can override/extend this list.
+    // Notify BOTH real business inboxes — the Gmail and the Titan
+    // support box. (admin@kitchenarykart.com is only the admin LOGIN, not
+    // a real mailbox, so it must NOT be used here.) ADMIN_NOTIFY_EMAIL
+    // (comma-separated) can override/extend this list.
     const adminRecipients = [
       ...new Set(
         [
           ...(process.env.ADMIN_NOTIFY_EMAIL || '').split(',').map((s) => s.trim()),
           'shoppershub.ind@gmail.com',
-          process.env.SEED_ADMIN_EMAIL || 'admin@kitchenarykart.com',
+          'support@kitchenarykart.com',
         ].filter(Boolean),
       ),
     ];
