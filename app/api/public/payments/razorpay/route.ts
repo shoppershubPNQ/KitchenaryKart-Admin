@@ -142,11 +142,18 @@ export async function PUT(req: NextRequest) {
     // watching the dashboard. Awaited (Vercel cancels in-flight requests
     // after the response); sendEmail never throws. Recipient is
     // configurable via env, falling back to the seed admin / business box.
-    const adminEmail =
-      process.env.ADMIN_NOTIFY_EMAIL ||
-      process.env.SEED_ADMIN_EMAIL ||
-      'shoppershub.ind@gmail.com';
-    if (adminEmail) {
+    // Notify BOTH the business Gmail and the kitchenarykart.com inbox.
+    // ADMIN_NOTIFY_EMAIL (comma-separated) can override/extend this list.
+    const adminRecipients = [
+      ...new Set(
+        [
+          ...(process.env.ADMIN_NOTIFY_EMAIL || '').split(',').map((s) => s.trim()),
+          'shoppershub.ind@gmail.com',
+          process.env.SEED_ADMIN_EMAIL || 'admin@kitchenarykart.com',
+        ].filter(Boolean),
+      ),
+    ];
+    if (adminRecipients.length > 0) {
       const adminBase =
         process.env.ADMIN_BASE_URL || 'https://kitchenary-kart-admin-nujh.vercel.app';
       const adminMail = buildAdminNewOrderEmail({
@@ -167,7 +174,7 @@ export async function PUT(req: NextRequest) {
         adminOrderUrl: `${adminBase}/dashboard/orders/${order.id}`,
       });
       await sendEmail({
-        to: adminEmail,
+        to: adminRecipients,
         subject: adminMail.subject,
         html: adminMail.html,
         text: adminMail.text,

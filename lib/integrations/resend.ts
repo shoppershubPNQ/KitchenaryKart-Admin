@@ -30,7 +30,8 @@ function getFromHeader(): string {
 }
 
 interface SendArgs {
-  to: string;
+  /** A single recipient, or several (Resend accepts an array). */
+  to: string | string[];
   subject: string;
   html: string;
   text: string;
