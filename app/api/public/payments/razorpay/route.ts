@@ -5,6 +5,7 @@ import { fail, handleError, ok } from '@/lib/api';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/integrations/razorpay';
 import { sendEmail } from '@/lib/integrations/resend';
 import { buildOrderConfirmationEmail } from '@/lib/email-templates/order-confirmation';
+import { buildAdminNewOrderEmail } from '@/lib/email-templates/admin-new-order';
 
 const createSchema = z.object({
   orderId: z.number().int().positive(),
@@ -134,6 +135,43 @@ export async function PUT(req: NextRequest) {
         html,
         text,
         category: 'order-confirmation',
+      });
+    }
+
+    // Internal alert to the business so they can start fulfilment without
+    // watching the dashboard. Awaited (Vercel cancels in-flight requests
+    // after the response); sendEmail never throws. Recipient is
+    // configurable via env, falling back to the seed admin / business box.
+    const adminEmail =
+      process.env.ADMIN_NOTIFY_EMAIL ||
+      process.env.SEED_ADMIN_EMAIL ||
+      'shoppershub.ind@gmail.com';
+    if (adminEmail) {
+      const adminBase =
+        process.env.ADMIN_BASE_URL || 'https://kitchenary-kart-admin-nujh.vercel.app';
+      const adminMail = buildAdminNewOrderEmail({
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        customerEmail: order.customerEmail,
+        totalAmount: Number(order.totalAmount || 0),
+        discountAmount: Number(order.discountAmount || 0),
+        couponCode: order.couponCode,
+        paymentReference: order.paymentReference,
+        items: order.items.map((it) => ({
+          name: it.productName || '',
+          sku: it.productSku || '',
+          quantity: it.quantity,
+          lineTotal: Number(it.lineTotal),
+        })),
+        adminOrderUrl: `${adminBase}/dashboard/orders/${order.id}`,
+      });
+      await sendEmail({
+        to: adminEmail,
+        subject: adminMail.subject,
+        html: adminMail.html,
+        text: adminMail.text,
+        category: 'admin-new-order',
       });
     }
 
