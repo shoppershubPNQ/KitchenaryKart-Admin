@@ -237,13 +237,13 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
       sl:   { x: leftX,        w: 26,  label: 'Sl.', align: 'center' as const },
       desc: { x: leftX + 26,   w: 183, label: 'Description', align: 'left' as const },
       qty:  { x: leftX + 209,  w: 42,  label: 'Qty', align: 'center' as const },
-      unit: { x: leftX + 251,  w: 94,  label: 'Unit Price\n(Excl. GST)', align: 'right' as const },
+      unit: { x: leftX + 251,  w: 94,  label: 'Unit Price', align: 'right' as const },
       disc: { x: leftX + 345,  w: 73,  label: 'Discount', align: 'right' as const },
       gst:  { x: leftX + 418,  w: 52,  label: 'GST', align: 'right' as const },
       tot:  { x: leftX + 470,  w: 53,  label: 'Total', align: 'right' as const },
     };
     const tableRight = leftX + contentW;
-    const HEADER_H = 26;
+    const HEADER_H = 22;
 
     // Per-page table bounds, populated as we lay out rows. Used after
     // the items loop to draw verticals + outer border on each page.
@@ -344,9 +344,9 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
         width: cols.unit.w - PAD * 2, align: cols.unit.align, ...cellOpts,
       });
 
-      // Discount (ex-GST amount, or — when none)
+      // Discount (ex-GST amount, no minus sign; — when none)
       doc.fillColor(it.lineDiscount > 0 ? '#0A7D33' : '#777').text(
-        it.lineDiscount > 0 ? `- ${inrPlain(it.lineDiscount)}` : '—',
+        it.lineDiscount > 0 ? inrPlain(it.lineDiscount) : '—',
         cols.disc.x + PAD, y + PAD,
         { width: cols.disc.w - PAD * 2, align: cols.disc.align, ...cellOpts },
       );
