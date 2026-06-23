@@ -230,10 +230,10 @@ function TrackingCard({ order, onSaved }: { order: Order; onSaved: () => void | 
     (trackingNumber || '') !== (order.trackingNumber ?? '') ||
     (trackingUrl || '') !== (order.trackingUrl ?? '');
 
-  // Tracking already persisted on the order → keep showing the green
-  // "✓ Saved" resting state (not a red "Save tracking" that looks unsaved).
+  // Whether the order already carries a saved tracking number. Drives the
+  // button label ("Update tracking" vs "Save tracking") and keeps the button
+  // usable on an already-shipped order — WITHOUT a permanent green state.
   const hasSavedTracking = !!(order.trackingNumber ?? '').trim();
-  const showSavedState = saved || (!dirty && hasSavedTracking);
 
   async function save() {
     setSaving(true);
@@ -247,11 +247,13 @@ function TrackingCard({ order, onSaved }: { order: Order; onSaved: () => void | 
           trackingUrl: trackingUrl.trim() || null,
         }),
       });
-      // Confirm immediately — don't gate the feedback on the reload below
-      // (the PATCH also sends the customer email, so onSaved() can be slow).
+      // Transient confirmation — green button + inline note + toast appear for
+      // ~2.5s then revert. Fire immediately (don't gate on the reload, which
+      // also sends the customer email and can be slow).
       setSaved(true);
       setToast(true);
-      setTimeout(() => setToast(false), 4000);
+      setTimeout(() => setSaved(false), 2500);
+      setTimeout(() => setToast(false), 2500);
       await onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save');
@@ -324,13 +326,13 @@ function TrackingCard({ order, onSaved }: { order: Order; onSaved: () => void | 
       <div className="flex items-center gap-3">
         <button
           type="button"
-          className={showSavedState ? 'btn-primary !bg-emerald-600' : 'btn-primary'}
+          className={saved ? 'btn-primary !bg-emerald-600' : 'btn-primary'}
           onClick={save}
-          disabled={saving || (!dirty && hasSavedTracking)}
+          disabled={saving || (!dirty && !hasSavedTracking)}
         >
-          {saving ? 'Saving…' : showSavedState ? '✓ Saved' : 'Save tracking'}
+          {saving ? 'Saving…' : saved ? '✓ Saved' : hasSavedTracking ? 'Update tracking' : 'Save tracking'}
         </button>
-        {showSavedState ? (
+        {saved ? (
           <span className="text-sm text-emerald-600 font-medium">
             Saved — order marked Shipped &amp; customer notified ✅
           </span>
