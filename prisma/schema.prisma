@@ -122,6 +122,13 @@ model Product {
   imageUrl        String?       @map("image_url")
   images          Json?
 
+  /// Per-product FAQ entries surfaced on the PDP as an accordion and
+  /// emitted as schema.org FAQPage JSON-LD so AI search overviews
+  /// (ChatGPT, Perplexity, Google AI) can extract the Q&A directly.
+  /// Shape: [{ "q": "string", "a": "string" }, …]
+  /// Null/empty array → no FAQ section rendered on the PDP.
+  faqs            Json?
+
   metaTitle       String?       @map("meta_title")
   metaDescription String?       @map("meta_description")
   metaKeywords    String?       @map("meta_keywords")
@@ -240,6 +247,10 @@ model Order {
   customerName     String?       @map("customer_name")
   customerEmail    String?       @map("customer_email")
   customerPhone    String?       @map("customer_phone")
+  /// Buyer's GSTIN for B2B orders that want a GST input-credit invoice.
+  /// Captured at checkout when the customer ticks "business". The invoice
+  /// prefers this over the linked customer's stored GSTIN.
+  customerGstin    String?       @map("customer_gstin")
 
   shippingAddress  String?       @map("shipping_address")
   shippingMethod   String?       @map("shipping_method")

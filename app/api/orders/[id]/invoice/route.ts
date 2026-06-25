@@ -117,7 +117,9 @@ export const GET = withAuth(async (_req, { params }) => {
         // for typical D2C orders, which is fine.
         billingAddress: order.customer?.billingAddress || order.shippingAddress || undefined,
         shippingAddress: order.shippingAddress || order.customer?.billingAddress || undefined,
-        gstNumber: order.customer?.gstNumber || undefined,
+        // Prefer the GSTIN captured on the order at checkout (B2B buyers),
+        // then fall back to the linked customer's stored GSTIN.
+        gstNumber: order.customerGstin || order.customer?.gstNumber || undefined,
       },
       placeOfSupply,
       isInterState,

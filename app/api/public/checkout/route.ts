@@ -15,6 +15,9 @@ import { validateCoupon } from '@/lib/coupon';
 const FREE_SHIPPING_THRESHOLD = 3000;
 const SHIPPING_FEE = 399;
 
+/** Indian GSTIN: 2-digit state + 10-char PAN + entity + 'Z' + checksum. */
+const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
+
 const schema = z.object({
   /** Logged-in customer's account id (from the web auth session). Optional
    *  + verified server-side, so a missing/invalid id never blocks the
@@ -25,6 +28,9 @@ const schema = z.object({
   customerEmail: z.string().email().optional().or(z.literal('')),
   customerPhone: z.string().min(1),
   shippingAddress: z.string().min(1),
+  /** Optional buyer GSTIN for B2B orders. Lenient here so a malformed value
+   *  never breaks checkout — it's re-validated below and dropped if invalid. */
+  customerGstin: z.string().nullish(),
   /** Optional coupon code. Re-validated server-side — the client-sent
    *  discount (if any) is never trusted. */
   couponCode: z.string().optional().nullable(),
@@ -124,6 +130,12 @@ export async function POST(req: NextRequest) {
         customerName: body.customerName,
         customerEmail: body.customerEmail || null,
         customerPhone: body.customerPhone,
+        // B2B GST invoice: store only a well-formed GSTIN; drop anything else
+        // so a bad value can never break order creation.
+        customerGstin:
+          body.customerGstin && GSTIN_RE.test(body.customerGstin.trim().toUpperCase())
+            ? body.customerGstin.trim().toUpperCase()
+            : null,
         shippingAddress: body.shippingAddress,
         subtotal,
         discountAmount,

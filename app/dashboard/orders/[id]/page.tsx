@@ -21,6 +21,7 @@ interface Order {
   customerName: string | null;
   customerEmail: string | null;
   customerPhone: string | null;
+  customerGstin: string | null;
   shippingAddress: string | null;
   subtotal: number | null;
   taxAmount: number | null;
@@ -106,6 +107,12 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
           <div className="text-sm font-medium">{order.customerName || '—'}</div>
           <div className="text-xs text-slate-500">{order.customerEmail}</div>
           <div className="text-xs text-slate-500">{order.customerPhone}</div>
+          {order.customerGstin && (
+            <div className="mt-1 text-xs font-mono text-slate-700">
+              <span className="inline-block px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 mr-1">B2B</span>
+              GSTIN: {order.customerGstin}
+            </div>
+          )}
         </div>
       </div>
 
