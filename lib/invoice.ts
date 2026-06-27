@@ -13,6 +13,7 @@
  */
 import PDFDocument from 'pdfkit';
 import { ROBOTO_REGULAR_B64, ROBOTO_BOLD_B64 } from './roboto-embedded';
+import { STAMP_PNG_B64 } from './stamp-embedded';
 
 /**
  * Roboto TTF fonts — Roboto includes the ₹ (U+20B9) and full Unicode
@@ -32,6 +33,12 @@ const FONT_REGULAR_BUFFER =
   ROBOTO_REGULAR_B64.length > 0 ? Buffer.from(ROBOTO_REGULAR_B64, 'base64') : null;
 const FONT_BOLD_BUFFER =
   ROBOTO_BOLD_B64.length > 0 ? Buffer.from(ROBOTO_BOLD_B64, 'base64') : null;
+
+// Company seal/stamp drawn over the signatory line on every invoice.
+// Optional — null when assets/stamp.png hasn't been embedded yet, in
+// which case the invoice renders exactly as before (no stamp).
+const STAMP_BUFFER =
+  STAMP_PNG_B64.length > 0 ? Buffer.from(STAMP_PNG_B64, 'base64') : null;
 
 import type { OrderSummary } from './order-summary';
 
@@ -467,14 +474,27 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
       wordsBlockY,
       { width: colW, align: 'right' },
     );
+    // Company seal/stamp over the signatory line (auto on every invoice
+    // once assets/stamp.png is embedded). Wrapped in try/catch so a bad
+    // image can never break invoice generation on the live payment path.
+    if (STAMP_BUFFER) {
+      const stampSize = 66;
+      try {
+        doc.image(STAMP_BUFFER, rightX + colW - stampSize, wordsBlockY + 12, {
+          fit: [stampSize, stampSize],
+        });
+      } catch (e) {
+        console.error('[invoice] stamp image failed to render — skipping', e);
+      }
+    }
     doc.font('Body-Bold').fontSize(10).fillColor('#000').text(
       'Authorized Signatory',
       rightX,
-      wordsBlockY + 50,
+      wordsBlockY + (STAMP_BUFFER ? 84 : 50),
       { width: colW, align: 'right' },
     );
 
-    y = Math.max(wordsEndY, wordsBlockY + 70) + 12;
+    y = Math.max(wordsEndY, wordsBlockY + (STAMP_BUFFER ? 104 : 70)) + 12;
 
     // ── Footer: reverse charge + declaration ────────────────────────
     doc.moveTo(leftX, y).lineTo(leftX + contentW, y).strokeColor('#CFC5A8').stroke();
