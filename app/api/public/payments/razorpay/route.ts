@@ -6,6 +6,7 @@ import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/integrations
 import { sendEmail } from '@/lib/integrations/resend';
 import { buildOrderConfirmationEmail } from '@/lib/email-templates/order-confirmation';
 import { buildAdminNewOrderEmail } from '@/lib/email-templates/admin-new-order';
+import { ensureInvoiceNumber } from '@/lib/invoice-serial';
 
 const createSchema = z.object({
   orderId: z.number().int().positive(),
@@ -66,6 +67,17 @@ export async function PUT(req: NextRequest) {
       },
       include: { items: true },
     });
+
+    // Allocate the GST invoice serial NOW that payment is confirmed, so paid
+    // orders get clean sequential numbers in payment order — not whenever
+    // someone happens to view the invoice (which used to let unpaid orders
+    // jump the queue). Best-effort: a serial hiccup must never fail an order
+    // the customer already paid for; it falls back to first-invoice-view.
+    try {
+      await ensureInvoiceNumber(order.id);
+    } catch (e) {
+      console.error('[checkout] invoice serial allocation failed', e);
+    }
 
     // Record coupon redemption — ONLY now that payment is confirmed, so
     // abandoned/failed orders never burn a coupon's usage count. Guarded

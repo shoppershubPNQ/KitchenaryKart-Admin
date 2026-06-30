@@ -89,13 +89,18 @@ export const GET = withAuth(async (_req, { params }) => {
           igst: 0,
         };
 
-    // Allocate (or fetch existing) GST invoice number — KK/<FY>/<NNNN>.
-    // Lazy so pending/cancelled orders never burn a serial.
-    const { formatted: invoiceNumber } = await ensureInvoiceNumber(order.id);
+    // GST invoice number — KK/<FY>/<NNNN>. Allocated only for PAID orders
+    // (normally at payment-success time). An unpaid order gets no serial →
+    // we render a PROFORMA referencing the order number, so viewing an
+    // unpaid order's invoice never burns a real tax-invoice number.
+    const { formatted } = await ensureInvoiceNumber(order.id);
+    const proforma = formatted == null;
+    const invoiceNumber = formatted ?? `PRO/${order.orderNumber}`;
 
     const pdf = await renderInvoicePdf({
       orderNumber: order.orderNumber,
       invoiceNumber,
+      proforma,
       date: order.createdAt,
       company: {
         name: companyName || 'Kitchenary Kart',

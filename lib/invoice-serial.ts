@@ -79,8 +79,10 @@ export function formatInvoiceNumber(fy: string, serial: number): string {
  */
 export async function ensureInvoiceNumber(orderId: number): Promise<{
   fy: string;
-  serial: number;
-  formatted: string;
+  /** null when the order is not yet paid — no GST serial is burned. */
+  serial: number | null;
+  /** null when not paid; caller renders a proforma (see invoice route). */
+  formatted: string | null;
 }> {
   for (let attempt = 0; attempt < 3; attempt++) {
     const result = await tryAllocate(orderId);
@@ -90,11 +92,17 @@ export async function ensureInvoiceNumber(orderId: number): Promise<{
 }
 
 async function tryAllocate(orderId: number): Promise<
-  { fy: string; serial: number; formatted: string } | null
+  { fy: string; serial: number | null; formatted: string | null } | null
 > {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { id: true, createdAt: true, invoiceSerial: true, invoiceFinancialYear: true },
+    select: {
+      id: true,
+      createdAt: true,
+      invoiceSerial: true,
+      invoiceFinancialYear: true,
+      paymentStatus: true,
+    },
   });
   if (!order) throw new Error(`Order ${orderId} not found`);
 
@@ -110,6 +118,15 @@ async function tryAllocate(orderId: number): Promise<
   }
 
   const fy = getFinancialYear(order.createdAt);
+
+  // A GST tax-invoice number is for a COMPLETED sale. Only paid orders get a
+  // serial — pending/failed/cancelled orders return null so viewing their
+  // invoice never burns a number (it renders as a proforma instead). The
+  // serial is normally allocated at payment-success time (razorpay route),
+  // so paid orders get clean sequential numbers in payment order.
+  if (order.paymentStatus !== 'completed') {
+    return { fy, serial: null, formatted: null };
+  }
 
   try {
     return await prisma.$transaction(async (tx) => {

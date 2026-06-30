@@ -48,8 +48,12 @@ export interface InvoiceInput {
   orderNumber: string;
   /** GST invoice serial in `KK/<FY>/<padded>` form (e.g.
    *  "KK/2026-27/0001"). Required for GST compliance — see Rule 46(b).
-   *  Allocated lazily in lib/invoice-serial.ts. */
+   *  Allocated lazily in lib/invoice-serial.ts. For an unpaid order this is
+   *  a proforma reference (no serial) and `proforma` is set. */
   invoiceNumber: string;
+  /** True when the order isn't paid yet → render as a Proforma Invoice with
+   *  no GST serial (so unpaid orders never consume a tax-invoice number). */
+  proforma?: boolean;
   date: Date;
   company: {
     name: string;
@@ -136,17 +140,21 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
 
     const leftHeaderEndY = doc.y;
 
-    // Right column — invoice declaration
+    // Right column — invoice declaration. Unpaid orders render as a PROFORMA
+    // (no GST serial burned) so the document isn't passed off as a real tax
+    // invoice for a sale that hasn't been paid for.
     doc.font('Body-Bold').fontSize(11).fillColor('#000').text(
-      'Tax Invoice / Bill of Supply / Cash Memo',
+      inv.proforma ? 'Proforma Invoice' : 'Tax Invoice / Bill of Supply / Cash Memo',
       rightX,
       yTop + 4,
       { width: colW, align: 'right' },
     );
-    doc.font('Body').fontSize(9).fillColor('#555').text('(Triplicate for Supplier)', rightX, doc.y, {
-      width: colW,
-      align: 'right',
-    });
+    doc.font('Body').fontSize(9).fillColor('#555').text(
+      inv.proforma ? '(Not a tax invoice — payment pending)' : '(Triplicate for Supplier)',
+      rightX,
+      doc.y,
+      { width: colW, align: 'right' },
+    );
 
     yTop = Math.max(leftHeaderEndY, doc.y) + 14;
     doc.moveTo(leftX, yTop).lineTo(leftX + contentW, yTop).strokeColor('#CFC5A8').stroke();
