@@ -33,7 +33,7 @@ export default function DashboardHome() {
       {err && <div className="card p-4 text-sm text-red-600">Couldn't load stats: {err}</div>}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Revenue (delivered)" value={stats ? inr(stats.totalRevenue) : '…'} accent="brand" />
+        <StatCard label="Revenue (paid)" value={stats ? inr(stats.totalRevenue) : '…'} accent="brand" />
         <StatCard label="Total orders" value={stats ? stats.totalOrders.toLocaleString() : '…'} accent="blue" />
         <StatCard label="Pending orders" value={stats ? stats.pendingOrders.toLocaleString() : '…'} accent="yellow" href="/dashboard/orders?status=pending" />
         <StatCard label="Low-stock items" value={stats ? stats.lowStockProducts.toLocaleString() : '…'} accent="red" href="/dashboard/inventory" />

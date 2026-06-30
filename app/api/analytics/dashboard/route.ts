@@ -26,7 +26,11 @@ async function compute(): Promise<CachedStats> {
       prisma.order.count(),
       prisma.order.aggregate({
         _sum: { totalAmount: true },
-        where: { orderStatus: 'delivered' },
+        // Revenue = money actually received (paid orders), excluding cancelled/
+        // refunded. Previously this only summed orderStatus 'delivered', so
+        // paid-but-not-yet-delivered orders showed ₹0 even though the money
+        // was in the account.
+        where: { paymentStatus: 'completed', orderStatus: { not: 'cancelled' } },
       }),
       prisma.order.count({ where: { orderStatus: { in: ['pending', 'processing'] } } }),
       prisma.$queryRaw<{ count: bigint }[]>`
