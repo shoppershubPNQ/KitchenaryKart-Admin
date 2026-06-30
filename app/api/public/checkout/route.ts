@@ -55,47 +55,75 @@ export async function POST(req: NextRequest) {
       where: { sku: { in: skus } },
       select: { id: true, sku: true, name: true, price: true, taxPercent: true, stock: true },
     });
-    const productMap = new Map(products.map((p) => [p.sku, p]));
-
     // A cart sku can be a parent product OR a variant (skuSuffix). Resolve
-    // variant stock too so the out-of-stock guard below covers both.
+    // BOTH so price/stock/name always come from the DB. The client-sent price
+    // is NEVER trusted — variant skus aren't in the products table, so the old
+    // `i.price` fallback let a tampered variant be bought for ₹1. Variant
+    // price = parent.price + priceModifier (identical to the storefront's
+    // lib/products.ts, so legit orders are unaffected).
     const variants = await prisma.productVariant.findMany({
       where: { skuSuffix: { in: skus } },
-      select: { skuSuffix: true, stock: true, product: { select: { name: true } } },
+      select: {
+        skuSuffix: true,
+        stock: true,
+        priceModifier: true,
+        product: { select: { id: true, name: true, price: true, taxPercent: true } },
+      },
     });
-    // sku → { stock, name } for every sku we can verify (parent or variant).
-    const stockBySku = new Map<string, { stock: number; name: string }>();
-    for (const p of products) stockBySku.set(p.sku, { stock: p.stock, name: p.name });
+
+    type Resolved = { productId: number | null; name: string; price: number; taxPercent: number; stock: number };
+    const resolved = new Map<string, Resolved>();
+    for (const p of products) {
+      resolved.set(p.sku, {
+        productId: p.id,
+        name: p.name,
+        price: Number(p.price),
+        taxPercent: Number(p.taxPercent),
+        stock: p.stock,
+      });
+    }
     for (const v of variants) {
-      if (!v.skuSuffix) continue; // nullable in schema; the `in skus` filter only matches real suffixes
-      stockBySku.set(v.skuSuffix, { stock: v.stock, name: v.product?.name ?? v.skuSuffix });
+      if (!v.skuSuffix) continue;
+      resolved.set(v.skuSuffix, {
+        productId: v.product?.id ?? null,
+        name: v.product?.name ?? v.skuSuffix,
+        price: Number(v.product?.price ?? 0) + Number(v.priceModifier ?? 0),
+        taxPercent: Number(v.product?.taxPercent ?? 18),
+        stock: v.stock,
+      });
     }
 
-    // Block the order if any RESOLVED item is out of stock. Only reject on
-    // stock <= 0 (an explicit out-of-stock mark) — never on qty-vs-stock, so
-    // imperfect stock counts can't false-reject a real order. Unresolved
-    // skus are left alone (can't verify → don't block).
+    // Every cart sku MUST resolve to a real product/variant — otherwise the
+    // server would have no authoritative price. Reject unknown skus rather
+    // than trusting whatever the client sent.
+    const unknownSkus = body.items.filter((i) => !resolved.has(i.sku)).map((i) => i.sku);
+    if (unknownSkus.length > 0) {
+      return fail(`Some items are no longer available: ${unknownSkus.join(', ')}. Please remove them and try again.`, 400);
+    }
+
+    // Out-of-stock guard — reject only on an explicit stock <= 0 mark (never
+    // qty-vs-stock, so imperfect counts can't false-reject a real order).
     const oos = body.items
-      .map((i) => ({ i, s: stockBySku.get(i.sku) }))
-      .filter((x) => x.s && x.s.stock <= 0);
+      .map((i) => ({ i, r: resolved.get(i.sku)! }))
+      .filter((x) => x.r.stock <= 0);
     if (oos.length > 0) {
-      const names = oos.map((x) => x.s!.name).join(', ');
+      const names = oos.map((x) => x.r.name).join(', ');
       return fail(`Sorry, this is now out of stock: ${names}. Please remove it from your cart and try again.`, 409);
     }
 
     let subtotal = 0;
     const itemsToCreate = body.items.map((i) => {
-      const p = productMap.get(i.sku);
-      const unitPrice = p ? Number(p.price) : i.price;
+      const r = resolved.get(i.sku)!;
+      const unitPrice = r.price; // ALWAYS the DB price — client price ignored
       const lineTotal = unitPrice * i.quantity;
       subtotal += lineTotal;
       return {
-        productId: p?.id,
+        productId: r.productId ?? undefined,
         productSku: i.sku,
-        productName: p?.name || i.name || i.sku,
+        productName: r.name,
         unitPrice,
         quantity: i.quantity,
-        taxPercent: p ? Number(p.taxPercent) : 18,
+        taxPercent: r.taxPercent,
         lineTotal,
       };
     });

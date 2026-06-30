@@ -47,6 +47,26 @@ export async function PUT(req: NextRequest) {
     const okSig = verifyRazorpaySignature(body.razorpayOrderId, body.razorpayPaymentId, body.razorpaySignature);
     if (!okSig) return fail('Invalid signature', 400);
 
+    // Bind the payment to THIS order. A valid signature only proves the
+    // payment is real — NOT that it belongs to body.orderId. Without this,
+    // an attacker could pay a cheap order and replay that signature against
+    // an expensive one to mark it paid. Each order's razorpayOrderId was
+    // created server-side with that order's exact amount, so requiring a
+    // match guarantees the paid amount equals the order total.
+    const existing = await prisma.order.findUnique({
+      where: { id: body.orderId },
+      select: { id: true, razorpayOrderId: true, paymentStatus: true },
+    });
+    if (!existing) return fail('Order not found', 404);
+    if (!existing.razorpayOrderId || existing.razorpayOrderId !== body.razorpayOrderId) {
+      return fail('Payment does not match this order', 400);
+    }
+    // Idempotent: a replayed verify must not re-run side effects (re-send
+    // confirmation/admin emails, re-burn coupons). If already paid, ack and stop.
+    if (existing.paymentStatus === 'completed') {
+      return ok({ order: existing, alreadyProcessed: true });
+    }
+
     const order = await prisma.order.update({
       where: { id: body.orderId },
       data: {
