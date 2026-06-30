@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { handleError, ok } from '@/lib/api';
+import { revalidateWeb } from '@/lib/revalidateWeb';
 
 const updateSchema = z.object({
   variantType: z.string().min(1).optional(),
@@ -25,6 +26,9 @@ export const PATCH = withAuth(async (req, { params }) => {
       where: { id },
       data: body,
     });
+    // Bust the storefront product cache so stock/price edits (e.g. setting a
+    // variant out of stock) show within seconds instead of the 5-min ISR window.
+    await revalidateWeb('products');
     return ok({ variant });
   } catch (e) {
     return handleError(e);
@@ -35,6 +39,7 @@ export const DELETE = withAuth(async (_req, { params }) => {
   try {
     const id = parseInt(params.id);
     await prisma.productVariant.delete({ where: { id } });
+    await revalidateWeb('products');
     return ok({ deleted: true });
   } catch (e) {
     return handleError(e);

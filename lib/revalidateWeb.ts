@@ -12,6 +12,7 @@ export async function revalidateWeb(
     | 'category-counts'
     | 'collections'
     | 'policies'
+    | 'products'
     | 'reels'
     | 'reviews'
     | 'social',

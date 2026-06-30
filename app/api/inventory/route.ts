@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { handleError, ok } from '@/lib/api';
+import { revalidateWeb } from '@/lib/revalidateWeb';
 
 const adjustSchema = z.object({
   productId: z.number().int().positive(),
@@ -52,6 +53,9 @@ export const POST = withAuth(async (req, { user }) => {
       }),
     ]);
 
+    // Stock changed → bust the storefront product cache so the new level
+    // (incl. out-of-stock) shows within seconds, not the 5-min ISR window.
+    await revalidateWeb('products');
     return ok({ movement, product });
   } catch (e) {
     return handleError(e);

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { fail, handleError, ok } from '@/lib/api';
+import { revalidateWeb } from '@/lib/revalidateWeb';
 
 const updateSchema = z.object({
   name: z.string().optional(),
@@ -50,6 +51,7 @@ export const PUT = withAuth(async (req, { params }) => {
       where: { id },
       data: { ...rest, ...(images ? { images: images as any } : {}) },
     });
+    await revalidateWeb('products');
     return ok({ product });
   } catch (e) {
     return handleError(e);
@@ -68,6 +70,7 @@ export const PATCH = withAuth(async (req, { params }) => {
       where: { id },
       data: { ...rest, ...(images ? { images: images as any } : {}) },
     });
+    await revalidateWeb('products');
     return ok({ product });
   } catch (e) {
     return handleError(e);
@@ -78,6 +81,7 @@ export const DELETE = withAuth(async (_req, { params }) => {
   try {
     const id = parseInt(params.id);
     await prisma.product.delete({ where: { id } });
+    await revalidateWeb('products');
     return ok({ deleted: true });
   } catch (e) {
     return handleError(e);

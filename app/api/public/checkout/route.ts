@@ -53,9 +53,35 @@ export async function POST(req: NextRequest) {
     const skus = body.items.map((i) => i.sku);
     const products = await prisma.product.findMany({
       where: { sku: { in: skus } },
-      select: { id: true, sku: true, name: true, price: true, taxPercent: true },
+      select: { id: true, sku: true, name: true, price: true, taxPercent: true, stock: true },
     });
     const productMap = new Map(products.map((p) => [p.sku, p]));
+
+    // A cart sku can be a parent product OR a variant (skuSuffix). Resolve
+    // variant stock too so the out-of-stock guard below covers both.
+    const variants = await prisma.productVariant.findMany({
+      where: { skuSuffix: { in: skus } },
+      select: { skuSuffix: true, stock: true, product: { select: { name: true } } },
+    });
+    // sku → { stock, name } for every sku we can verify (parent or variant).
+    const stockBySku = new Map<string, { stock: number; name: string }>();
+    for (const p of products) stockBySku.set(p.sku, { stock: p.stock, name: p.name });
+    for (const v of variants) {
+      if (!v.skuSuffix) continue; // nullable in schema; the `in skus` filter only matches real suffixes
+      stockBySku.set(v.skuSuffix, { stock: v.stock, name: v.product?.name ?? v.skuSuffix });
+    }
+
+    // Block the order if any RESOLVED item is out of stock. Only reject on
+    // stock <= 0 (an explicit out-of-stock mark) — never on qty-vs-stock, so
+    // imperfect stock counts can't false-reject a real order. Unresolved
+    // skus are left alone (can't verify → don't block).
+    const oos = body.items
+      .map((i) => ({ i, s: stockBySku.get(i.sku) }))
+      .filter((x) => x.s && x.s.stock <= 0);
+    if (oos.length > 0) {
+      const names = oos.map((x) => x.s!.name).join(', ');
+      return fail(`Sorry, this is now out of stock: ${names}. Please remove it from your cart and try again.`, 409);
+    }
 
     let subtotal = 0;
     const itemsToCreate = body.items.map((i) => {
