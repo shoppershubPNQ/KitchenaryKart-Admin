@@ -6,6 +6,7 @@ import { fail, handleError, ok } from '@/lib/api';
 import { notifyOrderStatus } from '@/lib/integrations/whatsapp';
 import { sendEmail } from '@/lib/integrations/resend';
 import { buildShippingNotificationEmail } from '@/lib/email-templates/shipping-notification';
+import { revalidateWeb } from '@/lib/revalidateWeb';
 
 const patchSchema = z.object({
   orderStatus: z.enum(['pending', 'processing', 'shipped', 'delivered', 'cancelled']).optional(),
@@ -86,25 +87,38 @@ export const PATCH = withAuth(async (req, { params }) => {
       include: { items: true },
     });
 
-    // On delivered transition, decrement stock
+    // On delivered transition, decrement stock — the VARIANT's stock when the
+    // line bought a variant (variantId set), otherwise the parent product's.
+    // Previously this always hit the parent, so variant stock never moved.
     if (body.orderStatus === 'delivered' && current.orderStatus !== 'delivered') {
       for (const it of order.items) {
-        if (it.productId) {
+        if (it.variantId) {
+          await prisma.productVariant.update({
+            where: { id: it.variantId },
+            data: { stock: { decrement: it.quantity } },
+          });
+        } else if (it.productId) {
           await prisma.product.update({
             where: { id: it.productId },
             data: { stock: { decrement: it.quantity } },
           });
+        }
+        // Audit trail keyed on the parent product (the inventory log is
+        // product-level). Note the variant SKU when it's a variant line.
+        if (it.productId) {
           await prisma.inventoryMovement.create({
             data: {
               productId: it.productId,
               movementType: 'stock_out',
               quantity: it.quantity,
               referenceId: `order:${order.id}`,
-              notes: `Order ${order.orderNumber} delivered`,
+              notes: `Order ${order.orderNumber} delivered${it.variantId ? ` (variant ${it.productSku})` : ''}`,
             },
           });
         }
       }
+      // Stock changed → refresh the storefront so the new level (incl. OOS) shows.
+      await revalidateWeb('products');
     }
 
     const statusChanged = !!newStatus && newStatus !== current.orderStatus;

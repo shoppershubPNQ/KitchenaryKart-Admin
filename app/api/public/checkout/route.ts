@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
     const variants = await prisma.productVariant.findMany({
       where: { skuSuffix: { in: skus } },
       select: {
+        id: true,
         skuSuffix: true,
         stock: true,
         priceModifier: true,
@@ -71,11 +72,12 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    type Resolved = { productId: number | null; name: string; price: number; taxPercent: number; stock: number };
+    type Resolved = { productId: number | null; variantId: number | null; name: string; price: number; taxPercent: number; stock: number };
     const resolved = new Map<string, Resolved>();
     for (const p of products) {
       resolved.set(p.sku, {
         productId: p.id,
+        variantId: null,
         name: p.name,
         price: Number(p.price),
         taxPercent: Number(p.taxPercent),
@@ -86,6 +88,7 @@ export async function POST(req: NextRequest) {
       if (!v.skuSuffix) continue;
       resolved.set(v.skuSuffix, {
         productId: v.product?.id ?? null,
+        variantId: v.id,
         name: v.product?.name ?? v.skuSuffix,
         price: Number(v.product?.price ?? 0) + Number(v.priceModifier ?? 0),
         taxPercent: Number(v.product?.taxPercent ?? 18),
@@ -119,6 +122,7 @@ export async function POST(req: NextRequest) {
       subtotal += lineTotal;
       return {
         productId: r.productId ?? undefined,
+        variantId: r.variantId ?? undefined,
         productSku: i.sku,
         productName: r.name,
         unitPrice,
