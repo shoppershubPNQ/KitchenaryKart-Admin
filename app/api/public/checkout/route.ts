@@ -8,12 +8,7 @@ import { prisma } from '@/lib/db';
 import { fail, handleError, ok } from '@/lib/api';
 import { createRazorpayOrder } from '@/lib/integrations/razorpay';
 import { validateCoupon } from '@/lib/coupon';
-
-// Shipping: free once the after-discount amount reaches the threshold,
-// flat fee below it. Keep in sync with web/lib/shipping.ts and the
-// Merchant Center shipping policy.
-const FREE_SHIPPING_THRESHOLD = 5000;
-const SHIPPING_FEE = 250;
+import { computeShipping } from '@/lib/shipping-compute';
 
 /** Indian GSTIN: 2-digit state + 10-char PAN + entity + 'Z' + checksum. */
 const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
@@ -154,8 +149,13 @@ export async function POST(req: NextRequest) {
     // Shipping is charged on the after-discount amount (free at/above the
     // threshold). This is the binding amount the customer actually pays.
     const afterDiscount = Math.max(0, subtotal - discountAmount);
-    const shippingCost =
-      afterDiscount >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
+    // Zone × weight delivery charge — derived from the destination state (in
+    // shippingAddress) and the order's total weight. Same helper the public
+    // shipping-quote endpoint uses, so the displayed and charged amounts match.
+    const { shippingCost } = await computeShipping(
+      body.items.map((i) => ({ sku: i.sku, quantity: i.quantity })),
+      { shippingAddress: body.shippingAddress, orderValueAfterDiscount: afterDiscount },
+    );
     // Shipping/freight is taxable (CGST Act s.15) — add GST on it at the
     // order's rate (or 18% for a mixed-rate cart). Charge a whole-rupee
     // amount; the paise round-off shows on the invoice. shippingCost stays
