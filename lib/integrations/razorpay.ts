@@ -50,3 +50,54 @@ export function verifyRazorpaySignature(orderId: string, paymentId: string, sign
     .digest('hex');
   return expected === signature;
 }
+
+export interface RazorpayPayment {
+  id: string;
+  order_id: string;
+  /** created | authorized | captured | refunded | failed */
+  status: string;
+  amount: number; // paise
+  method?: string;
+}
+
+/**
+ * Fetch all payment attempts Razorpay recorded against one order. Source of
+ * truth for reconciliation: a UPI payment can be `captured` on Razorpay even
+ * when the customer's browser never returned to fire the client-side verify,
+ * leaving our order stuck `pending`. Server-to-server + key-authed, so the
+ * result is trustworthy (no signature needed).
+ */
+export async function fetchRazorpayOrderPayments(razorpayOrderId: string): Promise<RazorpayPayment[]> {
+  if (!razorpayEnabled) return [];
+  const auth = Buffer.from(
+    `${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`
+  ).toString('base64');
+  const res = await fetch(
+    `https://api.razorpay.com/v1/orders/${encodeURIComponent(razorpayOrderId)}/payments`,
+    { headers: { Authorization: `Basic ${auth}` } }
+  );
+  if (!res.ok) {
+    const body = await res.text();
+    console.error('[razorpay] fetch order payments failed:', res.status, body);
+    throw new Error(`Razorpay fetch payments failed: ${res.status}`);
+  }
+  const data = (await res.json()) as { items?: RazorpayPayment[] };
+  return data.items || [];
+}
+
+/**
+ * Validate a Razorpay webhook: HMAC-SHA256 of the RAW request body keyed with
+ * the dashboard-configured webhook secret, compared timing-safe against the
+ * `x-razorpay-signature` header. Requires RAZORPAY_WEBHOOK_SECRET.
+ */
+export function verifyRazorpayWebhookSignature(
+  rawBody: string,
+  signature: string | null | undefined
+): boolean {
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  if (!secret || !signature) return false;
+  const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+  const a = Buffer.from(expected);
+  const b = Buffer.from(signature);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}

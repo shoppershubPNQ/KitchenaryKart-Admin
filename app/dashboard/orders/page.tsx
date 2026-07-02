@@ -33,6 +33,33 @@ function OrdersList() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState(params.get('status') || '');
   const [search, setSearch] = useState('');
+  const [reconciling, setReconciling] = useState(false);
+
+  // Reconcile pending orders against Razorpay: a UPI payment can be captured
+  // by Razorpay while the customer's browser never returned to confirm it,
+  // leaving the order stuck "pending". This asks the server to check each
+  // pending order against Razorpay and mark the genuinely-paid ones paid
+  // (failed/abandoned attempts are left untouched).
+  async function reconcile() {
+    if (reconciling) return;
+    setReconciling(true);
+    try {
+      const r = await api<{ reconciledCount: number; checked: number; stillPending: string[] }>(
+        '/api/orders/reconcile',
+        { method: 'POST' }
+      );
+      alert(
+        `Checked ${r.checked} pending order(s).\n` +
+          `Marked paid: ${r.reconciledCount}.\n` +
+          `Still pending (unpaid/failed): ${r.stillPending.length}.`
+      );
+      await load();
+    } catch (e) {
+      alert('Reconcile failed: ' + (e instanceof Error ? e.message : 'unknown error'));
+    } finally {
+      setReconciling(false);
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -52,7 +79,18 @@ function OrdersList() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-slate-900">Orders</h1>
-        <Link href="/dashboard/orders/new" className="btn-primary">+ Manual order</Link>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={reconcile}
+            disabled={reconciling}
+            title="Check pending orders against Razorpay and mark genuinely-paid ones as paid"
+            className="btn-secondary disabled:opacity-60"
+          >
+            {reconciling ? 'Reconciling…' : '↻ Reconcile payments'}
+          </button>
+          <Link href="/dashboard/orders/new" className="btn-primary">+ Manual order</Link>
+        </div>
       </div>
 
       <div className="card p-4 flex flex-wrap gap-3">

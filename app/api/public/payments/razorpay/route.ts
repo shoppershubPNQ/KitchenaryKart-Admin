@@ -3,10 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { fail, handleError, ok } from '@/lib/api';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/integrations/razorpay';
-import { sendEmail } from '@/lib/integrations/resend';
-import { buildOrderConfirmationEmail } from '@/lib/email-templates/order-confirmation';
-import { buildAdminNewOrderEmail } from '@/lib/email-templates/admin-new-order';
-import { ensureInvoiceNumber } from '@/lib/invoice-serial';
+import { finalizePaidOrder } from '@/lib/order-payment';
 
 const createSchema = z.object({
   orderId: z.number().int().positive(),
@@ -40,7 +37,7 @@ const verifySchema = z.object({
   razorpaySignature: z.string(),
 });
 
-/** Webhook-style verification endpoint hit after Checkout success. */
+/** Verification endpoint hit after Checkout success (client-side callback). */
 export async function PUT(req: NextRequest) {
   try {
     const body = verifySchema.parse(await req.json());
@@ -55,170 +52,22 @@ export async function PUT(req: NextRequest) {
     // match guarantees the paid amount equals the order total.
     const existing = await prisma.order.findUnique({
       where: { id: body.orderId },
-      select: { id: true, razorpayOrderId: true, paymentStatus: true },
+      select: { id: true, razorpayOrderId: true },
     });
     if (!existing) return fail('Order not found', 404);
     if (!existing.razorpayOrderId || existing.razorpayOrderId !== body.razorpayOrderId) {
       return fail('Payment does not match this order', 400);
     }
-    // Idempotent: a replayed verify must not re-run side effects (re-send
-    // confirmation/admin emails, re-burn coupons). If already paid, ack and stop.
-    if (existing.paymentStatus === 'completed') {
-      return ok({ order: existing, alreadyProcessed: true });
-    }
 
-    const order = await prisma.order.update({
-      where: { id: body.orderId },
-      data: {
-        paymentStatus: 'completed',
-        // Paid orders move straight into the fulfilment queue.
-        orderStatus: 'processing',
-        paymentMethod: 'razorpay',
-        paymentReference: body.razorpayPaymentId,
-        payments: {
-          create: {
-            amount: 0, // populated from Razorpay webhook in production
-            paymentMethod: 'razorpay',
-            status: 'completed',
-            razorpayPaymentId: body.razorpayPaymentId,
-            razorpaySignature: body.razorpaySignature,
-          },
-        },
-      },
-      include: { items: true },
+    // Mark paid + run all side effects (idempotent, shared with the webhook
+    // and reconcile paths so behaviour can't drift).
+    const result = await finalizePaidOrder(body.orderId, {
+      razorpayPaymentId: body.razorpayPaymentId,
+      razorpaySignature: body.razorpaySignature,
+      source: 'checkout',
     });
-
-    // Allocate the GST invoice serial NOW that payment is confirmed, so paid
-    // orders get clean sequential numbers in payment order — not whenever
-    // someone happens to view the invoice (which used to let unpaid orders
-    // jump the queue). Best-effort: a serial hiccup must never fail an order
-    // the customer already paid for; it falls back to first-invoice-view.
-    try {
-      await ensureInvoiceNumber(order.id);
-    } catch (e) {
-      console.error('[checkout] invoice serial allocation failed', e);
-    }
-
-    // Record coupon redemption — ONLY now that payment is confirmed, so
-    // abandoned/failed orders never burn a coupon's usage count. Guarded
-    // against double-verify (one redemption per order). Wrapped in
-    // try/catch so a coupon-bookkeeping hiccup never fails an order that
-    // the customer has already paid for.
-    if (order.couponCode) {
-      try {
-        const coupon = await prisma.coupon.findUnique({
-          where: { code: order.couponCode },
-          select: { id: true },
-        });
-        if (coupon) {
-          const already = await prisma.couponRedemption.findFirst({
-            where: { couponId: coupon.id, orderId: order.id },
-            select: { id: true },
-          });
-          if (!already) {
-            await prisma.$transaction([
-              prisma.couponRedemption.create({
-                data: {
-                  couponId: coupon.id,
-                  orderId: order.id,
-                  customerPhone: order.customerPhone,
-                  customerEmail: order.customerEmail,
-                  discountAmount: order.discountAmount,
-                },
-              }),
-              prisma.coupon.update({
-                where: { id: coupon.id },
-                data: { usageCount: { increment: 1 } },
-              }),
-            ]);
-          }
-        }
-      } catch (e) {
-        console.error('[checkout] coupon redemption recording failed', e);
-      }
-    }
-
-    // Send the order-confirmation email. MUST be awaited — Vercel serverless
-    // functions terminate immediately after returning the response, which
-    // cancels any in-flight `void`/fire-and-forget HTTP requests mid-flight
-    // (the Resend SDK then errors out with "Unable to fetch data"). Adds
-    // ~500ms to the response time, which is acceptable for a checkout call
-    // that already takes a few seconds for Razorpay verification + DB write.
-    // sendEmail() never throws — returns false on failure and logs it.
-    if (order.customerEmail) {
-      const { subject, html, text } = buildOrderConfirmationEmail({
-        orderNumber: order.orderNumber,
-        customerName: order.customerName,
-        totalAmount: Number(order.totalAmount || 0),
-        subtotal: Number(order.subtotal || 0),
-        taxAmount: Number(order.taxAmount || 0),
-        shippingCost: Number(order.shippingCost || 0),
-        shippingAddress: order.shippingAddress,
-        paymentReference: order.paymentReference,
-        items: order.items.map((it) => ({
-          name: it.productName || '',
-          sku: it.productSku || '',
-          quantity: it.quantity,
-          unitPrice: Number(it.unitPrice),
-          lineTotal: Number(it.lineTotal),
-        })),
-      });
-      await sendEmail({
-        to: order.customerEmail,
-        subject,
-        html,
-        text,
-        category: 'order-confirmation',
-      });
-    }
-
-    // Internal alert to the business so they can start fulfilment without
-    // watching the dashboard. Awaited (Vercel cancels in-flight requests
-    // after the response); sendEmail never throws. Recipient is
-    // configurable via env, falling back to the seed admin / business box.
-    // Notify BOTH real business inboxes — the Gmail and the Titan
-    // support box. (admin@kitchenarykart.com is only the admin LOGIN, not
-    // a real mailbox, so it must NOT be used here.) ADMIN_NOTIFY_EMAIL
-    // (comma-separated) can override/extend this list.
-    const adminRecipients = [
-      ...new Set(
-        [
-          ...(process.env.ADMIN_NOTIFY_EMAIL || '').split(',').map((s) => s.trim()),
-          'shoppershub.ind@gmail.com',
-          'support@kitchenarykart.com',
-        ].filter(Boolean),
-      ),
-    ];
-    if (adminRecipients.length > 0) {
-      const adminBase =
-        process.env.ADMIN_BASE_URL || 'https://kitchenary-kart-admin-nujh.vercel.app';
-      const adminMail = buildAdminNewOrderEmail({
-        orderNumber: order.orderNumber,
-        customerName: order.customerName,
-        customerPhone: order.customerPhone,
-        customerEmail: order.customerEmail,
-        totalAmount: Number(order.totalAmount || 0),
-        discountAmount: Number(order.discountAmount || 0),
-        couponCode: order.couponCode,
-        paymentReference: order.paymentReference,
-        items: order.items.map((it) => ({
-          name: it.productName || '',
-          sku: it.productSku || '',
-          quantity: it.quantity,
-          lineTotal: Number(it.lineTotal),
-        })),
-        adminOrderUrl: `${adminBase}/dashboard/orders/${order.id}`,
-      });
-      await sendEmail({
-        to: adminRecipients,
-        subject: adminMail.subject,
-        html: adminMail.html,
-        text: adminMail.text,
-        category: 'admin-new-order',
-      });
-    }
-
-    return ok({ order });
+    if (!result) return fail('Order not found', 404);
+    return ok({ order: result.order, alreadyProcessed: result.alreadyProcessed });
   } catch (e) {
     return handleError(e);
   }
