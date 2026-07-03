@@ -195,6 +195,8 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
 
       <TrackingCard order={order} onSaved={load} />
 
+      <RefundCard order={order} onDone={load} />
+
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="card p-4">
@@ -206,6 +208,87 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
           <div className="text-sm whitespace-pre-line">{order.internalNotes || <span className="text-slate-400">None</span>}</div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Refunds card. Issues a Razorpay refund via the API (admin-only endpoint).
+ * Shown only for a paid (completed) order; hidden once refunded. Full refund by
+ * default, or enter an amount for a partial refund. Requires an explicit
+ * confirm() — money movement is never one-click.
+ */
+function RefundCard({ order, onDone }: { order: Order; onDone: () => void | Promise<void> }) {
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<string | null>(null);
+
+  if (order.paymentStatus === 'refunded') {
+    return (
+      <div className="card p-4">
+        <div className="label">Refund</div>
+        <div className="text-sm text-slate-600">This order is marked <span className="font-medium">refunded</span>. See internal notes for the refund reference.</div>
+      </div>
+    );
+  }
+  // Only a paid Razorpay order can be refunded via the API.
+  if (order.paymentStatus !== 'completed') return null;
+
+  const total = Number(order.totalAmount || 0);
+  const amt = amount.trim() ? Number(amount) : null;
+  const partial = amt != null && amt > 0 && amt < total;
+
+  async function issueRefund() {
+    setError(null);
+    setResult(null);
+    if (amt != null && (!(amt > 0) || amt > total)) {
+      setError(`Enter an amount between ₹1 and ₹${total} (or leave blank for a full refund).`);
+      return;
+    }
+    const label = amt != null ? `₹${amt}${partial ? ' (partial)' : ''}` : `₹${total} (full)`;
+    if (!window.confirm(`Refund ${label} to ${order.customerName || 'the customer'} for order ${order.orderNumber}?\n\nThis moves money back via Razorpay and cannot be undone.`)) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await api<{ refundId: string; amount: number; partial: boolean }>(
+        `/api/orders/${order.id}/refund`,
+        { method: 'POST', body: JSON.stringify({ ...(amt != null ? { amount: amt } : {}), ...(reason.trim() ? { reason: reason.trim() } : {}) }) }
+      );
+      setResult(`Refunded ₹${r.amount}${r.partial ? ' (partial)' : ''} — ref ${r.refundId}`);
+      setAmount('');
+      setReason('');
+      await onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Refund failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card p-4 space-y-3">
+      <div className="label">Refund</div>
+      <div className="text-xs text-slate-500">
+        Refunds the customer via Razorpay. Leave the amount blank for a full refund of {inr(total)}, or enter a smaller amount for a partial refund.
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div>
+          <label className="block text-xs text-slate-500 mb-1">Amount (₹) — blank = full</label>
+          <input className="input" inputMode="decimal" placeholder={`Full: ${total}`} value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))} />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-xs text-slate-500 mb-1">Reason (optional)</label>
+          <input className="input" placeholder="e.g. Item returned / cancelled" value={reason} onChange={(e) => setReason(e.target.value)} />
+        </div>
+      </div>
+      {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</div>}
+      {result && <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-3 py-2">{result}</div>}
+      <button type="button" className="btn-primary !bg-red-700 hover:!bg-red-800 disabled:opacity-60" onClick={issueRefund} disabled={busy}>
+        {busy ? 'Processing refund…' : partial ? `Refund ₹${amt}` : 'Issue full refund'}
+      </button>
     </div>
   );
 }

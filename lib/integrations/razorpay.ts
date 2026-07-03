@@ -85,6 +85,55 @@ export async function fetchRazorpayOrderPayments(razorpayOrderId: string): Promi
   return data.items || [];
 }
 
+export interface RazorpayRefund {
+  id: string;
+  payment_id: string;
+  amount: number; // paise
+  status: string; // pending | processed | failed
+}
+
+/**
+ * Refund a captured Razorpay payment. Omit `amountPaise` for a FULL refund;
+ * pass it for a partial refund. Server-to-server + key-authed. Throws on a
+ * non-2xx so the caller never records a refund that didn't happen.
+ */
+export async function createRazorpayRefund(
+  paymentId: string,
+  amountPaise?: number,
+  notes?: Record<string, string>
+): Promise<RazorpayRefund> {
+  if (!razorpayEnabled) {
+    throw new Error('Razorpay is not configured (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET missing)');
+  }
+  const auth = Buffer.from(
+    `${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`
+  ).toString('base64');
+  const body: Record<string, unknown> = {};
+  if (amountPaise != null) body.amount = amountPaise;
+  if (notes) body.notes = notes;
+  const res = await fetch(
+    `https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}/refund`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    console.error('[razorpay] refund failed:', res.status, text);
+    // Surface Razorpay's own error message to the admin (e.g. "already
+    // refunded", "amount exceeds captured"), not a generic 500.
+    let msg = `Razorpay refund failed (${res.status})`;
+    try {
+      const j = JSON.parse(text);
+      if (j?.error?.description) msg = j.error.description;
+    } catch { /* keep generic */ }
+    throw new Error(msg);
+  }
+  return res.json() as Promise<RazorpayRefund>;
+}
+
 /**
  * Validate a Razorpay webhook: HMAC-SHA256 of the RAW request body keyed with
  * the dashboard-configured webhook secret, compared timing-safe against the
