@@ -9,6 +9,7 @@ import { fail, handleError, ok } from '@/lib/api';
 import { createRazorpayOrder } from '@/lib/integrations/razorpay';
 import { validateCoupon } from '@/lib/coupon';
 import { computeShipping } from '@/lib/shipping-compute';
+import { computeOrderSummary } from '@/lib/order-summary';
 
 /** Indian GSTIN: 2-digit state + 10-char PAN + entity + 'Z' + checksum. */
 const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
@@ -166,6 +167,22 @@ export async function POST(req: NextRequest) {
     const totalAmount = Math.round(
       afterDiscount + shippingCost * (1 + shippingRate / 100),
     );
+    // GST embedded in this order (goods GST on the discounted value + shipping
+    // GST), via the SAME helper the invoice PDF / admin page / print view use —
+    // so the confirmation email's GST line matches the tax invoice exactly.
+    // Prices are GST-inclusive, so without this the stored taxAmount is null and
+    // the email showed "GST ₹0". Display only; totalAmount stays the binding charge.
+    const { gstAmount } = computeOrderSummary(
+      itemsToCreate.map((it) => ({
+        name: it.productName,
+        sku: it.productSku,
+        lineInclusive: it.lineTotal,
+        quantity: it.quantity,
+        taxPercent: it.taxPercent,
+      })),
+      discountAmount,
+      shippingCost,
+    );
     const orderNumber = `KK${Date.now().toString(36).toUpperCase()}`;
 
     // Link the order to the logged-in account so it appears in "My Orders".
@@ -198,6 +215,7 @@ export async function POST(req: NextRequest) {
         subtotal,
         discountAmount,
         shippingCost,
+        taxAmount: gstAmount,
         couponCode: appliedCouponCode,
         totalAmount,
         orderStatus: 'pending',

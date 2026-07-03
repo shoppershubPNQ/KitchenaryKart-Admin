@@ -72,6 +72,12 @@ export function buildOrderConfirmationEmail(o: OrderEmailInput) {
     </tr>`
     : '';
 
+  // GST-compliant ladder that ADDS UP: prices are GST-inclusive, so the goods
+  // subtotal is shown ex-GST (derived from the total so it reflects any coupon
+  // discount) and GST is broken out on its own line. netExGst + GST + Shipping
+  // = Total by construction, and the GST matches the tax invoice PDF.
+  const netExGst = (o.totalAmount || 0) - (o.taxAmount || 0) - (o.shippingCost || 0);
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -126,7 +132,7 @@ export function buildOrderConfirmationEmail(o: OrderEmailInput) {
           <tr>
             <td style="padding:12px 32px 4px 32px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="color:#555;font-size:13px;line-height:1.6;">
-                <tr><td style="text-align:left;">Subtotal</td><td style="text-align:right;">${inr(o.subtotal)}</td></tr>
+                <tr><td style="text-align:left;">Subtotal (excl. GST)</td><td style="text-align:right;">${inr(netExGst)}</td></tr>
                 <tr><td style="text-align:left;">GST</td><td style="text-align:right;">${inr(o.taxAmount)}</td></tr>
                 <tr><td style="text-align:left;">Shipping</td><td style="text-align:right;">${inr(o.shippingCost)}</td></tr>
                 <tr>
@@ -174,7 +180,7 @@ Order number: ${o.orderNumber}
 Items:
 ${o.items.map((it) => `  - ${it.name} (SKU ${it.sku}) × ${it.quantity} — ${inr(it.lineTotal)}`).join('\n')}
 
-Subtotal: ${inr(o.subtotal)}
+Subtotal (excl. GST): ${inr(netExGst)}
 GST: ${inr(o.taxAmount)}
 Shipping: ${inr(o.shippingCost)}
 Total paid: ${inr(o.totalAmount)}
