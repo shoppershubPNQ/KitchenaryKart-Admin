@@ -17,14 +17,25 @@ export async function revalidateWeb(
     | 'reviews'
     | 'social',
 ) {
-  const base = process.env.WEB_BASE_URL || 'http://localhost:3001';
+  // Base URL of the storefront to ping. Prefer WEB_BASE_URL, but in production
+  // fall back to the live storefront (NOT localhost) so a missing/mis-set env
+  // var can't silently break storefront cache-busting — the cause of banner /
+  // content edits not showing until the 5-min ISR window. localhost stays the
+  // dev default.
+  const base =
+    process.env.WEB_BASE_URL ||
+    (process.env.NODE_ENV === 'production'
+      ? 'https://kitchenarykart.com'
+      : 'http://localhost:3001');
   const secret = process.env.REVALIDATE_SECRET || '';
   try {
     await fetch(`${base}/api/revalidate?tag=${encodeURIComponent(tag)}`, {
       method: 'POST',
       headers: secret ? { 'x-revalidate-secret': secret } : {},
-      // Keep the connection short so the admin response isn't blocked.
-      signal: AbortSignal.timeout(2500),
+      // Awaited (Vercel cancels un-awaited fetches after the response). Allow a
+      // little headroom for a cold-start on the web function so the ping isn't
+      // dropped, without blocking the admin save for long.
+      signal: AbortSignal.timeout(4000),
     });
   } catch {
     /* intentional — non-critical */
