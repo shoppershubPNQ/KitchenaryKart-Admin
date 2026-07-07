@@ -56,15 +56,38 @@ export function zoneForState(state: string | null | undefined): Zone {
   return STATE_ZONE[state.trim().toLowerCase()] ?? FALLBACK_ZONE;
 }
 
+/**
+ * Parse a free-text weight into grams. Tolerant of the formats a person
+ * actually types: "250", "250g", "250 g", "250gm", "250 gms", "250 grams",
+ * "1.5kg", "1 kilo", "2kg 370g". Returns null only when nothing parseable.
+ */
 export function parseGrams(weight: string | null | undefined): number | null {
-  if (!weight) return null;
-  const s = String(weight).toLowerCase();
-  const kg = s.match(/(\d+(?:\.\d+)?)\s*kg/);
-  const g = s.match(/(\d+(?:\.\d+)?)\s*g(?![a-z])/);
+  if (weight == null) return null;
+  const s = String(weight).toLowerCase().trim();
+  if (!s) return null;
+
   let total = 0;
-  if (kg) total += parseFloat(kg[1]) * 1000;
-  if (g) total += parseFloat(g[1]);
-  if (total > 0) return Math.round(total);
+  let matched = false;
+
+  // Kilograms: "kg", "kgs", "kilo(s)", "kilogram(s)".
+  const kgRe = /(\d+(?:\.\d+)?)\s*(?:kgs?|kilo(?:gram)?s?)\b/g;
+  for (let m = kgRe.exec(s); m; m = kgRe.exec(s)) {
+    total += parseFloat(m[1]) * 1000;
+    matched = true;
+  }
+
+  // Grams: "g", "gm(s)", "gram(s)". Strip kg tokens first so the "g" inside
+  // a "kg" token is never miscounted as grams.
+  const withoutKg = s.replace(/(\d+(?:\.\d+)?)\s*(?:kgs?|kilo(?:gram)?s?)\b/g, ' ');
+  const gRe = /(\d+(?:\.\d+)?)\s*(?:gms?|grams?|g)\b/g;
+  for (let m = gRe.exec(withoutKg); m; m = gRe.exec(withoutKg)) {
+    total += parseFloat(m[1]);
+    matched = true;
+  }
+
+  if (matched && total > 0) return Math.round(total);
+
+  // Bare number with no unit → assume grams ("250", "0.5").
   const bare = s.match(/^\s*(\d+(?:\.\d+)?)\s*$/);
   if (bare) return Math.round(parseFloat(bare[1]));
   return null;
