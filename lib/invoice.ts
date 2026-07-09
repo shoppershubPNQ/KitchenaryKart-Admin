@@ -552,9 +552,13 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
   });
 }
 
-/** Currency formatting with the rupee sign, Indian grouping. */
+/** Currency formatting with the rupee sign, Indian grouping. Always shows
+ *  exactly 2 decimals (e.g. ₹325.00, ₹16.25) for tax-invoice consistency. */
 function inrPlain(n: number): string {
-  return '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  return '₹' + Number(n).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function rupeeWords(amount: number): string {
