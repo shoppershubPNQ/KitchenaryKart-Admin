@@ -552,9 +552,17 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
   });
 }
 
-/** Currency formatting with the rupee sign, Indian grouping. */
+/** Currency formatting with the rupee sign, Indian grouping. Always shows
+ *  exactly two decimals (e.g. ₹100.00, ₹1,250.50) so amounts import cleanly
+ *  into Tally, which expects fixed 2-decimal money values. */
 function inrPlain(n: number): string {
-  return '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  return (
+    '₹' +
+    Number(n).toLocaleString('en-IN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  );
 }
 
 function rupeeWords(amount: number): string {

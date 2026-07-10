@@ -2,22 +2,25 @@
  * Zone × weight delivery-charge engine. DUPLICATED from web/lib/shipping-zones.ts
  * — keep both in sync (the web display and this binding charge must match).
  *
- *   weight \ zone   West   East   North  South
- *   ≤ 100 g         FREE   100    FREE   FREE
- *   ≤ 500 g         100    200    100    100
- *   ≤ 1000 g        250    350    250    250
- *   > 1000 g        FREE   500    FREE   FREE
- *   free order:     West/North/South ≥ ₹5,000 · East ≥ ₹10,000
+ *   weight \ zone   West   East   North  South  Central
+ *   ≤ 100 g         FREE   100    FREE   FREE   FREE
+ *   ≤ 500 g         100    200    100    100    100
+ *   ≤ 1000 g        250    350    250    250    250
+ *   > 1000 g        FREE   400    FREE   FREE   FREE
+ *   free order:     all zones ≥ ₹5,000 · East ≥ ₹10,000
  *
- * Missing-weight items default to the 500–1000 g bracket (DEFAULT_ITEM_GRAMS).
+ * Central = Madhya Pradesh + Chhattisgarh (rates mirror West). East > 1000 g
+ * is ₹400. Missing-weight items default to the 500–1000 g bracket
+ * (DEFAULT_ITEM_GRAMS).
  */
 
-export type Zone = 'West' | 'East' | 'North' | 'South';
+export type Zone = 'West' | 'East' | 'North' | 'South' | 'Central';
 
 export const FREE_ORDER_THRESHOLD: Record<Zone, number> = {
   West: 5000,
   North: 5000,
   South: 5000,
+  Central: 5000,
   East: 10000,
 };
 export const DEFAULT_ITEM_GRAMS = 750;
@@ -25,9 +28,10 @@ const FALLBACK_ZONE: Zone = 'West';
 
 const MATRIX: Record<Zone, [number, number, number, number]> = {
   West: [0, 100, 250, 0],
-  East: [100, 200, 350, 500],
+  East: [100, 200, 350, 400],
   North: [0, 100, 250, 0],
   South: [0, 100, 250, 0],
+  Central: [0, 100, 250, 0],
 };
 
 const STATE_ZONE: Record<string, Zone> = {
@@ -37,9 +41,11 @@ const STATE_ZONE: Record<string, Zone> = {
   'ladakh': 'North', 'uttarakhand': 'North', 'uttar pradesh': 'North',
   'rajasthan': 'North', 'chandigarh': 'North', 'bihar': 'North', // Bihar → North (owner override)
   // West
-  'maharashtra': 'West', 'gujarat': 'West', 'goa': 'West', 'madhya pradesh': 'West',
-  'chhattisgarh': 'West', 'dadra and nagar haveli': 'West', 'daman and diu': 'West',
+  'maharashtra': 'West', 'gujarat': 'West', 'goa': 'West',
+  'dadra and nagar haveli': 'West', 'daman and diu': 'West',
   'dadra and nagar haveli and daman and diu': 'West',
+  // Central
+  'madhya pradesh': 'Central', 'chhattisgarh': 'Central',
   // South
   'karnataka': 'South', 'tamil nadu': 'South', 'kerala': 'South',
   'andhra pradesh': 'South', 'telangana': 'South', 'puducherry': 'South',
@@ -60,7 +66,9 @@ export function parseGrams(weight: string | null | undefined): number | null {
   if (!weight) return null;
   const s = String(weight).toLowerCase();
   const kg = s.match(/(\d+(?:\.\d+)?)\s*kg/);
-  const g = s.match(/(\d+(?:\.\d+)?)\s*g(?![a-z])/);
+  // grams: g / gm / gms / gram / grams (but not "kg" — the digit-anchored
+  // start and (?![a-z]) guard keep it from matching inside another word).
+  const g = s.match(/(\d+(?:\.\d+)?)\s*(?:grams?|gms?|g)(?![a-z])/);
   let total = 0;
   if (kg) total += parseFloat(kg[1]) * 1000;
   if (g) total += parseFloat(g[1]);
