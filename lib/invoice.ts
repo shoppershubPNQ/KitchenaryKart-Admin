@@ -553,16 +553,13 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
 }
 
 /** Currency formatting with the rupee sign, Indian grouping. Always shows
- *  exactly two decimals (e.g. ₹100.00, ₹1,250.50) so amounts import cleanly
- *  into Tally, which expects fixed 2-decimal money values. */
+ *  exactly 2 decimals (e.g. ₹325.00, ₹16.25) so amounts read consistently on
+ *  the tax invoice and import cleanly into Tally (fixed 2-decimal money). */
 function inrPlain(n: number): string {
-  return (
-    '₹' +
-    Number(n).toLocaleString('en-IN', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
-  );
+  return '₹' + Number(n).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function rupeeWords(amount: number): string {
