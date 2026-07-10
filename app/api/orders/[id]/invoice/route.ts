@@ -11,7 +11,10 @@ export const GET = withAuth(async (_req, { params }) => {
   try {
     const built = await buildInvoicePdfForOrder({ id: parseInt(params.id) });
     if (!built) return fail('Not found', 404);
-    return new Response(built.pdf, {
+    // Cast to BodyInit: a Uint8Array is a valid Response body at runtime, but
+    // under TS 5.7+ Uint8Array<ArrayBufferLike> isn't assignable to BodyInit
+    // (which wants an ArrayBuffer-backed view). Purely a types-lib quirk.
+    return new Response(built.pdf as unknown as BodyInit, {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `inline; filename="invoice-${built.orderNumber}.pdf"`,
