@@ -13,6 +13,7 @@ const createSchema = z.object({
   subcategory: z.string().optional(),
   leafCategory: z.string().optional(),
   price: z.number().nonnegative(),
+  costPrice: z.number().nonnegative().optional(),
   mrp: z.number().nonnegative().optional(),
   taxPercent: z.number().nonnegative().optional(),
   discountPercent: z.number().nonnegative().optional(),
@@ -70,6 +71,7 @@ export const GET = withAuth(async (req) => {
         orderBy: { updatedAt: 'desc' },
         take: limit,
         skip: offset,
+        include: { _count: { select: { variants: true } } },
       }),
       prisma.product.count({ where }),
     ]);
@@ -80,16 +82,28 @@ export const GET = withAuth(async (req) => {
   }
 });
 
+/** Human-friendly auto ID derived from the primary key: 54 -> "PID-00054".
+ *  Guaranteed unique (the id is), never edited by the admin. */
+function makeProductCode(id: number): string {
+  return `PID-${String(id).padStart(5, '0')}`;
+}
+
 export const POST = withAuth(async (req, { user }) => {
   try {
     const body = createSchema.parse(await req.json());
     const { images, ...rest } = body;
-    const product = await prisma.product.create({
+    // Create first to obtain the auto-increment id, then stamp the derived
+    // productCode so the two identifiers stay in lockstep.
+    const created = await prisma.product.create({
       data: {
         ...rest,
         images: images as any,
         createdById: user.id,
       },
+    });
+    const product = await prisma.product.update({
+      where: { id: created.id },
+      data: { productCode: makeProductCode(created.id) },
     });
     return ok({ product }, { status: 201 });
   } catch (e) {

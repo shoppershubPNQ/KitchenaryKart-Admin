@@ -11,6 +11,7 @@ const updateSchema = z.object({
   category: z.string().nullable().optional(),
   subcategory: z.string().nullable().optional(),
   price: z.number().nonnegative().optional(),
+  costPrice: z.number().nonnegative().nullable().optional(),
   mrp: z.number().nonnegative().nullable().optional(),
   taxPercent: z.number().nonnegative().optional(),
   discountPercent: z.number().nonnegative().optional(),

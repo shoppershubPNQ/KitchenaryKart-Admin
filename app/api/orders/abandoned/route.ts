@@ -45,6 +45,10 @@ export const GET = withAuth(async (req: NextRequest) => {
       orderStatus: 'pending',
       paymentStatus: 'pending',
       createdAt: { lt: cutoff },
+      // Only genuine storefront checkouts (buyer opened Razorpay but never
+      // paid). Excludes admin-created draft orders, which never get a
+      // razorpayOrderId, so they don't show up as "abandoned carts".
+      razorpayOrderId: { not: null },
     };
     if (!includeContacted) {
       where.contactedAt = null;

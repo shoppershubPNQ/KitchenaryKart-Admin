@@ -13,6 +13,7 @@ type Links = {
   twitter: string;
   facebook: string;
   whatsapp: string;
+  linkedin: string;
 };
 
 const FIELDS: { key: keyof Links; label: string; placeholder: string; help: string }[] = [
@@ -21,10 +22,11 @@ const FIELDS: { key: keyof Links; label: string; placeholder: string; help: stri
   { key: 'twitter',   label: 'Twitter / X', placeholder: 'https://x.com/your-handle', help: 'Profile URL.' },
   { key: 'facebook',  label: 'Facebook',  placeholder: 'https://facebook.com/your-page', help: 'Page URL.' },
   { key: 'whatsapp',  label: 'WhatsApp',  placeholder: 'https://wa.me/919890352455', help: 'Click-to-chat link (use https://wa.me/<number>).' },
+  { key: 'linkedin',  label: 'LinkedIn',  placeholder: 'https://linkedin.com/company/your-page', help: 'Company or profile URL.' },
 ];
 
 const EMPTY: Links = {
-  instagram: '', youtube: '', twitter: '', facebook: '', whatsapp: '',
+  instagram: '', youtube: '', twitter: '', facebook: '', whatsapp: '', linkedin: '',
 };
 
 export default function SocialLinksPage() {

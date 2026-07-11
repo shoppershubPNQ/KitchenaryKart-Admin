@@ -13,7 +13,10 @@ export default async function EditProductPage({ params }: { params: { id: string
   return (
     <div className="max-w-4xl space-y-4">
       <div>
-        <div className="text-xs font-mono text-slate-500">{p.sku}</div>
+        <div className="text-xs font-mono text-slate-500">
+          {p.sku}
+          {p.productCode && <span className="text-slate-400"> · {p.productCode}</span>}
+        </div>
         <h1 className="text-2xl font-semibold text-slate-900">{p.name}</h1>
       </div>
 
@@ -29,11 +32,13 @@ export default async function EditProductPage({ params }: { params: { id: string
         initial={{
           id: p.id,
           sku: p.sku,
+          productCode: p.productCode,
           name: p.name,
           description: p.description,
           category: p.category,
           subcategory: p.subcategory,
           price: Number(p.price),
+          costPrice: p.costPrice ? Number(p.costPrice) : null,
           mrp: p.mrp ? Number(p.mrp) : null,
           taxPercent: Number(p.taxPercent),
           dimensions: p.dimensions,

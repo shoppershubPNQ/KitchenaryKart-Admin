@@ -7,11 +7,15 @@ import { api } from '@/lib/fetch';
 export interface ProductDraft {
   id?: number;
   sku: string;
+  /** Auto-generated second identifier (e.g. "PID-00054"). Read-only. */
+  productCode?: string | null;
   name: string;
   description?: string | null;
   category?: string | null;
   subcategory?: string | null;
   price: number;
+  /** Hotelic Essentials cost price (purchase / manufacturing CTC). Internal. */
+  costPrice?: number | null;
   mrp?: number | null;
   taxPercent?: number;
   dimensions?: string | null;
@@ -47,11 +51,13 @@ export function ProductForm({ initial, isNew }: { initial: ProductDraft; isNew: 
         if (payload[k] === '') payload[k] = null;
       }
       payload.price = Number(payload.price);
+      if (payload.costPrice != null && payload.costPrice !== '') payload.costPrice = Number(payload.costPrice);
       if (payload.mrp != null && payload.mrp !== '') payload.mrp = Number(payload.mrp);
       if (payload.taxPercent != null && payload.taxPercent !== '') payload.taxPercent = Number(payload.taxPercent);
       if (payload.stock != null && payload.stock !== '') payload.stock = Number(payload.stock);
       if (payload.reorderPoint != null && payload.reorderPoint !== '') payload.reorderPoint = Number(payload.reorderPoint);
 
+      delete payload.productCode; // auto-generated, never client-editable
       if (isNew) {
         await api('/api/products', { method: 'POST', body: JSON.stringify(payload) });
       } else {
@@ -73,6 +79,15 @@ export function ProductForm({ initial, isNew }: { initial: ProductDraft; isNew: 
         <div>
           <label className="label">SKU</label>
           <input className="input" value={form.sku} onChange={e => update('sku', e.target.value)} required disabled={!isNew} />
+        </div>
+        <div>
+          <label className="label">Product ID</label>
+          <input
+            className="input font-mono bg-slate-50 text-slate-500"
+            value={form.productCode || (isNew ? 'Auto-assigned on save' : '—')}
+            disabled
+            readOnly
+          />
         </div>
         <div>
           <label className="label">Status</label>
@@ -105,6 +120,26 @@ export function ProductForm({ initial, isNew }: { initial: ProductDraft; isNew: 
         <div>
           <label className="label">Price (₹)</label>
           <input type="number" step="0.01" className="input" value={form.price} onChange={e => update('price', parseFloat(e.target.value))} required />
+        </div>
+        <div>
+          <label className="label">Cost — Hotelic Essentials (₹)</label>
+          <input
+            type="number"
+            step="0.01"
+            className="input"
+            value={form.costPrice ?? ''}
+            onChange={e => update('costPrice', e.target.value ? parseFloat(e.target.value) : null)}
+            placeholder="Purchase / mfg cost"
+          />
+          <p className="mt-1 text-[11px] text-slate-400">
+            Internal only — never shown to customers.
+            {form.costPrice != null && form.costPrice !== ('' as any) && Number(form.price) > 0 && (
+              <span className="text-slate-500">
+                {' '}Margin: ₹{(Number(form.price) - Number(form.costPrice)).toLocaleString('en-IN')}
+                {' '}({(((Number(form.price) - Number(form.costPrice)) / Number(form.price)) * 100).toFixed(1)}%)
+              </span>
+            )}
+          </p>
         </div>
         <div>
           <label className="label">MRP (₹)</label>

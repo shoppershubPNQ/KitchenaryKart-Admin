@@ -3,7 +3,29 @@
     "allow": [
       "Bash(git add *)",
       "Bash(ls package.json tsconfig.json)",
-      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('scripts:', JSON.stringify\\(p.scripts,null,2\\)\\)\")"
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('scripts:', JSON.stringify\\(p.scripts,null,2\\)\\)\")",
+      "Bash(awk '/^model Product /{f=1} f{print} /^}/{if\\(f\\)exit}' prisma/schema.prisma)",
+      "Bash(git -C \"/c/Users/sc1/Documents/GitHub/KitchenaryKart-Admin\" remote -v)",
+      "Bash(git -C \"/c/Users/sc1/Desktop/Files/ONKAR/C-code/website\" remote -v)",
+      "Bash(git -C \"/c/Users/sc1/Desktop/Files/ONKAR/C-code\" remote -v)",
+      "Bash(awk '/^model Product /{f=1} f{print} f&&/^}/{exit}' prisma/schema.prisma)",
+      "PowerShell(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Select-Object ProcessId, @{n='Cmd';e={$_.CommandLine.Substring\\(0,[Math]::Min\\(120,$_.CommandLine.Length\\)\\)}} | Format-Table -AutoSize -Wrap)",
+      "PowerShell(taskkill /PID 17260 /T /F 2>&1)",
+      "PowerShell(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\")",
+      "Bash(tee /tmp/tsc.log)",
+      "Bash(npm run *)",
+      "Bash(git checkout *)",
+      "Bash(rm -f lib/search.ts)",
+      "Bash(rm -rf \"app/api/orders/[id]/gateway\" lib/order-charges.ts)",
+      "Bash(awk '/^model Order /{f=1} f{print} f&&/^}/{exit}' prisma/schema.prisma)",
+      "Bash(git rev-list *)",
+      "Bash(git commit -q -m ' *)",
+      "Bash(git push *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\sc1\\Documents\\GitHub\\KitchenaryKart\\components",
+      "c:\\Users\\sc1\\Documents\\GitHub\\KitchenaryKart\\app\\checkout",
+      "c:\\Users\\sc1\\.claude\\projects\\c--Users-sc1-Documents-GitHub-KitchenaryKart-Admin\\memory"
     ]
   }
 }

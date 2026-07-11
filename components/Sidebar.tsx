@@ -4,18 +4,19 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AdminRole } from '@prisma/client';
+import { Icon, IconName } from './Icons';
 
 interface NavLeaf {
   type?: 'leaf';
   href: string;
   label: string;
-  icon: string;
+  icon: IconName;
   roles?: AdminRole[];
 }
 interface NavGroup {
   type: 'group';
   label: string;
-  icon: string;
+  icon: IconName;
   /** Any pathname starting with one of these toggles the group "active". */
   matches: string[];
   children: { href: string; label: string }[];
@@ -23,35 +24,67 @@ interface NavGroup {
 }
 type NavItem = NavLeaf | NavGroup;
 
-const NAV: NavItem[] = [
-  { href: '/dashboard', label: 'Overview', icon: '📊' },
-  { href: '/dashboard/products', label: 'Products', icon: '📦' },
-  { href: '/dashboard/variants', label: 'Variants', icon: '🔀' },
-  { href: '/dashboard/collections', label: 'Collections', icon: '🗂️' },
-  { href: '/dashboard/orders', label: 'Orders', icon: '🛒' },
-  { href: '/dashboard/abandoned-carts', label: 'Abandoned carts', icon: '🛟' },
-  { href: '/dashboard/coupons', label: 'Coupons', icon: '🎟️' },
-  { href: '/dashboard/customers', label: 'Customers', icon: '👥' },
-  { href: '/dashboard/inventory', label: 'Inventory', icon: '📈' },
-  { href: '/dashboard/inquiries', label: 'Inquiries', icon: '💬' },
+/** Nav grouped into labelled sections for quicker scanning. */
+interface NavSection {
+  title?: string;
+  items: NavItem[];
+}
+
+const SECTIONS: NavSection[] = [
   {
-    type: 'group',
-    label: 'Banners',
-    icon: '🖼️',
-    matches: ['/dashboard/banners', '/dashboard/banners-2'],
-    children: [
-      { href: '/dashboard/banners',   label: 'Banner 1' },
-      { href: '/dashboard/banners-2', label: 'Banner 2' },
+    items: [{ href: '/dashboard', label: 'Dashboard', icon: 'overview' }],
+  },
+  {
+    title: 'Catalog',
+    items: [
+      { href: '/dashboard/products', label: 'Products', icon: 'products' },
+      { href: '/dashboard/collections', label: 'Collections', icon: 'collections' },
+      { href: '/dashboard/inventory', label: 'Inventory', icon: 'inventory' },
     ],
   },
-  { href: '/dashboard/reels', label: 'Reels', icon: '🎬' },
-  { href: '/dashboard/reviews', label: 'Reviews', icon: '⭐' },
-  { href: '/dashboard/policies', label: 'Policies', icon: '📄' },
-  { href: '/dashboard/social', label: 'Social links', icon: '🔗', roles: ['admin'] },
-  { href: '/dashboard/analytics', label: 'Analytics', icon: '📉' },
-  { href: '/dashboard/gst-reports', label: 'GST Reports', icon: '📑', roles: ['admin', 'accounts'] },
-  { href: '/dashboard/users', label: 'Admin users', icon: '🔐', roles: ['admin'] },
-  { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', roles: ['admin'] },
+  {
+    title: 'Sales',
+    items: [
+      { href: '/dashboard/orders', label: 'Orders', icon: 'orders' },
+      { href: '/dashboard/abandoned-carts', label: 'Abandoned carts', icon: 'abandoned' },
+      { href: '/dashboard/coupons', label: 'Coupons', icon: 'coupons' },
+      { href: '/dashboard/customers', label: 'Customers', icon: 'customers' },
+      { href: '/dashboard/inquiries', label: 'Inquiries', icon: 'inquiries' },
+    ],
+  },
+  {
+    title: 'Content',
+    items: [
+      {
+        type: 'group',
+        label: 'Banners',
+        icon: 'banners',
+        matches: ['/dashboard/banners', '/dashboard/banners-2'],
+        children: [
+          { href: '/dashboard/banners', label: 'Banner 1' },
+          { href: '/dashboard/banners-2', label: 'Banner 2' },
+        ],
+      },
+      { href: '/dashboard/reels', label: 'Reels', icon: 'reels' },
+      { href: '/dashboard/reviews', label: 'Reviews', icon: 'reviews' },
+      { href: '/dashboard/policies', label: 'Policies', icon: 'policies' },
+      { href: '/dashboard/social', label: 'Social links', icon: 'social', roles: ['admin'] },
+    ],
+  },
+  {
+    title: 'Insights',
+    items: [
+      { href: '/dashboard/analytics', label: 'Analytics', icon: 'analytics' },
+      { href: '/dashboard/gst-reports', label: 'GST Reports', icon: 'gst', roles: ['admin', 'accounts'] },
+    ],
+  },
+  {
+    title: 'System',
+    items: [
+      { href: '/dashboard/users', label: 'Admin users', icon: 'users', roles: ['admin'] },
+      { href: '/dashboard/settings', label: 'Settings', icon: 'settings', roles: ['admin'] },
+    ],
+  },
 ];
 
 function visible(item: NavItem, role: AdminRole): boolean {
@@ -63,27 +96,45 @@ export function Sidebar({ role }: { role: AdminRole }) {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden md:flex flex-col w-60 bg-ink text-sand border-r border-slate-800">
-      <div className="p-5 border-b border-slate-700 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-brand flex items-center justify-center font-bold text-white">K</div>
-        <div>
+    <aside className="hidden md:flex flex-col w-64 bg-ink text-sand/90 border-r border-black/30">
+      {/* Brand */}
+      <div className="px-5 h-16 flex items-center gap-3 border-b border-white/10">
+        <div className="w-9 h-9 rounded-lg bg-brand flex items-center justify-center font-bold text-white shadow-sm">
+          K
+        </div>
+        <div className="leading-tight">
           <div className="font-semibold text-white text-sm">KitchenaryKart</div>
-          <div className="text-[11px] text-sand/70 uppercase tracking-wide">Admin</div>
+          <div className="text-[10px] text-sand/60 uppercase tracking-[0.15em]">Admin Panel</div>
         </div>
       </div>
 
-      <nav className="flex-1 p-3 space-y-0.5">
-        {NAV.filter((n) => visible(n, role)).map((n) =>
-          n.type === 'group' ? (
-            <NavGroupItem key={n.label} group={n} pathname={pathname} />
-          ) : (
-            <NavLeafItem key={n.href} item={n} pathname={pathname} />
-          ),
-        )}
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto scrollbar-thin px-3 py-4 space-y-5">
+        {SECTIONS.map((section, i) => {
+          const items = section.items.filter((n) => visible(n, role));
+          if (items.length === 0) return null;
+          return (
+            <div key={section.title ?? i} className="space-y-0.5">
+              {section.title && (
+                <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.13em] text-sand/40">
+                  {section.title}
+                </div>
+              )}
+              {items.map((n) =>
+                n.type === 'group' ? (
+                  <NavGroupItem key={n.label} group={n} pathname={pathname} />
+                ) : (
+                  <NavLeafItem key={n.href} item={n} pathname={pathname} />
+                ),
+              )}
+            </div>
+          );
+        })}
       </nav>
 
-      <div className="p-3 border-t border-slate-700 text-[11px] text-sand/60">
-        v1.0 · {process.env.NODE_ENV}
+      <div className="px-4 py-3 border-t border-white/10 text-[11px] text-sand/50 flex items-center justify-between">
+        <span>v1.0</span>
+        <span className="uppercase tracking-wide">{process.env.NODE_ENV}</span>
       </div>
     </aside>
   );
@@ -96,23 +147,25 @@ function NavLeafItem({ item, pathname }: { item: NavLeaf; pathname: string }) {
   return (
     <Link
       href={item.href}
-      className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
-        active ? 'bg-brand text-white' : 'text-sand/90 hover:bg-slate-700/50 hover:text-white'
+      className={`group relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+        active
+          ? 'bg-brand text-white font-medium shadow-sm'
+          : 'text-sand/80 hover:bg-white/5 hover:text-white'
       }`}
     >
-      <span className="text-base">{item.icon}</span>
-      <span>{item.label}</span>
+      {active && (
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r bg-gold" />
+      )}
+      <Icon
+        name={item.icon}
+        className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-white' : 'text-sand/60 group-hover:text-white'}`}
+      />
+      <span className="truncate">{item.label}</span>
     </Link>
   );
 }
 
-function NavGroupItem({
-  group,
-  pathname,
-}: {
-  group: NavGroup;
-  pathname: string;
-}) {
+function NavGroupItem({ group, pathname }: { group: NavGroup; pathname: string }) {
   const isInGroup = group.matches.some((m) => pathname.startsWith(m));
   const [open, setOpen] = useState(isInGroup);
 
@@ -126,29 +179,23 @@ function NavGroupItem({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
-          isInGroup ? 'bg-brand text-white' : 'text-sand/90 hover:bg-slate-700/50 hover:text-white'
+        className={`group w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+          isInGroup ? 'text-white font-medium bg-white/5' : 'text-sand/80 hover:bg-white/5 hover:text-white'
         }`}
         aria-expanded={open}
       >
-        <span className="text-base">{group.icon}</span>
-        <span className="flex-1 text-left">{group.label}</span>
-        <svg
-          viewBox="0 0 12 12"
-          width="10"
-          height="10"
-          className={`transition-transform ${open ? 'rotate-90' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M4 2l4 4-4 4" />
-        </svg>
+        <Icon
+          name={group.icon}
+          className={`w-[18px] h-[18px] shrink-0 ${isInGroup ? 'text-white' : 'text-sand/60 group-hover:text-white'}`}
+        />
+        <span className="flex-1 text-left truncate">{group.label}</span>
+        <Icon
+          name="chevron"
+          className={`w-3.5 h-3.5 text-sand/50 transition-transform ${open ? 'rotate-90' : ''}`}
+        />
       </button>
       {open && (
-        <div className="mt-0.5 ml-7 space-y-0.5 border-l border-slate-700 pl-2">
+        <div className="mt-0.5 ml-[22px] space-y-0.5 border-l border-white/10 pl-3">
           {group.children.map((c) => {
             const active = pathname === c.href || pathname.startsWith(c.href + '/');
             return (
@@ -156,9 +203,7 @@ function NavGroupItem({
                 key={c.href}
                 href={c.href}
                 className={`block px-3 py-1.5 rounded-md text-[13px] transition-colors ${
-                  active
-                    ? 'bg-brand/80 text-white'
-                    : 'text-sand/85 hover:bg-slate-700/50 hover:text-white'
+                  active ? 'bg-brand text-white font-medium' : 'text-sand/70 hover:bg-white/5 hover:text-white'
                 }`}
               >
                 {c.label}

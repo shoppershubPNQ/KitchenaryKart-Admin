@@ -46,6 +46,19 @@ export const GET = withAuth(async (req) => {
         { customerEmail: { contains: search, mode: 'insensitive' } },
       ];
     }
+    // Orders list = confirmed orders only. A storefront cart that reached
+    // Razorpay but was never paid (orderStatus + paymentStatus both pending,
+    // with a razorpayOrderId) is an abandoned cart, not an order — it lives on
+    // the Abandoned Carts page instead. Excluded only from the default view;
+    // an explicit status / paymentStatus filter still returns them so nothing
+    // is truly hidden.
+    if (!status && !paymentStatus) {
+      where.NOT = {
+        orderStatus: 'pending',
+        paymentStatus: 'pending',
+        razorpayOrderId: { not: null },
+      };
+    }
 
     const [items, total] = await Promise.all([
       prisma.order.findMany({

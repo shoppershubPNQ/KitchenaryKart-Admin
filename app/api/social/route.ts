@@ -9,7 +9,7 @@ import { withAuth } from '@/lib/auth';
 import { handleError, ok } from '@/lib/api';
 import { revalidateWeb } from '@/lib/revalidateWeb';
 
-const PLATFORMS = ['instagram', 'youtube', 'twitter', 'facebook', 'whatsapp'] as const;
+const PLATFORMS = ['instagram', 'youtube', 'twitter', 'facebook', 'whatsapp', 'linkedin'] as const;
 type Platform = typeof PLATFORMS[number];
 
 const updateSchema = z.object(

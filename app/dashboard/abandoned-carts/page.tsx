@@ -97,6 +97,39 @@ function buildWhatsAppHref(order: AbandonedOrder): string | null {
   return `https://wa.me/${phone}?text=${encodeURIComponent(lines.join('\n'))}`;
 }
 
+/* --- Inline stroke icons (replace emoji glyphs; recolour via currentColor) --- */
+function WhatsAppIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+      <path d="M12 2a10 10 0 0 0-8.6 15.06L2 22l5.05-1.32A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.18-1.14l-.3-.18-3 .78.8-2.92-.2-.31A8.2 8.2 0 1 1 12 20.2z" />
+      <path d="M17.47 14.38c-.29-.15-1.7-.84-1.96-.93-.26-.1-.45-.15-.64.14-.19.29-.74.93-.9 1.12-.17.19-.33.22-.62.07-.29-.15-1.22-.45-2.32-1.43-.86-.77-1.44-1.72-1.6-2-.17-.29-.02-.45.13-.59.13-.13.29-.34.44-.51.15-.17.19-.29.29-.48.1-.19.05-.36-.02-.51-.07-.15-.64-1.55-.88-2.12-.23-.55-.47-.48-.64-.49h-.55c-.19 0-.51.07-.77.36-.26.29-1.01.99-1.01 2.42 0 1.43 1.04 2.81 1.18 3 .15.19 2.05 3.13 4.97 4.39.69.3 1.23.48 1.65.61.69.22 1.33.19 1.83.12.56-.08 1.7-.7 1.94-1.37.24-.67.24-1.25.17-1.37-.07-.12-.26-.19-.55-.34z" />
+    </svg>
+  );
+}
+const strokeProps = {
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 2,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+  'aria-hidden': true,
+};
+function CheckIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
+  return <svg viewBox="0 0 24 24" className={className} {...strokeProps}><path d="M20 6 9 17l-5-5" /></svg>;
+}
+function ClockIcon({ className = 'w-3 h-3' }: { className?: string }) {
+  return <svg viewBox="0 0 24 24" className={className} {...strokeProps}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>;
+}
+function UndoIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
+  return <svg viewBox="0 0 24 24" className={className} {...strokeProps}><path d="M3 7v6h6" /><path d="M3.51 13a9 9 0 1 0 2.13-9.36L3 7" /></svg>;
+}
+function XIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
+  return <svg viewBox="0 0 24 24" className={className} {...strokeProps}><path d="M18 6 6 18M6 6l12 12" /></svg>;
+}
+function CheckCircleIcon({ className = 'w-12 h-12' }: { className?: string }) {
+  return <svg viewBox="0 0 24 24" className={className} {...strokeProps}><circle cx="12" cy="12" r="10" /><path d="m8.5 12 2.5 2.5 4.5-4.5" /></svg>;
+}
+
 export default function AbandonedCartsPage() {
   const [orders, setOrders] = useState<AbandonedOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -230,7 +263,7 @@ export default function AbandonedCartsPage() {
         )}
         {!loading && orders.length === 0 && (
           <div className="p-16 text-center">
-            <div className="text-5xl mb-3">🎉</div>
+            <CheckCircleIcon className="w-12 h-12 mx-auto mb-3 text-emerald-500" />
             <h3 className="text-ink font-bold mb-1">No abandoned carts</h3>
             <p className="text-sm text-slate-500">
               Either everyone's completing checkout, or you've contacted all the
@@ -253,11 +286,13 @@ export default function AbandonedCartsPage() {
                           {o.customerName || '(no name)'}
                         </span>
                         {o.contactedAt ? (
-                          <span className="pill-blue">
-                            ✓ Contacted {ageString(o.contactedAt)}
+                          <span className="pill-blue inline-flex items-center gap-1">
+                            <CheckIcon className="w-3 h-3" /> Contacted {ageString(o.contactedAt)}
                           </span>
                         ) : (
-                          <span className="pill-yellow">🟡 New</span>
+                          <span className="pill-yellow inline-flex items-center gap-1">
+                            <ClockIcon className="w-3 h-3" /> New
+                          </span>
                         )}
                       </div>
                       <div className="text-xs text-slate-500 font-mono">
@@ -305,41 +340,41 @@ export default function AbandonedCartsPage() {
                         type="button"
                         onClick={() => openWhatsApp(o)}
                         disabled={isBusy || !whatsAppHref}
-                        className="btn-primary !bg-[#25D366] !border-[#25D366] hover:!bg-[#1eb558] !py-2 !text-sm whitespace-nowrap"
+                        className="btn-primary gap-1.5 !bg-[#25D366] !border-[#25D366] hover:!bg-[#1eb558] !py-2 !text-sm whitespace-nowrap"
                         title={
                           whatsAppHref
                             ? 'Open WhatsApp with a pre-filled recovery message'
                             : 'No phone number on this order'
                         }
                       >
-                        📱 WhatsApp Recovery
+                        <WhatsAppIcon className="w-4 h-4" /> WhatsApp Recovery
                       </button>
                       {o.contactedAt ? (
                         <button
                           type="button"
                           onClick={() => markContacted(o.id, false)}
                           disabled={isBusy}
-                          className="btn-outline btn-small !text-xs"
+                          className="btn-outline btn-small gap-1.5 !text-xs"
                         >
-                          ↺ Mark not contacted
+                          <UndoIcon className="w-3.5 h-3.5" /> Mark not contacted
                         </button>
                       ) : (
                         <button
                           type="button"
                           onClick={() => markContacted(o.id, true)}
                           disabled={isBusy}
-                          className="btn-outline btn-small !text-xs"
+                          className="btn-outline btn-small gap-1.5 !text-xs"
                         >
-                          ✓ Mark contacted (silent)
+                          <CheckIcon className="w-3.5 h-3.5" /> Mark contacted (silent)
                         </button>
                       )}
                       <button
                         type="button"
                         onClick={() => markCancelled(o.id)}
                         disabled={isBusy}
-                        className="text-xs font-semibold text-red-600 hover:text-red-700 px-2 py-1.5"
+                        className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 px-2 py-1.5"
                       >
-                        ❌ Mark cancelled
+                        <XIcon className="w-3.5 h-3.5" /> Mark cancelled
                       </button>
                     </div>
                   </div>

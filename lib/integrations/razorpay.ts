@@ -57,7 +57,17 @@ export interface RazorpayPayment {
   /** created | authorized | captured | refunded | failed */
   status: string;
   amount: number; // paise
+  /** Instrument used: upi | card | netbanking | wallet | emi | … */
   method?: string;
+  /** True for international cards (Razorpay charges a higher fee). */
+  international?: boolean;
+  /** Total fee Razorpay charged on this payment, in paise. Includes `tax`.
+   *  Populated once the payment is captured; null on authorized/failed. */
+  fee?: number | null;
+  /** GST portion of `fee`, in paise. */
+  tax?: number | null;
+  /** Card sub-details when method === 'card'. */
+  card?: { network?: string; type?: string } | null;
 }
 
 /**
@@ -83,6 +93,21 @@ export async function fetchRazorpayOrderPayments(razorpayOrderId: string): Promi
   }
   const data = (await res.json()) as { items?: RazorpayPayment[] };
   return data.items || [];
+}
+
+/**
+ * From all attempts on an order, pick the one that actually took the money:
+ * a `captured` payment, else an `authorized` one. Returns null when nothing
+ * settled (only failed/created attempts), so callers can fall back to an
+ * estimate. This is the payment whose `method` (upi/card/…) and real `fee`
+ * we trust for the settlement view.
+ */
+export function pickSettledPayment(payments: RazorpayPayment[]): RazorpayPayment | null {
+  return (
+    payments.find((p) => p.status === 'captured') ||
+    payments.find((p) => p.status === 'authorized') ||
+    null
+  );
 }
 
 export interface RazorpayRefund {

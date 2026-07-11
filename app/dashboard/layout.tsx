@@ -8,7 +8,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!user) redirect('/login');
 
   return (
-    <div className="min-h-screen flex bg-slate-100">
+    <div className="h-screen flex overflow-hidden bg-slate-100">
       <Sidebar role={user.role} />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar user={user} />

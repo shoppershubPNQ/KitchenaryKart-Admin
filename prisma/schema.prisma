@@ -89,6 +89,11 @@ model AdminUser {
 model Product {
   id              Int           @id @default(autoincrement())
   sku             String        @unique
+  /// Auto-generated human-friendly product identifier (e.g. "PID-00054"),
+  /// assigned on create and never edited. A second ID to identify a product
+  /// alongside its SKU. Unique; null only briefly during creation / on
+  /// legacy rows before the one-time backfill.
+  productCode     String?       @unique @map("product_code")
   name            String
   description     String?
   category        String?
@@ -96,6 +101,10 @@ model Product {
   leafCategory    String?       @map("leaf_category")
 
   price           Decimal       @db.Decimal(10, 2)
+  /// Hotelic Essentials cost price — our purchase / manufacturing (CTC) cost.
+  /// INTERNAL ONLY: never exposed on the storefront or any public API; used
+  /// for margin analysis in the admin panel.
+  costPrice       Decimal?      @db.Decimal(10, 2) @map("cost_price")
   mrp             Decimal?      @db.Decimal(10, 2)
   taxPercent      Decimal       @default(18) @db.Decimal(5, 2) @map("tax_percent")
   discountPercent Decimal       @default(0) @db.Decimal(5, 2) @map("discount_percent")
