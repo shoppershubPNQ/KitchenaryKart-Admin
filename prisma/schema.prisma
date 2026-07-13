@@ -173,6 +173,15 @@ model ProductVariant {
   priceModifier Decimal  @default(0) @db.Decimal(10, 2) @map("price_modifier")
   stock         Int      @default(0)
 
+  /// Absolute per-variant price (GST-inclusive selling price). When set, the
+  /// storefront uses this directly instead of parent.price + priceModifier.
+  /// Nullable + additive — legacy variants fall back to the modifier until
+  /// backfilled.
+  price         Decimal? @db.Decimal(10, 2)
+  /// Absolute per-variant MRP (sticker price) driving the strike-through +
+  /// SAVE %. Null = no MRP for this variant.
+  mrp           Decimal? @db.Decimal(10, 2)
+
   /// Order lines that bought this specific variant (for stock decrement).
   orderItems    OrderItem[]
 
