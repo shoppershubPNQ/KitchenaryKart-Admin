@@ -12,6 +12,8 @@ const updateSchema = z.object({
   variantValue: z.string().min(1).optional(),
   skuSuffix: z.string().nullable().optional(),
   priceModifier: z.number().optional(),
+  price: z.number().nullable().optional(),
+  mrp: z.number().nullable().optional(),
   stock: z.number().int().nonnegative().optional(),
   /** Per-variant image. The upload endpoint at /api/variants/[id]/image
    *  returns the Cloudinary URL; pass null here to clear it. */

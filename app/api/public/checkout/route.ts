@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
         skuSuffix: true,
         stock: true,
         priceModifier: true,
+        price: true,
         product: { select: { id: true, name: true, price: true, taxPercent: true } },
       },
     });
@@ -86,7 +87,10 @@ export async function POST(req: NextRequest) {
         productId: v.product?.id ?? null,
         variantId: v.id,
         name: v.product?.name ?? v.skuSuffix,
-        price: Number(v.product?.price ?? 0) + Number(v.priceModifier ?? 0),
+        // Prefer the variant's own absolute price; fall back to parent+modifier
+        // for any variant without its own price yet. This is the BINDING charge —
+        // it MUST match the storefront's displayed variant price.
+        price: v.price != null ? Number(v.price) : Number(v.product?.price ?? 0) + Number(v.priceModifier ?? 0),
         taxPercent: Number(v.product?.taxPercent ?? 18),
         stock: v.stock,
       });

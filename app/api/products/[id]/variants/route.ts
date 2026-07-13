@@ -18,6 +18,8 @@ const createSchema = z.object({
   variantValue: z.string().min(1),
   skuSuffix: z.string().nullable().optional(),
   priceModifier: z.number().optional(),
+  price: z.number().nullable().optional(),
+  mrp: z.number().nullable().optional(),
   stock: z.number().int().nonnegative().optional(),
 });
 
@@ -48,6 +50,8 @@ export const POST = withAuth(async (req, { params }) => {
         variantValue: body.variantValue,
         skuSuffix: body.skuSuffix ?? null,
         priceModifier: body.priceModifier ?? 0,
+        price: body.price ?? null,
+        mrp: body.mrp ?? null,
         stock: body.stock ?? 0,
       },
     });

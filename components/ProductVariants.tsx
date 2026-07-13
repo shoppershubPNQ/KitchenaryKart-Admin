@@ -19,6 +19,10 @@ interface Variant {
   variantValue: string | null;
   skuSuffix: string | null;
   priceModifier: number | string;
+  /** Absolute selling price (GST-incl). Preferred over priceModifier. */
+  price: number | string | null;
+  /** Absolute MRP (sticker) — drives the strike-through + SAVE %. */
+  mrp: number | string | null;
   stock: number;
   imageUrl: string | null;
   images?: string[] | null;
@@ -28,7 +32,8 @@ interface Draft {
   variantType: string;
   variantValue: string;
   skuSuffix: string;
-  priceModifier: string;
+  price: string;
+  mrp: string;
   stock: string;
 }
 
@@ -36,7 +41,8 @@ const EMPTY_DRAFT: Draft = {
   variantType: '',
   variantValue: '',
   skuSuffix: '',
-  priceModifier: '0',
+  price: '',
+  mrp: '',
   stock: '0',
 };
 
@@ -76,7 +82,8 @@ export function ProductVariants({ productId }: { productId: number }) {
           variantType: draft.variantType.trim(),
           variantValue: draft.variantValue.trim(),
           skuSuffix: draft.skuSuffix.trim() || null,
-          priceModifier: Number(draft.priceModifier) || 0,
+          price: draft.price.trim() === '' ? null : Number(draft.price),
+          mrp: draft.mrp.trim() === '' ? null : Number(draft.mrp),
           stock: Math.trunc(Number(draft.stock) || 0),
         }),
       });
@@ -132,17 +139,18 @@ export function ProductVariants({ productId }: { productId: number }) {
               <Th>Type</Th>
               <Th>Value</Th>
               <Th>SKU suffix</Th>
-              <Th align="right">Price &Delta;</Th>
+              <Th align="right">Price ₹</Th>
+              <Th align="right">MRP ₹</Th>
               <Th align="right">Stock</Th>
               <Th></Th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading && (
-              <tr><td colSpan={7} className="p-4 text-center text-slate-400">Loading…</td></tr>
+              <tr><td colSpan={8} className="p-4 text-center text-slate-400">Loading…</td></tr>
             )}
             {!loading && variants.length === 0 && (
-              <tr><td colSpan={7} className="p-4 text-center text-slate-400">No variants yet.</td></tr>
+              <tr><td colSpan={8} className="p-4 text-center text-slate-400">No variants yet.</td></tr>
             )}
             {variants.map((v) => (
               <tr key={v.id} className="hover:bg-slate-50">
@@ -194,10 +202,26 @@ export function ProductVariants({ productId }: { productId: number }) {
                     type="number"
                     step="0.01"
                     className="input input-sm w-full text-right"
-                    defaultValue={Number(v.priceModifier)}
+                    defaultValue={v.price == null ? '' : Number(v.price)}
+                    placeholder="0.00"
                     onBlur={(e) => {
-                      const next = Number(e.target.value) || 0;
-                      if (next !== Number(v.priceModifier)) update(v, 'priceModifier', next);
+                      const raw = e.target.value.trim();
+                      const next = raw === '' ? null : Number(raw);
+                      if (next !== (v.price == null ? null : Number(v.price))) update(v, 'price', next);
+                    }}
+                  />
+                </td>
+                <td className="px-2 py-1.5">
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="input input-sm w-full text-right"
+                    defaultValue={v.mrp == null ? '' : Number(v.mrp)}
+                    placeholder="—"
+                    onBlur={(e) => {
+                      const raw = e.target.value.trim();
+                      const next = raw === '' ? null : Number(raw);
+                      if (next !== (v.mrp == null ? null : Number(v.mrp))) update(v, 'mrp', next);
                     }}
                   />
                 </td>
@@ -249,9 +273,17 @@ export function ProductVariants({ productId }: { productId: number }) {
             type="number"
             step="0.01"
             className="input input-sm md:col-span-1 text-right"
-            placeholder="Price ±"
-            value={draft.priceModifier}
-            onChange={(e) => setDraft({ ...draft, priceModifier: e.target.value })}
+            placeholder="Price ₹"
+            value={draft.price}
+            onChange={(e) => setDraft({ ...draft, price: e.target.value })}
+          />
+          <input
+            type="number"
+            step="0.01"
+            className="input input-sm md:col-span-1 text-right"
+            placeholder="MRP ₹"
+            value={draft.mrp}
+            onChange={(e) => setDraft({ ...draft, mrp: e.target.value })}
           />
           <input
             type="number"
