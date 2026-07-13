@@ -46,6 +46,103 @@ const EMPTY_DRAFT: Draft = {
   stock: '0',
 };
 
+/** Parse a variant's stored type/value into a flat list of {name,value}
+ *  attributes. Multi-axis variants store type='Multi' + value=JSON
+ *  ({"Color":"Red","Size":"L"}); single-axis store type=<name> + value=<string>. */
+function parseAttrs(type: string | null, value: string | null): Array<{ name: string; value: string }> {
+  if (type === 'Multi' && value) {
+    try {
+      const obj = JSON.parse(value);
+      if (obj && typeof obj === 'object') {
+        return Object.entries(obj).map(([name, v]) => ({ name, value: String(v) }));
+      }
+    } catch {
+      /* not JSON — fall through to single-axis */
+    }
+  }
+  if (type) return [{ name: type, value: value ?? '' }];
+  return [{ name: '', value: '' }];
+}
+
+/** Serialize attributes back to the stored form: 1 attribute → single-axis
+ *  (type=<name>, value=<string>); 2+ → Multi + JSON. Blank rows dropped. */
+function serializeAttrs(attrs: Array<{ name: string; value: string }>): {
+  variantType: string;
+  variantValue: string;
+} {
+  const clean = attrs.filter((a) => a.name.trim() && a.value.trim());
+  if (clean.length === 0) return { variantType: '', variantValue: '' };
+  if (clean.length === 1)
+    return { variantType: clean[0].name.trim(), variantValue: clean[0].value.trim() };
+  const obj: Record<string, string> = {};
+  for (const a of clean) obj[a.name.trim()] = a.value.trim();
+  return { variantType: 'Multi', variantValue: JSON.stringify(obj) };
+}
+
+/** Inline multi-attribute editor for one variant — e.g. Color: Red, Size: L,
+ *  Shape: Round. The storefront already renders one selector per distinct axis,
+ *  so this just makes the admin side friendly (no raw JSON). Saves the whole
+ *  set (single-axis or Multi+JSON) on blur. */
+function AttrEditor({
+  variantType,
+  variantValue,
+  onSave,
+}: {
+  variantType: string | null;
+  variantValue: string | null;
+  onSave: (fields: { variantType: string; variantValue: string }) => void;
+}) {
+  const [rows, setRows] = useState(() => parseAttrs(variantType, variantValue));
+  const save = (next: Array<{ name: string; value: string }>) => {
+    const fields = serializeAttrs(next);
+    if (fields.variantType) onSave(fields); // skip while a row is still blank
+  };
+  return (
+    <div className="space-y-1 min-w-[210px]">
+      {rows.map((r, i) => (
+        <div key={i} className="flex items-center gap-1">
+          <input
+            className="input input-sm w-24"
+            placeholder="Color"
+            value={r.name}
+            onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
+            onBlur={() => save(rows)}
+          />
+          <span className="text-slate-400 text-xs">:</span>
+          <input
+            className="input input-sm w-24"
+            placeholder="Red"
+            value={r.value}
+            onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))}
+            onBlur={() => save(rows)}
+          />
+          {rows.length > 1 && (
+            <button
+              type="button"
+              onClick={() => {
+                const n = rows.filter((_, j) => j !== i);
+                setRows(n);
+                save(n);
+              }}
+              className="text-red-500 text-sm px-1 leading-none"
+              title="Remove attribute"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => setRows([...rows, { name: '', value: '' }])}
+        className="text-xs text-indigo-600 hover:underline"
+      >
+        + attribute
+      </button>
+    </div>
+  );
+}
+
 export function ProductVariants({ productId }: { productId: number }) {
   const [variants, setVariants] = useState<Variant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,6 +207,18 @@ export function ProductVariants({ productId }: { productId: number }) {
     }
   }
 
+  // PATCH several variant fields at once (the attributes editor saves
+  // variantType + variantValue together).
+  async function updateFields(v: Variant, fields: { variantType: string; variantValue: string }) {
+    setVariants((prev) => prev.map((x) => (x.id === v.id ? { ...x, ...fields } : x)));
+    try {
+      await api(`/api/variants/${v.id}`, { method: 'PATCH', body: JSON.stringify(fields) });
+    } catch {
+      alert('Could not save attributes. Retry?');
+      load();
+    }
+  }
+
   async function remove(id: number) {
     if (!confirm('Remove this variant?')) return;
     await api(`/api/variants/${id}`, { method: 'DELETE' });
@@ -136,8 +245,7 @@ export function ProductVariants({ productId }: { productId: number }) {
           <thead className="bg-slate-50 border-y border-slate-200">
             <tr>
               <Th>Image</Th>
-              <Th>Type</Th>
-              <Th>Value</Th>
+              <Th>Attributes</Th>
               <Th>SKU suffix</Th>
               <Th align="right">Price ₹</Th>
               <Th align="right">MRP ₹</Th>
@@ -147,10 +255,10 @@ export function ProductVariants({ productId }: { productId: number }) {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading && (
-              <tr><td colSpan={8} className="p-4 text-center text-slate-400">Loading…</td></tr>
+              <tr><td colSpan={7} className="p-4 text-center text-slate-400">Loading…</td></tr>
             )}
             {!loading && variants.length === 0 && (
-              <tr><td colSpan={8} className="p-4 text-center text-slate-400">No variants yet.</td></tr>
+              <tr><td colSpan={7} className="p-4 text-center text-slate-400">No variants yet.</td></tr>
             )}
             {variants.map((v) => (
               <tr key={v.id} className="hover:bg-slate-50">
@@ -167,23 +275,10 @@ export function ProductVariants({ productId }: { productId: number }) {
                   />
                 </td>
                 <td className="px-2 py-1.5">
-                  <input
-                    className="input input-sm w-full"
-                    defaultValue={v.variantType ?? ''}
-                    onBlur={(e) => {
-                      const next = e.target.value.trim();
-                      if (next && next !== v.variantType) update(v, 'variantType', next);
-                    }}
-                  />
-                </td>
-                <td className="px-2 py-1.5">
-                  <input
-                    className="input input-sm w-full"
-                    defaultValue={v.variantValue ?? ''}
-                    onBlur={(e) => {
-                      const next = e.target.value.trim();
-                      if (next && next !== v.variantValue) update(v, 'variantValue', next);
-                    }}
+                  <AttrEditor
+                    variantType={v.variantType}
+                    variantValue={v.variantValue}
+                    onSave={(fields) => updateFields(v, fields)}
                   />
                 </td>
                 <td className="px-2 py-1.5">
