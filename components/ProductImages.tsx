@@ -25,28 +25,50 @@ export function ProductImages({ productId, sku, imageUrl: initialMain, images: i
   const [main, setMain] = useState<string | null>(initialMain);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
 
+  // Bulk upload sends each file in its OWN request (sequentially). The API
+  // appends to the image list, so parallel requests would race and lose images
+  // — hence the await-in-loop. One-file-per-request also keeps every request
+  // under the hosting body-size limit, so a big batch never fails as a single
+  // oversized "Request Entity Too Large" (413) response.
   async function upload(files: FileList | null) {
     if (!files || files.length === 0) return;
     setErr(null);
+    const list = Array.from(files);
+    const failed: string[] = [];
     setBusy('upload');
-    try {
-      const form = new FormData();
-      for (const f of Array.from(files)) form.append('files', f);
-      const res = await fetch(`/api/products/${productId}/images`, {
-        method: 'POST',
-        body: form,
-        credentials: 'include',
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
-      setImages(data.images);
-      setMain(data.imageUrl);
-    } catch (e: any) {
-      setErr(e.message);
-    } finally {
-      setBusy(null);
-      if (fileInput.current) fileInput.current.value = '';
+    for (let i = 0; i < list.length; i++) {
+      const f = list[i];
+      if (list.length > 1) setProgress(`Uploading ${i + 1} of ${list.length}…`);
+      try {
+        const form = new FormData();
+        form.append('files', f);
+        const res = await fetch(`/api/products/${productId}/images`, {
+          method: 'POST',
+          body: form,
+          credentials: 'include',
+        });
+        if (!res.ok) {
+          // A 413 (body too large) returns non-JSON text, which would blow up
+          // res.json() with "Unexpected token …". Read defensively.
+          let msg = `Upload failed (${res.status})`;
+          try { const d = await res.json(); msg = d.error || msg; }
+          catch { if (res.status === 413) msg = `too large for a single upload (compress to a few MB)`; }
+          throw new Error(msg);
+        }
+        const data = await res.json();
+        setImages(data.images);
+        setMain(data.imageUrl);
+      } catch (e: any) {
+        failed.push(`${f.name}: ${e.message}`);
+      }
+    }
+    setBusy(null);
+    setProgress(null);
+    if (fileInput.current) fileInput.current.value = '';
+    if (failed.length) {
+      setErr(`${failed.length} of ${list.length} failed — ${failed.join('; ')}`);
     }
   }
 
@@ -118,7 +140,7 @@ export function ProductImages({ productId, sku, imageUrl: initialMain, images: i
             disabled={busy === 'upload'}
             onClick={() => fileInput.current?.click()}
           >
-            {busy === 'upload' ? 'Uploading…' : '+ Upload images'}
+            {busy === 'upload' ? (progress || 'Uploading…') : '+ Upload images'}
           </button>
         </div>
       </div>

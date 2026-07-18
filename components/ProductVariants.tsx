@@ -441,34 +441,51 @@ function VariantImageCell({
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
 
   const images = variant.images ?? [];
   const primary = variant.imageUrl;
 
+  // One request per file, sequentially: the API appends to the variant's image
+  // list (parallel would race), and per-file requests stay under the hosting
+  // body-size limit so a big batch never fails as one oversized 413.
   async function upload(files: FileList | null) {
     if (!files || files.length === 0) return;
     setErr(null);
+    const list = Array.from(files);
+    const failed: string[] = [];
     setBusy(true);
-    try {
-      const form = new FormData();
-      for (const f of Array.from(files)) form.append('files', f);
-      const res = await fetch(`/api/variants/${variant.id}/image`, {
-        method: 'POST',
-        body: form,
-        credentials: 'include',
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
-      onChange({ imageUrl: data.imageUrl, images: data.images || [] });
-      // Auto-expand after first upload so the new images are visible
-      if ((data.images || []).length > 1) setExpanded(true);
-    } catch (e: any) {
-      setErr(e.message || 'Upload failed');
-    } finally {
-      setBusy(false);
-      if (fileRef.current) fileRef.current.value = '';
+    let count = 0;
+    for (let i = 0; i < list.length; i++) {
+      const f = list[i];
+      if (list.length > 1) setProgress(`Uploading ${i + 1} of ${list.length}…`);
+      try {
+        const form = new FormData();
+        form.append('files', f);
+        const res = await fetch(`/api/variants/${variant.id}/image`, {
+          method: 'POST',
+          body: form,
+          credentials: 'include',
+        });
+        if (!res.ok) {
+          let msg = `Upload failed (${res.status})`;
+          try { const d = await res.json(); msg = d.error || msg; }
+          catch { if (res.status === 413) msg = `too large for a single upload (compress to a few MB)`; }
+          throw new Error(msg);
+        }
+        const data = await res.json();
+        onChange({ imageUrl: data.imageUrl, images: data.images || [] });
+        count = (data.images || []).length;
+      } catch (e: any) {
+        failed.push(`${f.name}: ${e.message}`);
+      }
     }
+    if (count > 1) setExpanded(true);
+    setBusy(false);
+    setProgress(null);
+    if (fileRef.current) fileRef.current.value = '';
+    if (failed.length) setErr(`${failed.length} of ${list.length} failed — ${failed.join('; ')}`);
   }
 
   async function removeOne(url: string) {
@@ -529,7 +546,7 @@ function VariantImageCell({
           type="button"
           onClick={() => !busy && fileRef.current?.click()}
           disabled={busy}
-          title="Upload variant images (multi-select supported)"
+          title={progress || 'Upload variant images (multi-select supported)'}
           className="w-12 h-12 rounded border border-dashed border-slate-300 text-slate-400 grid place-items-center text-xl hover:border-brand hover:text-brand disabled:opacity-50"
         >
           {busy ? '…' : '+'}
