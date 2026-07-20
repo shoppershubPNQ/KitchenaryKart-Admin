@@ -136,6 +136,10 @@ async function compute(): Promise<CachedStats> {
              SUM(oi.line_total)::float AS total_revenue
       FROM products p
       JOIN order_items oi ON p.id = oi.product_id
+      JOIN orders o ON o.id = oi.order_id
+      -- Same rule as PAID_WHERE above: only money actually received. Without
+      -- this the list counted unpaid/abandoned orders and overstated revenue.
+      WHERE o.payment_status = 'completed' AND o.order_status <> 'cancelled'
       GROUP BY p.id
       ORDER BY total_revenue DESC NULLS LAST
       LIMIT 5
