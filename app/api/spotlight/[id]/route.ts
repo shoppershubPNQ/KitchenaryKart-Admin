@@ -8,7 +8,7 @@ import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { handleError, ok, fail } from '@/lib/api';
 import { revalidateWeb } from '@/lib/revalidateWeb';
-import { spotlightSchema } from '../route';
+import { spotlightSchema } from '@/lib/spotlight-schema';
 
 function parseId(raw: string): number | null {
   const id = parseInt(raw, 10);
