@@ -189,9 +189,12 @@ export default function GstReportsPage() {
           <div className="font-semibold">Report preview</div>
           {loading && <div className="text-xs text-slate-400">Loading…</div>}
         </div>
-        <div className="overflow-x-auto">
+        {/* Capped-height scroll region: the summary cards + filters above stay
+            put, and the column headers stay pinned (sticky thead) while you
+            scroll the rows — so nothing important scrolls out of view. */}
+        <div className="overflow-auto max-h-[65vh]">
           <table className="w-full text-xs">
-            <thead className="bg-slate-50 text-slate-500 uppercase">
+            <thead className="bg-slate-50 text-slate-500 uppercase sticky top-0 z-10 shadow-[inset_0_-1px_0_rgb(226,232,240)]">
               <tr>
                 <Th>Invoice #</Th>
                 <Th>Date</Th>

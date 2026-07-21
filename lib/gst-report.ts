@@ -98,10 +98,27 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
     orderBy: { invoiceSerial: 'asc' },
   });
 
+  // HSN fallback: an order item's `product` relation is null when its
+  // productId was never linked (e.g. variant SKUs). HSN is a product attribute,
+  // so look it up by the item's stored SKU. Cheap single query, keyed by sku.
+  const skuHsn = new Map<string, string>();
+  for (const p of await prisma.product.findMany({ select: { sku: true, hsnCode: true } })) {
+    if (p.hsnCode) skuHsn.set(p.sku, p.hsnCode);
+  }
+  const hsnForSku = (sku: string): string => {
+    if (skuHsn.has(sku)) return skuHsn.get(sku)!;
+    // Variant SKUs look like "<parentSku>-<suffix>"; fall back to the parent.
+    const cut = sku.lastIndexOf('-');
+    if (cut > 0 && skuHsn.has(sku.slice(0, cut))) return skuHsn.get(sku.slice(0, cut))!;
+    return '';
+  };
+
   const rows: GstReportRow[] = [];
 
   for (const order of orders) {
-    const gstin = order.customer?.gstNumber?.trim() ?? '';
+    // Match the invoice generator (lib/invoice-build.ts): a GSTIN entered at
+    // checkout is stored on the order itself and must win over the profile's.
+    const gstin = (order.customerGstin?.trim() || order.customer?.gstNumber?.trim()) ?? '';
     const isB2B = !!gstin;
     if (filters.type === 'b2b' && !isB2B) continue;
     if (filters.type === 'b2c' && isB2B) continue;
@@ -141,7 +158,7 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
         customerType: isB2B ? 'B2B' : 'B2C',
         productSku: it.productSku || '',
         productName: it.productName || '',
-        hsnCode: it.product?.hsnCode ?? '',
+        hsnCode: it.product?.hsnCode || hsnForSku(it.productSku || ''),
         quantity: it.quantity,
         taxableValue,
         taxRate: taxPercent,
