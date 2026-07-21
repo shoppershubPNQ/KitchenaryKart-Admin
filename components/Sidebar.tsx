@@ -66,6 +66,7 @@ const SECTIONS: NavSection[] = [
         ],
       },
       { href: '/dashboard/reels', label: 'Reels', icon: 'reels' },
+      { href: '/dashboard/spotlight', label: 'Featured Spotlight', icon: 'spotlight' },
       { href: '/dashboard/reviews', label: 'Reviews', icon: 'reviews' },
       { href: '/dashboard/policies', label: 'Policies', icon: 'policies' },
       { href: '/dashboard/social', label: 'Social links', icon: 'social', roles: ['admin'] },

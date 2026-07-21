@@ -69,89 +69,89 @@ enum DiscountType {
 }
 
 model AdminUser {
-  id            Int       @id @default(autoincrement())
-  name          String
-  email         String    @unique
-  passwordHash  String    @map("password_hash")
-  role          AdminRole @default(staff)
-  phone         String?
-  isActive      Boolean   @default(true) @map("is_active")
-  lastLogin     DateTime? @map("last_login")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id           Int       @id @default(autoincrement())
+  name         String
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         AdminRole @default(staff)
+  phone        String?
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLogin    DateTime? @map("last_login")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  productsCreated    Product[]            @relation("CreatedBy")
-  movementsCreated   InventoryMovement[]
+  productsCreated  Product[]           @relation("CreatedBy")
+  movementsCreated InventoryMovement[]
 
   @@map("admin_users")
 }
 
 model Product {
-  id              Int           @id @default(autoincrement())
-  sku             String        @unique
+  id           Int     @id @default(autoincrement())
+  sku          String  @unique
   /// Auto-generated human-friendly product identifier (e.g. "PID-00054"),
   /// assigned on create and never edited. A second ID to identify a product
   /// alongside its SKU. Unique; null only briefly during creation / on
   /// legacy rows before the one-time backfill.
-  productCode     String?       @unique @map("product_code")
-  name            String
-  description     String?
-  category        String?
-  subcategory     String?
-  leafCategory    String?       @map("leaf_category")
+  productCode  String? @unique @map("product_code")
+  name         String
+  description  String?
+  category     String?
+  subcategory  String?
+  leafCategory String? @map("leaf_category")
 
-  price           Decimal       @db.Decimal(10, 2)
+  price           Decimal  @db.Decimal(10, 2)
   /// Hotelic Essentials cost price — our purchase / manufacturing (CTC) cost.
   /// INTERNAL ONLY: never exposed on the storefront or any public API; used
   /// for margin analysis in the admin panel.
-  costPrice       Decimal?      @db.Decimal(10, 2) @map("cost_price")
-  mrp             Decimal?      @db.Decimal(10, 2)
-  taxPercent      Decimal       @default(18) @db.Decimal(5, 2) @map("tax_percent")
-  discountPercent Decimal       @default(0) @db.Decimal(5, 2) @map("discount_percent")
+  costPrice       Decimal? @map("cost_price") @db.Decimal(10, 2)
+  mrp             Decimal? @db.Decimal(10, 2)
+  taxPercent      Decimal  @default(18) @map("tax_percent") @db.Decimal(5, 2)
+  discountPercent Decimal  @default(0) @map("discount_percent") @db.Decimal(5, 2)
 
-  dimensions      String?
-  power           String?
-  capacity        String?
-  weight          String?
-  material        String?
-  color           String?
+  dimensions String?
+  power      String?
+  capacity   String?
+  weight     String?
+  material   String?
+  color      String?
 
-  stock           Int           @default(0)
-  reorderPoint    Int           @default(5) @map("reorder_point")
-  hsnCode         String?       @map("hsn_code")
+  stock        Int     @default(0)
+  reorderPoint Int     @default(5) @map("reorder_point")
+  hsnCode      String? @map("hsn_code")
 
-  status          ProductStatus @default(active)
+  status ProductStatus @default(active)
 
   // Merchandising flags — admin-controlled so the home page doesn't rely on
   // heuristics. When both are false the frontend falls back to its existing
   // price-based picks.
-  isBestseller    Boolean       @default(false) @map("is_bestseller")
-  isNewArrival    Boolean       @default(false) @map("is_new_arrival")
+  isBestseller Boolean @default(false) @map("is_bestseller")
+  isNewArrival Boolean @default(false) @map("is_new_arrival")
 
-  imageUrl        String?       @map("image_url")
-  images          Json?
+  imageUrl String? @map("image_url")
+  images   Json?
 
   /// Per-product FAQ entries surfaced on the PDP as an accordion and
   /// emitted as schema.org FAQPage JSON-LD so AI search overviews
   /// (ChatGPT, Perplexity, Google AI) can extract the Q&A directly.
   /// Shape: [{ "q": "string", "a": "string" }, …]
   /// Null/empty array → no FAQ section rendered on the PDP.
-  faqs            Json?
+  faqs Json?
 
-  metaTitle       String?       @map("meta_title")
-  metaDescription String?       @map("meta_description")
-  metaKeywords    String?       @map("meta_keywords")
+  metaTitle       String? @map("meta_title")
+  metaDescription String? @map("meta_description")
+  metaKeywords    String? @map("meta_keywords")
 
-  createdById     Int?          @map("created_by")
-  createdBy       AdminUser?    @relation("CreatedBy", fields: [createdById], references: [id])
+  createdById Int?       @map("created_by")
+  createdBy   AdminUser? @relation("CreatedBy", fields: [createdById], references: [id])
 
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  variants        ProductVariant[]
-  orderItems      OrderItem[]
-  movements       InventoryMovement[]
-  reviews         Review[]
+  variants   ProductVariant[]
+  orderItems OrderItem[]
+  movements  InventoryMovement[]
+  reviews    Review[]
 
   @@index([category])
   @@index([status])
@@ -163,94 +163,94 @@ model Product {
 }
 
 model ProductVariant {
-  id            Int      @id @default(autoincrement())
-  productId     Int      @map("product_id")
-  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id        Int     @id @default(autoincrement())
+  productId Int     @map("product_id")
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  variantType   String?  @map("variant_type")
-  variantValue  String?  @map("variant_value")
-  skuSuffix     String?  @map("sku_suffix")
-  priceModifier Decimal  @default(0) @db.Decimal(10, 2) @map("price_modifier")
-  stock         Int      @default(0)
+  variantType   String? @map("variant_type")
+  variantValue  String? @map("variant_value")
+  skuSuffix     String? @map("sku_suffix")
+  priceModifier Decimal @default(0) @map("price_modifier") @db.Decimal(10, 2)
+  stock         Int     @default(0)
 
   /// Absolute per-variant price (GST-inclusive selling price). When set, the
   /// storefront uses this directly instead of parent.price + priceModifier.
   /// Nullable + additive — legacy variants fall back to the modifier until
   /// backfilled.
-  price         Decimal? @db.Decimal(10, 2)
+  price Decimal? @db.Decimal(10, 2)
   /// Absolute per-variant MRP (sticker price) driving the strike-through +
   /// SAVE %. Null = no MRP for this variant.
-  mrp           Decimal? @db.Decimal(10, 2)
+  mrp   Decimal? @db.Decimal(10, 2)
 
   /// Order lines that bought this specific variant (for stock decrement).
-  orderItems    OrderItem[]
+  orderItems OrderItem[]
 
   /// Per-variant primary image (Cloudinary URL). Mirrors the
   /// Product.imageUrl convention — first of `images` is set here
   /// for fast list-card rendering without parsing the JSON.
-  imageUrl      String?  @map("image_url")
+  imageUrl String? @map("image_url")
 
   /// Full per-variant image gallery — JSON array of Cloudinary URLs.
   /// Populated via /api/variants/[id]/image (POST appends, DELETE
   /// removes). When non-empty, the storefront PDP shows this gallery
   /// instead of the parent's `images` when this variant is selected.
   /// Falls back to parent.images when empty.
-  images        Json?
+  images Json?
 
-  createdAt     DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("product_variants")
 }
 
 model Category {
-  id           Int       @id @default(autoincrement())
-  name         String    @unique
+  id           Int        @id @default(autoincrement())
+  name         String     @unique
   slug         String?
-  parentId     Int?      @map("parent_id")
-  parent       Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  parentId     Int?       @map("parent_id")
+  parent       Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
   children     Category[] @relation("CategoryHierarchy")
   description  String?
-  imageUrl     String?   @map("image_url")
-  productCount Int       @default(0) @map("product_count")
-  isActive     Boolean   @default(true) @map("is_active")
-  createdAt    DateTime  @default(now()) @map("created_at")
+  imageUrl     String?    @map("image_url")
+  productCount Int        @default(0) @map("product_count")
+  isActive     Boolean    @default(true) @map("is_active")
+  createdAt    DateTime   @default(now()) @map("created_at")
 
   @@map("categories")
 }
 
 model Customer {
-  id              Int          @id @default(autoincrement())
-  name            String
-  email           String       @unique
-  phone           String?
+  id    Int     @id @default(autoincrement())
+  name  String
+  email String  @unique
+  phone String?
 
-  companyName     String?      @map("company_name")
-  customerType    CustomerType @default(retail) @map("customer_type")
+  companyName  String?      @map("company_name")
+  customerType CustomerType @default(retail) @map("customer_type")
 
-  billingAddress  String?      @map("billing_address")
-  shippingAddress String?      @map("shipping_address")
+  billingAddress  String? @map("billing_address")
+  shippingAddress String? @map("shipping_address")
   city            String?
   state           String?
-  postalCode      String?      @map("postal_code")
+  postalCode      String? @map("postal_code")
   country         String?
 
-  gstNumber       String?      @map("gst_number")
+  gstNumber String? @map("gst_number")
 
-  creditLimit     Decimal      @default(0) @db.Decimal(12, 2) @map("credit_limit")
-  creditUsed      Decimal      @default(0) @db.Decimal(12, 2) @map("credit_used")
+  creditLimit Decimal @default(0) @map("credit_limit") @db.Decimal(12, 2)
+  creditUsed  Decimal @default(0) @map("credit_used") @db.Decimal(12, 2)
 
-  isActive        Boolean      @default(true) @map("is_active")
+  isActive Boolean @default(true) @map("is_active")
 
   // How the customer record got created — "admin" for back-office entries,
   // "web" for phone-OTP signups from the storefront. Existing rows default
   // to "admin" so legacy data stays classified.
-  signupSource    String       @default("admin") @map("signup_source")
+  signupSource String @default("admin") @map("signup_source")
 
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  orders          Order[]
-  reviews         Review[]
+  orders  Order[]
+  reviews Review[]
 
   @@index([customerType])
   @@index([signupSource])
@@ -259,80 +259,80 @@ model Customer {
 }
 
 model Order {
-  id               Int           @id @default(autoincrement())
-  orderNumber      String        @unique @map("order_number")
+  id          Int    @id @default(autoincrement())
+  orderNumber String @unique @map("order_number")
 
-  customerId       Int?          @map("customer_id")
-  customer         Customer?     @relation(fields: [customerId], references: [id])
+  customerId Int?      @map("customer_id")
+  customer   Customer? @relation(fields: [customerId], references: [id])
 
-  customerName     String?       @map("customer_name")
-  customerEmail    String?       @map("customer_email")
-  customerPhone    String?       @map("customer_phone")
+  customerName  String? @map("customer_name")
+  customerEmail String? @map("customer_email")
+  customerPhone String? @map("customer_phone")
   /// Buyer's GSTIN for B2B orders that want a GST input-credit invoice.
   /// Captured at checkout when the customer ticks "business". The invoice
   /// prefers this over the linked customer's stored GSTIN.
-  customerGstin    String?       @map("customer_gstin")
+  customerGstin String? @map("customer_gstin")
 
-  shippingAddress  String?       @map("shipping_address")
-  shippingMethod   String?       @map("shipping_method")
-  shippingCost     Decimal       @default(0) @db.Decimal(10, 2) @map("shipping_cost")
+  shippingAddress String? @map("shipping_address")
+  shippingMethod  String? @map("shipping_method")
+  shippingCost    Decimal @default(0) @map("shipping_cost") @db.Decimal(10, 2)
 
-  subtotal         Decimal?      @db.Decimal(12, 2)
-  taxAmount        Decimal?      @db.Decimal(12, 2) @map("tax_amount")
-  discountAmount   Decimal       @default(0) @db.Decimal(12, 2) @map("discount_amount")
-  totalAmount      Decimal?      @db.Decimal(12, 2) @map("total_amount")
+  subtotal       Decimal? @db.Decimal(12, 2)
+  taxAmount      Decimal? @map("tax_amount") @db.Decimal(12, 2)
+  discountAmount Decimal  @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  totalAmount    Decimal? @map("total_amount") @db.Decimal(12, 2)
 
-  orderStatus      OrderStatus   @default(pending) @map("order_status")
-  paymentStatus    PaymentStatus @default(pending) @map("payment_status")
+  orderStatus   OrderStatus   @default(pending) @map("order_status")
+  paymentStatus PaymentStatus @default(pending) @map("payment_status")
 
-  paymentMethod    String?       @map("payment_method")
-  paymentReference String?       @map("payment_reference")
-  razorpayOrderId  String?       @map("razorpay_order_id")
+  paymentMethod    String? @map("payment_method")
+  paymentReference String? @map("payment_reference")
+  razorpayOrderId  String? @map("razorpay_order_id")
 
   /// Sequential GST invoice serial within a financial year. Allocated
   /// lazily on first invoice download (see lib/invoice-serial.ts) so
   /// pending/cancelled orders don't create gaps. NULL until allocated.
-  invoiceSerial         Int?     @map("invoice_serial")
+  invoiceSerial        Int?    @map("invoice_serial")
   /// Indian financial year string in "YYYY-YY" form (e.g. "2026-27"
   /// for 1 April 2026 → 31 March 2027). Together with invoiceSerial,
   /// composed as "KK/<fy>/<padded serial>" on the invoice PDF.
-  invoiceFinancialYear  String?  @map("invoice_financial_year") @db.VarChar(7)
+  invoiceFinancialYear String? @map("invoice_financial_year") @db.VarChar(7)
 
   /// Shipping carrier name (e.g. "Shiprocket", "Delhivery", "Bluedart").
   /// Free-text so admin doesn't need a fixed enum — the customer just
   /// sees the carrier name on the tracking page.
-  carrierName     String?   @map("carrier_name")
+  carrierName    String?   @map("carrier_name")
   /// Carrier's tracking number / AWB. Customer-facing on /track and
   /// /account/orders/[number].
-  trackingNumber  String?   @map("tracking_number")
+  trackingNumber String?   @map("tracking_number")
   /// Full URL the customer can click to see live carrier tracking.
   /// Optional — when blank, the storefront just shows the tracking
   /// number without a clickable link.
-  trackingUrl     String?   @map("tracking_url")
+  trackingUrl    String?   @map("tracking_url")
   /// Auto-stamped when admin moves the order to "shipped" status.
   /// Used to drive the order status timeline on the customer page.
-  shippedAt       DateTime? @map("shipped_at")
+  shippedAt      DateTime? @map("shipped_at")
   /// Auto-stamped when admin moves the order to "delivered" status.
-  deliveredAt     DateTime? @map("delivered_at")
+  deliveredAt    DateTime? @map("delivered_at")
 
   /// Set when admin clicks "Mark contacted" on the abandoned-carts
   /// page after sending a WhatsApp recovery message. Lets us hide
   /// already-contacted carts from the active queue + measure recovery
   /// rate (contacted → paid).
-  contactedAt     DateTime? @map("contacted_at")
+  contactedAt DateTime? @map("contacted_at")
 
   /// Coupon code applied at checkout (uppercase). The actual ₹ value
   /// deducted lives in discountAmount above. NULL when no coupon used.
-  couponCode      String?   @map("coupon_code")
+  couponCode String? @map("coupon_code")
 
-  notes            String?
-  internalNotes    String?       @map("internal_notes")
+  notes         String?
+  internalNotes String? @map("internal_notes")
 
-  createdAt        DateTime      @default(now()) @map("created_at")
-  updatedAt        DateTime      @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  items            OrderItem[]
-  payments         Payment[]
+  items    OrderItem[]
+  payments Payment[]
 
   @@unique([invoiceFinancialYear, invoiceSerial], name: "invoice_fy_serial_unique")
   @@index([orderStatus])
@@ -343,30 +343,30 @@ model Order {
 }
 
 model OrderItem {
-  id              Int      @id @default(autoincrement())
-  orderId         Int      @map("order_id")
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id      Int   @id @default(autoincrement())
+  orderId Int   @map("order_id")
+  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  productId       Int?     @map("product_id")
-  product         Product? @relation(fields: [productId], references: [id])
+  productId Int?     @map("product_id")
+  product   Product? @relation(fields: [productId], references: [id])
 
   /// The exact variant bought, when the item is a variant SKU. Lets stock
   /// decrement hit the right ProductVariant (not the parent) and records
   /// which size/option was sold. Null for single-variant products.
-  variantId       Int?            @map("variant_id")
-  variant         ProductVariant? @relation(fields: [variantId], references: [id])
+  variantId Int?            @map("variant_id")
+  variant   ProductVariant? @relation(fields: [variantId], references: [id])
 
-  productName     String?  @map("product_name")
-  productSku      String?  @map("product_sku")
+  productName String? @map("product_name")
+  productSku  String? @map("product_sku")
 
-  unitPrice       Decimal  @db.Decimal(10, 2) @map("unit_price")
+  unitPrice       Decimal @map("unit_price") @db.Decimal(10, 2)
   quantity        Int
-  taxPercent      Decimal  @default(18) @db.Decimal(5, 2) @map("tax_percent")
-  discountPercent Decimal  @default(0) @db.Decimal(5, 2) @map("discount_percent")
+  taxPercent      Decimal @default(18) @map("tax_percent") @db.Decimal(5, 2)
+  discountPercent Decimal @default(0) @map("discount_percent") @db.Decimal(5, 2)
 
-  lineTotal       Decimal  @db.Decimal(12, 2) @map("line_total")
+  lineTotal Decimal @map("line_total") @db.Decimal(12, 2)
 
-  createdAt       DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([orderId])
   @@index([productId])
@@ -375,59 +375,59 @@ model OrderItem {
 }
 
 model Payment {
-  id                 Int           @id @default(autoincrement())
-  orderId            Int           @map("order_id")
-  order              Order         @relation(fields: [orderId], references: [id])
+  id      Int   @id @default(autoincrement())
+  orderId Int   @map("order_id")
+  order   Order @relation(fields: [orderId], references: [id])
 
-  amount             Decimal       @db.Decimal(12, 2)
-  paymentMethod      String?       @map("payment_method")
-  paymentReference   String?       @map("payment_reference")
+  amount           Decimal @db.Decimal(12, 2)
+  paymentMethod    String? @map("payment_method")
+  paymentReference String? @map("payment_reference")
 
-  status             PaymentStatus @default(pending)
+  status PaymentStatus @default(pending)
 
-  razorpayPaymentId  String?       @map("razorpay_payment_id")
-  razorpaySignature  String?       @map("razorpay_signature")
+  razorpayPaymentId String? @map("razorpay_payment_id")
+  razorpaySignature String? @map("razorpay_signature")
 
-  createdAt          DateTime      @default(now()) @map("created_at")
-  updatedAt          DateTime      @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("payments")
 }
 
 model InventoryMovement {
-  id            Int           @id @default(autoincrement())
-  productId     Int           @map("product_id")
-  product       Product       @relation(fields: [productId], references: [id])
+  id        Int     @id @default(autoincrement())
+  productId Int     @map("product_id")
+  product   Product @relation(fields: [productId], references: [id])
 
-  movementType  MovementType  @map("movement_type")
-  quantity      Int
-  referenceId   String?       @map("reference_id")
+  movementType MovementType @map("movement_type")
+  quantity     Int
+  referenceId  String?      @map("reference_id")
 
-  notes         String?
-  createdById   Int?          @map("created_by")
-  createdBy     AdminUser?    @relation(fields: [createdById], references: [id])
+  notes       String?
+  createdById Int?       @map("created_by")
+  createdBy   AdminUser? @relation(fields: [createdById], references: [id])
 
-  createdAt     DateTime      @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([productId])
   @@map("inventory_movements")
 }
 
 model Inquiry {
-  id             Int           @id @default(autoincrement())
-  customerName   String?       @map("customer_name")
-  customerEmail  String?       @map("customer_email")
-  customerPhone  String?       @map("customer_phone")
-  companyName    String?       @map("company_name")
+  id            Int     @id @default(autoincrement())
+  customerName  String? @map("customer_name")
+  customerEmail String? @map("customer_email")
+  customerPhone String? @map("customer_phone")
+  companyName   String? @map("company_name")
 
-  items          Json?
-  message        String?
+  items   Json?
+  message String?
 
-  status         InquiryStatus @default(new)
-  quotedAmount   Decimal?      @db.Decimal(12, 2) @map("quoted_amount")
+  status       InquiryStatus @default(new)
+  quotedAmount Decimal?      @map("quoted_amount") @db.Decimal(12, 2)
 
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([status])
   @@index([createdAt])
@@ -435,12 +435,12 @@ model Inquiry {
 }
 
 model AnalyticsEvent {
-  id         BigInt   @id @default(autoincrement())
-  eventType  String   @map("event_type")
-  userId     String?  @map("user_id")
-  productId  Int?     @map("product_id")
-  metadata   Json?
-  createdAt  DateTime @default(now()) @map("created_at")
+  id        BigInt   @id @default(autoincrement())
+  eventType String   @map("event_type")
+  userId    String?  @map("user_id")
+  productId Int?     @map("product_id")
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([eventType])
   @@index([createdAt])
@@ -504,28 +504,28 @@ model Collection {
 /// - CTA maps to either a raw URL in `ctaHref`, or to a product SKU / category
 ///   the admin selected — the frontend resolves those into the right link.
 model Banner {
-  id         Int      @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   /// Storefront slot this banner belongs to. "hero" feeds the home-page
   /// HeroCarousel; "secondary" is a separate slot the admin manages
   /// independently.
-  placement  String   @default("hero")
-  position   Int      @default(0)
-  isActive   Boolean  @default(true) @map("is_active")
+  placement String  @default("hero")
+  position  Int     @default(0)
+  isActive  Boolean @default(true) @map("is_active")
 
-  imageUrl   String   @map("image_url")
-  alt        String?
+  imageUrl String  @map("image_url")
+  alt      String?
 
-  eyebrow    String?
-  title      String?
-  subtitle   String?
+  eyebrow  String?
+  title    String?
+  subtitle String?
 
-  ctaText    String?  @map("cta_text")
-  ctaHref    String?  @map("cta_href")
-  productSku String?  @map("product_sku")
+  ctaText    String? @map("cta_text")
+  ctaHref    String? @map("cta_href")
+  productSku String? @map("product_sku")
   category   String?
 
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([position])
   @@index([isActive])
@@ -534,34 +534,81 @@ model Banner {
 }
 
 model Reel {
-  id            Int      @id @default(autoincrement())
+  id           Int     @id @default(autoincrement())
   /// Cloudinary MP4 URL — required. The storefront <video> tag plays this directly.
-  videoUrl      String   @map("video_url")
+  videoUrl     String  @map("video_url")
   /// Optional poster image shown before the video loads. Auto-derivable from
   /// the video URL via Cloudinary's `.jpg` extension swap, but storing
   /// explicitly avoids extra fetch when the storefront SSRs.
-  thumbnailUrl  String?  @map("thumbnail_url")
+  thumbnailUrl String? @map("thumbnail_url")
   /// Short caption — surfaced as the alt text and small label under the reel.
-  caption       String?
+  caption      String?
   /// Optional link to the original Instagram Reel post — purely informational
   /// for the admin, not surfaced on the storefront.
-  instagramUrl  String?  @map("instagram_url")
+  instagramUrl String? @map("instagram_url")
   /// SKU of the product this reel demos. Stored as a plain string (not a FK)
   /// so reels survive catalog re-imports the same way orders do. The
   /// storefront resolves the product at render time.
-  productSku    String?  @map("product_sku")
+  productSku   String? @map("product_sku")
   /// Display count override. Defaults to 0 — when 0, the storefront falls
   /// back to its pseudo-random per-SKU view count so cards never look empty.
-  viewCount     Int      @default(0) @map("view_count")
-  position      Int      @default(0)
-  isActive      Boolean  @default(true) @map("is_active")
+  viewCount    Int     @default(0) @map("view_count")
+  position     Int     @default(0)
+  isActive     Boolean @default(true) @map("is_active")
 
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([position])
   @@index([isActive])
   @@map("reels")
+}
+
+/// A rich single-product "Featured Spotlight". Shown as a teaser on the home
+/// page and, in full, on its own dedicated page /featured/<slug>. The regular
+/// product page (/product/<sku>) is NEVER affected — all the extra content
+/// below lives only here.
+model Spotlight {
+  id                Int     @id @default(autoincrement())
+  /// Human-readable URL slug for the dedicated rich page: /featured/<slug>.
+  slug              String  @unique
+  /// SKU of the featured product. Plain string (not a FK), like Reel.productSku,
+  /// so it survives catalog re-imports. Live price / MRP / stock / gallery
+  /// images are hydrated from this product at render time.
+  productSku        String  @map("product_sku")
+  /// Small line above the title on the rich page (optional).
+  eyebrow           String?
+  /// Optional headline override; falls back to the product name when blank.
+  headline          String?
+  /// Cloudinary video (signed direct upload, like reels) + its poster frame.
+  videoUrl          String? @map("video_url")
+  videoPoster       String? @map("video_poster")
+  /// Admin-editable content blocks. Json so rows can be added/removed freely;
+  /// tolerant-parsed on the web side. Shapes:
+  ///   keyFeatures       string[]
+  ///   specifications    { label, value }[]
+  ///   packagingIncludes string[]
+  ///   idealFor          string[]
+  ///   whyBuy            { title, text }[]
+  ///   comparison        { rows: { feature, kk, others }[] }
+  keyFeatures       Json    @default("[]") @map("key_features")
+  specifications    Json    @default("[]")
+  packagingIncludes Json    @default("[]") @map("packaging_includes")
+  idealFor          Json    @default("[]") @map("ideal_for")
+  whyBuy            Json    @default("[]") @map("why_buy")
+  comparison        Json    @default("{}")
+  /// Long-form prose.
+  careDisposal      String? @map("care_disposal")
+  description       String?
+  position          Int     @default(0)
+  isActive          Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([position])
+  @@index([isActive])
+  @@map("spotlights")
 }
 
 /// Customer product reviews. Identified by productSku (not productId)
@@ -575,37 +622,37 @@ model Reel {
 /// Moderation: reviews default to isApproved=true (v1: customer-trust
 /// model). Admin can flip to false from /dashboard/reviews if abusive.
 model Review {
-  id            Int       @id @default(autoincrement())
-  productSku    String    @map("product_sku")
-  productId     Int?      @map("product_id")
-  product       Product?  @relation(fields: [productId], references: [id])
+  id         Int      @id @default(autoincrement())
+  productSku String   @map("product_sku")
+  productId  Int?     @map("product_id")
+  product    Product? @relation(fields: [productId], references: [id])
 
   /// Nullable so admin can seed demo / marketing reviews without
   /// inventing a fake customer record. Storefront writes always
   /// populate this (verified-buyer flow). With customerId NULL,
   /// Postgres allows multiple admin-authored reviews per SKU under
   /// the unique constraint — exactly what we want for seeded content.
-  customerId    Int?      @map("customer_id")
-  customer      Customer? @relation(fields: [customerId], references: [id])
+  customerId   Int?      @map("customer_id")
+  customer     Customer? @relation(fields: [customerId], references: [id])
   /// Snapshot of the customer's display name at the time of writing
   /// — keeps the review attribution stable even if the customer
   /// renames their account. For admin-authored reviews this is the
   /// display name the admin types in (e.g. "Rajesh K.").
-  customerName  String    @map("customer_name")
+  customerName String    @map("customer_name")
 
   /// 1-5 integer rating. Validated client-side + on POST.
-  rating        Int
+  rating     Int
   /// Optional short title (max ~80 chars enforced in the route).
-  title         String?
+  title      String?
   /// Required body, max ~2000 chars enforced in the route.
-  body          String
+  body       String
   /// Defaults to true (v1 customer-trust). Admin can unapprove abusive
   /// reviews via /dashboard/reviews — only approved reviews count
   /// toward the displayed average + review list on the PDP.
-  isApproved    Boolean   @default(true) @map("is_approved")
+  isApproved Boolean @default(true) @map("is_approved")
 
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   /// One review per (sku, customer) — re-submitting overwrites the
   /// existing review rather than creating duplicates.
@@ -624,12 +671,12 @@ model Coupon {
   description       String?
   discountType      DiscountType @default(percent) @map("discount_type")
   /// For percent: the % (10 = 10%). For fixed: the ₹ amount (500 = ₹500).
-  discountValue     Decimal      @db.Decimal(10, 2) @map("discount_value")
+  discountValue     Decimal      @map("discount_value") @db.Decimal(10, 2)
   /// Cart subtotal must be ≥ this for the coupon to apply. NULL = no minimum.
-  minOrderValue     Decimal?     @db.Decimal(12, 2) @map("min_order_value")
+  minOrderValue     Decimal?     @map("min_order_value") @db.Decimal(12, 2)
   /// Caps the ₹ discount for PERCENT coupons (e.g. "10% off up to ₹2000").
   /// Ignored for fixed coupons. NULL = uncapped.
-  maxDiscountAmount Decimal?     @db.Decimal(12, 2) @map("max_discount_amount")
+  maxDiscountAmount Decimal?     @map("max_discount_amount") @db.Decimal(12, 2)
   /// Total redemptions allowed across all customers. NULL = unlimited.
   usageLimit        Int?         @map("usage_limit")
   /// Incremented only after a payment is CONFIRMED (not at order
@@ -641,10 +688,10 @@ model Coupon {
   expiresAt         DateTime?    @map("expires_at")
   isActive          Boolean      @default(true) @map("is_active")
 
-  createdAt         DateTime     @default(now()) @map("created_at")
-  updatedAt         DateTime     @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  redemptions       CouponRedemption[]
+  redemptions CouponRedemption[]
 
   @@index([code])
   @@index([isActive])
@@ -662,7 +709,7 @@ model CouponRedemption {
   customerPhone  String?  @map("customer_phone")
   customerEmail  String?  @map("customer_email")
   /// The actual ₹ discount given on this redemption.
-  discountAmount Decimal  @db.Decimal(12, 2) @map("discount_amount")
+  discountAmount Decimal  @map("discount_amount") @db.Decimal(12, 2)
   createdAt      DateTime @default(now()) @map("created_at")
 
   @@index([couponId])

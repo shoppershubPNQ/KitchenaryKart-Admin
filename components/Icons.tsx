@@ -23,6 +23,7 @@ export type IconName =
   | 'inquiries'
   | 'banners'
   | 'reels'
+  | 'spotlight'
   | 'reviews'
   | 'policies'
   | 'social'
@@ -122,6 +123,12 @@ const PATHS: Record<IconName, JSX.Element> = {
   reviews: (
     <>
       <path d="M12 2 15.09 8.26 22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z" />
+    </>
+  ),
+  spotlight: (
+    <>
+      <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
+      <circle cx="12" cy="12" r="3.2" />
     </>
   ),
   policies: (

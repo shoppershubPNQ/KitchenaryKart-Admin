@@ -15,7 +15,8 @@ export async function revalidateWeb(
     | 'products'
     | 'reels'
     | 'reviews'
-    | 'social',
+    | 'social'
+    | 'spotlight',
 ) {
   // Base URL of the storefront to ping. Prefer WEB_BASE_URL, but in production
   // fall back to the live storefront (NOT localhost) so a missing/mis-set env
