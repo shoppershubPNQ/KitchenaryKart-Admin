@@ -29,7 +29,7 @@ export interface SpotlightDraft {
   packagingIncludes?: string[];
   idealFor?: string[];
   whyBuy?: WhyBuy[];
-  comparison?: { rows: CmpRow[] };
+  comparison?: { kkLabel?: string | null; othersLabel?: string | null; rows: CmpRow[] };
   careDisposal?: string | null;
   description?: string | null;
   position?: number;
@@ -107,25 +107,41 @@ function WhyBuyList({ items, onChange }: { items: WhyBuy[]; onChange: (v: WhyBuy
   );
 }
 
-function ComparisonEditor({ rows, onChange }: { rows: CmpRow[]; onChange: (v: CmpRow[]) => void }) {
+type Cmp = { kkLabel?: string | null; othersLabel?: string | null; rows: CmpRow[] };
+
+function ComparisonEditor({ value, onChange }: { value: Cmp; onChange: (v: Cmp) => void }) {
+  const rows = value.rows || [];
+  const set = (patch: Partial<Cmp>) => onChange({ kkLabel: value.kkLabel, othersLabel: value.othersLabel, rows, ...patch });
   return (
     <div>
-      <label className="label">Comparison — KitchenaryKart vs Others</label>
-      <p className="text-xs text-slate-500 mb-2">One row per feature. Fill what KitchenaryKart offers vs a typical local/other seller.</p>
+      <label className="label">Comparison table</label>
+      <p className="text-xs text-slate-500 mb-2">
+        One row per feature. The two column headers name your product vs a typical other seller — leave blank to use
+        “KitchenaryKart” / “Others”.
+      </p>
+      {/* Column-header labels, aligned above the value columns */}
+      <div className="flex gap-2 mb-2">
+        <div className="flex-1 self-center text-xs font-semibold text-slate-400">Feature ↓</div>
+        <input className="input flex-1 font-semibold" placeholder="Your column (e.g. VAMA Cream Charger)"
+          value={value.kkLabel ?? ''} onChange={(e) => set({ kkLabel: e.target.value })} />
+        <input className="input flex-1 font-semibold" placeholder="Other column (e.g. Random Generic)"
+          value={value.othersLabel ?? ''} onChange={(e) => set({ othersLabel: e.target.value })} />
+        <div className="w-[42px] shrink-0" />
+      </div>
       <div className="space-y-2">
         {rows.map((r, i) => (
           <div key={i} className="flex gap-2">
-            <input className="input flex-1" placeholder="Feature (e.g. GST invoice)" value={r.feature}
-              onChange={(e) => onChange(rows.map((x, j) => (j === i ? { ...x, feature: e.target.value } : x)))} />
-            <input className="input flex-1" placeholder="KitchenaryKart (e.g. Yes / 304 SS)" value={r.kk}
-              onChange={(e) => onChange(rows.map((x, j) => (j === i ? { ...x, kk: e.target.value } : x)))} />
-            <input className="input flex-1" placeholder="Others (e.g. Rarely / 202 SS)" value={r.others}
-              onChange={(e) => onChange(rows.map((x, j) => (j === i ? { ...x, others: e.target.value } : x)))} />
-            <button type="button" className="btn-outline !px-3" onClick={() => onChange(rows.filter((_, j) => j !== i))}>✕</button>
+            <input className="input flex-1" placeholder="Feature (e.g. Gas Quality)" value={r.feature}
+              onChange={(e) => set({ rows: rows.map((x, j) => (j === i ? { ...x, feature: e.target.value } : x)) })} />
+            <input className="input flex-1" placeholder={value.kkLabel || 'Your product'} value={r.kk}
+              onChange={(e) => set({ rows: rows.map((x, j) => (j === i ? { ...x, kk: e.target.value } : x)) })} />
+            <input className="input flex-1" placeholder={value.othersLabel || 'Others'} value={r.others}
+              onChange={(e) => set({ rows: rows.map((x, j) => (j === i ? { ...x, others: e.target.value } : x)) })} />
+            <button type="button" className="btn-outline !px-3" onClick={() => set({ rows: rows.filter((_, j) => j !== i) })}>✕</button>
           </div>
         ))}
       </div>
-      <button type="button" className="text-sm text-brand font-semibold mt-2" onClick={() => onChange([...rows, { feature: '', kk: '', others: '' }])}>+ Add row</button>
+      <button type="button" className="text-sm text-brand font-semibold mt-2" onClick={() => set({ rows: [...rows, { feature: '', kk: '', others: '' }] })}>+ Add row</button>
     </div>
   );
 }
@@ -205,7 +221,11 @@ export function SpotlightForm({ initial, isNew }: { initial: SpotlightDraft; isN
         idealFor: (form.idealFor || []).map((s) => s.trim()).filter(Boolean),
         specifications: clean(form.specifications, ['label', 'value']),
         whyBuy: clean(form.whyBuy, ['title', 'text']),
-        comparison: { rows: clean(form.comparison?.rows, ['feature', 'kk', 'others']) },
+        comparison: {
+          kkLabel: form.comparison?.kkLabel?.trim() || null,
+          othersLabel: form.comparison?.othersLabel?.trim() || null,
+          rows: clean(form.comparison?.rows, ['feature', 'kk', 'others']),
+        },
       };
       if (isNew) await api('/api/spotlight', { method: 'POST', body: JSON.stringify(payload) });
       else await api(`/api/spotlight/${initial.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
@@ -248,6 +268,11 @@ export function SpotlightForm({ initial, isNew }: { initial: SpotlightDraft; isN
       {/* Video */}
       <div className="card p-6 space-y-4">
         <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Spotlight video (optional)</h3>
+        <p className="text-xs text-slate-500 -mt-1">
+          Where it shows: plays on <strong>hover</strong> in the home-page spotlight, and appears as the
+          <strong> first item in the product gallery</strong> on the featured page (click to play). Skip it and the
+          gallery just uses the product images.
+        </p>
         <div className="w-full max-w-[420px] rounded-lg overflow-hidden bg-slate-900 border border-slate-200 grid place-items-center" style={{ aspectRatio: '16 / 9' }}>
           {form.videoUrl ? (
             <video key={form.videoUrl} src={form.videoUrl} poster={form.videoPoster || undefined} controls muted playsInline className="w-full h-full object-contain" />
@@ -260,7 +285,11 @@ export function SpotlightForm({ initial, isNew }: { initial: SpotlightDraft; isN
           </label>
           {form.videoUrl && <button type="button" className="text-sm text-red-600" onClick={() => { update('videoUrl', null); update('videoPoster', null); }}>Remove</button>}
         </div>
-        <p className="text-xs text-slate-500">MP4/MOV/WebM. Uploaded straight to Cloudinary (large files OK). The product’s own images are used for the gallery automatically.</p>
+        <p className="text-xs text-slate-500">
+          <strong>Format:</strong> MP4 / MOV / WebM (MP4 recommended). Uploaded straight to Cloudinary — large files are OK, it compresses on delivery.<br />
+          <strong>Best ratio:</strong> square <strong>1:1</strong> or vertical <strong>9:16</strong> (like a Reel). Landscape 16:9 works too, but shows with side/letterbox bars in the square gallery viewer.<br />
+          <strong>Length / size:</strong> keep it short — <strong>15–30 sec</strong>, up to 1080p (≈ under 50&nbsp;MB is ideal). The product’s own images fill the rest of the gallery automatically.
+        </p>
       </div>
 
       {/* Content blocks */}
@@ -279,7 +308,7 @@ export function SpotlightForm({ initial, isNew }: { initial: SpotlightDraft; isN
           <label className="label">Description</label>
           <textarea className="input" rows={4} value={form.description || ''} onChange={(e) => update('description', e.target.value)} placeholder="Rich description for the featured page (kept separate from the product page)." />
         </div>
-        <ComparisonEditor rows={form.comparison?.rows || []} onChange={(v) => update('comparison', { rows: v })} />
+        <ComparisonEditor value={form.comparison || { rows: [] }} onChange={(v) => update('comparison', v)} />
       </div>
 
       {/* Publish */}

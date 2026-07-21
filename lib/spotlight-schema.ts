@@ -23,7 +23,11 @@ export const spotlightSchema = z.object({
   idealFor: z.array(z.string()).optional(),
   whyBuy: z.array(z.object({ title: z.string(), text: z.string() })).optional(),
   comparison: z
-    .object({ rows: z.array(z.object({ feature: z.string(), kk: z.string(), others: z.string() })) })
+    .object({
+      kkLabel: z.string().nullable().optional(),
+      othersLabel: z.string().nullable().optional(),
+      rows: z.array(z.object({ feature: z.string(), kk: z.string(), others: z.string() })),
+    })
     .optional(),
   careDisposal: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
