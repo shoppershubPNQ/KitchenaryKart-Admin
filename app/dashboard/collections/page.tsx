@@ -4,13 +4,13 @@
  * Collections page — curate which **individual products** appear under the
  * home page's Best Seller and New Arrival tabs.
  *
- * Layout: each collection card lists every subcategory in the catalog as a
- * collapsible row. Clicking a row reveals the products in that subcategory
- * with a checkbox per product. The admin ticks individual SKUs; nothing is
- * implicit by subcategory.
+ * Workflow: type in the search box to find any product across the whole
+ * catalog (by name or SKU), click a result to add it, then drag the selected
+ * rows to reorder. The saved order is the exact order the storefront renders,
+ * so the top of the list shows first on the home page.
  */
-import { useEffect, useMemo, useState } from 'react';
-import { api } from '@/lib/fetch';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { api, inr } from '@/lib/fetch';
 
 interface Collection {
   id: number;
@@ -20,19 +20,18 @@ interface Collection {
   productSkus: unknown;
   isActive: boolean;
 }
-
 interface ProductLite {
   sku: string;
   name: string;
   imageUrl: string | null;
   price: number;
 }
+type CatalogItem = ProductLite & { category: string; subName: string };
 interface SubNode {
   subName: string;
   products: ProductLite[];
 }
 type Tree = Record<string, SubNode[]>;
-
 interface ApiResponse {
   collections: Collection[];
   tree: Tree;
@@ -51,8 +50,7 @@ export default function CollectionsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api<ApiResponse>('/api/collections');
-      setData(res);
+      setData(await api<ApiResponse>('/api/collections'));
     } catch (e: any) {
       setError(e?.message || 'Failed to load');
     } finally {
@@ -64,15 +62,34 @@ export default function CollectionsPage() {
     load();
   }, []);
 
+  // Flatten the category → subcategory tree into one searchable catalog plus a
+  // sku → product lookup, so search scans every product at once (not per-sub).
+  const { catalog, bySku } = useMemo(() => {
+    const catalog: CatalogItem[] = [];
+    const bySku = new Map<string, CatalogItem>();
+    if (data) {
+      for (const [cat, subs] of Object.entries(data.tree)) {
+        for (const s of subs) {
+          for (const p of s.products) {
+            const item: CatalogItem = { ...p, category: cat, subName: s.subName };
+            catalog.push(item);
+            bySku.set(p.sku, item);
+          }
+        }
+      }
+    }
+    return { catalog, bySku };
+  }, [data]);
+
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Collections</h1>
         <p className="text-sm text-slate-500">
-          Pick which <strong>products</strong> appear under the{' '}
+          Search the catalog to add <strong>products</strong> to the{' '}
           <strong>Best Seller</strong> and <strong>New Arrival</strong> tabs on the
-          storefront home page. Subcategories below are collapsible — open one to
-          tick the products you want featured.
+          storefront home page, then <strong>drag to reorder</strong> — the order here
+          is the order shown on the site. Remember to <strong>Save</strong>.
         </p>
       </div>
 
@@ -85,12 +102,13 @@ export default function CollectionsPage() {
       {loading && <div className="card p-8 text-center text-slate-400">Loading…</div>}
 
       {!loading && data && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {data.collections.map((c) => (
             <CollectionCard
               key={c.slug}
               collection={c}
-              tree={data.tree}
+              catalog={catalog}
+              bySku={bySku}
               onSaved={load}
             />
           ))}
@@ -102,66 +120,76 @@ export default function CollectionsPage() {
 
 function CollectionCard({
   collection,
-  tree,
+  catalog,
+  bySku,
   onSaved,
 }: {
   collection: Collection;
-  tree: Tree;
+  catalog: CatalogItem[];
+  bySku: Map<string, CatalogItem>;
   onSaved: () => void;
 }) {
-  const initialSkus = useMemo(
-    () => new Set(asList(collection.productSkus)),
-    [collection],
-  );
-  const [selected, setSelected] = useState<Set<string>>(initialSkus);
-  const [filter, setFilter] = useState('');
-  const [openSub, setOpenSub] = useState<string | null>(null); // "cat||sub" key
+  const initial = useMemo(() => asList(collection.productSkus), [collection]);
+  const [skus, setSkus] = useState<string[]>(initial); // ordered selection
+  const [query, setQuery] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState(false);
+  const dragIndex = useRef<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
 
-  // Reset local state when the parent reloads.
+  // Reset local state when the parent reloads with fresh server data.
   useEffect(() => {
-    setSelected(initialSkus);
+    setSkus(initial);
     setSaveOk(false);
-  }, [initialSkus]);
+  }, [initial]);
 
   const dirty = useMemo(() => {
-    if (selected.size !== initialSkus.size) return true;
-    for (const s of selected) if (!initialSkus.has(s)) return true;
-    return false;
-  }, [selected, initialSkus]);
+    if (skus.length !== initial.length) return true;
+    return skus.some((s, i) => s !== initial[i]);
+  }, [skus, initial]);
 
-  function toggle(sku: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(sku)) next.delete(sku);
-      else next.add(sku);
-      return next;
-    });
+  const selectedSet = useMemo(() => new Set(skus), [skus]);
+
+  // Search matches product name or SKU, skips already-selected, caps at 30.
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    const out: CatalogItem[] = [];
+    for (const p of catalog) {
+      if (selectedSet.has(p.sku)) continue;
+      if (p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)) {
+        out.push(p);
+        if (out.length >= 30) break;
+      }
+    }
+    return out;
+  }, [query, catalog, selectedSet]);
+
+  function add(sku: string) {
+    setSkus((p) => (p.includes(sku) ? p : [...p, sku]));
     setSaveOk(false);
   }
-
-  function selectAllIn(products: ProductLite[]) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      for (const p of products) next.add(p.sku);
-      return next;
-    });
+  function remove(sku: string) {
+    setSkus((p) => p.filter((s) => s !== sku));
     setSaveOk(false);
   }
-
-  function clearAllIn(products: ProductLite[]) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      for (const p of products) next.delete(p.sku);
-      return next;
-    });
-    setSaveOk(false);
-  }
-
   function clearAll() {
-    setSelected(new Set());
+    setSkus([]);
+    setSaveOk(false);
+  }
+
+  function onDropAt(target: number) {
+    const from = dragIndex.current;
+    dragIndex.current = null;
+    setDragOver(null);
+    if (from == null || from === target) return;
+    setSkus((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(target, 0, moved);
+      return next;
+    });
     setSaveOk(false);
   }
 
@@ -172,7 +200,7 @@ function CollectionCard({
     try {
       await api(`/api/collections/${collection.slug}`, {
         method: 'PATCH',
-        body: JSON.stringify({ productSkus: Array.from(selected) }),
+        body: JSON.stringify({ productSkus: skus }),
       });
       setSaveOk(true);
       onSaved();
@@ -183,48 +211,17 @@ function CollectionCard({
     }
   }
 
-  // Filter the tree. The query matches against subcategory name, category
-  // name, product name, and SKU — so admin can search "ICE" to find every
-  // subcategory containing ice and every product whose name has "ice" in it.
-  const filterQ = filter.trim().toLowerCase();
-  const filteredEntries = useMemo(() => {
-    const cats = Object.keys(tree).sort();
-    if (!filterQ) return cats.map((cat) => ({ cat, subs: tree[cat] }));
-    return cats
-      .map((cat) => {
-        const subs = tree[cat]
-          .map((s) => {
-            const subMatches =
-              s.subName.toLowerCase().includes(filterQ) ||
-              cat.toLowerCase().includes(filterQ);
-            const matchedProducts = subMatches
-              ? s.products
-              : s.products.filter(
-                  (p) =>
-                    p.name.toLowerCase().includes(filterQ) ||
-                    p.sku.toLowerCase().includes(filterQ),
-                );
-            return matchedProducts.length > 0
-              ? { subName: s.subName, products: matchedProducts }
-              : null;
-          })
-          .filter(Boolean) as SubNode[];
-        return subs.length > 0 ? { cat, subs } : null;
-      })
-      .filter(Boolean) as { cat: string; subs: SubNode[] }[];
-  }, [tree, filterQ]);
-
   return (
     <div className="card p-5 flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">{collection.name}</h2>
           <div className="text-xs text-slate-500">
-            {selected.size} product{selected.size === 1 ? '' : 's'} selected
+            {skus.length} product{skus.length === 1 ? '' : 's'} · shown in this order
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {selected.size > 0 && (
+        <div className="flex items-center gap-3">
+          {skus.length > 0 && (
             <button
               type="button"
               onClick={clearAll}
@@ -239,18 +236,10 @@ function CollectionCard({
             disabled={!dirty || saving}
             className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? 'Saving…' : dirty ? 'Save' : 'Saved'}
           </button>
         </div>
       </div>
-
-      <input
-        type="search"
-        placeholder="Filter subcategories or products…"
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-        className="input"
-      />
 
       {saveError && (
         <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
@@ -259,116 +248,138 @@ function CollectionCard({
       )}
       {saveOk && (
         <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-3 py-2">
-          Saved. The storefront tab updates automatically.
+          Saved. The storefront tab updates within a few seconds.
         </div>
       )}
 
-      <div className="border border-slate-200 rounded-md max-h-[560px] overflow-y-auto">
-        {filteredEntries.length === 0 && (
-          <div className="p-6 text-center text-sm text-slate-400">
-            Nothing matches "{filter}".
+      {/* Search — scans the whole catalog by name or SKU */}
+      <div>
+        <input
+          type="search"
+          placeholder="Search products by name or SKU…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="input"
+        />
+        {query.trim() && (
+          <div className="mt-1 border border-slate-200 rounded-md max-h-72 overflow-y-auto divide-y divide-slate-100">
+            {results.length === 0 ? (
+              <div className="p-4 text-center text-sm text-slate-400">
+                No products match &ldquo;{query}&rdquo;.
+              </div>
+            ) : (
+              results.map((p) => (
+                <button
+                  key={p.sku}
+                  type="button"
+                  onClick={() => add(p.sku)}
+                  className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-50 transition"
+                >
+                  <Thumb p={p} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm text-slate-800">{p.name}</span>
+                    <span className="block truncate text-[11px] text-slate-400">
+                      {p.sku} · {p.category} › {p.subName} · {inr(p.price)}
+                    </span>
+                  </span>
+                  <span className="text-brand text-xl leading-none shrink-0" aria-hidden>
+                    +
+                  </span>
+                </button>
+              ))
+            )}
           </div>
         )}
-        {filteredEntries.map(({ cat, subs }) => (
-          <div key={cat} className="border-b border-slate-100 last:border-b-0">
-            <div className="px-3 py-2 bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-700">
-              {cat}
-            </div>
-            {subs.map((s) => {
-              const key = `${cat}||${s.subName}`;
-              const isOpen = openSub === key || !!filterQ;
-              const selectedHere = s.products.filter((p) =>
-                selected.has(p.sku),
-              ).length;
-              const allHere = selectedHere === s.products.length && s.products.length > 0;
+      </div>
+
+      {/* Selected — drag to reorder */}
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+          Selected — drag to reorder
+        </div>
+        {skus.length === 0 ? (
+          <div className="border border-dashed border-slate-200 rounded-md p-6 text-center text-sm text-slate-400">
+            No products yet. Search above and click a result to add it.
+          </div>
+        ) : (
+          <ul className="border border-slate-200 rounded-md divide-y divide-slate-100">
+            {skus.map((sku, i) => {
+              const p = bySku.get(sku);
               return (
-                <div key={key} className="border-b border-slate-100 last:border-b-0">
+                <li
+                  key={sku}
+                  draggable
+                  onDragStart={() => {
+                    dragIndex.current = i;
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (dragOver !== i) setDragOver(i);
+                  }}
+                  onDragLeave={() => setDragOver((d) => (d === i ? null : d))}
+                  onDrop={() => onDropAt(i)}
+                  onDragEnd={() => {
+                    dragIndex.current = null;
+                    setDragOver(null);
+                  }}
+                  className={`flex items-center gap-3 px-3 py-2 bg-white transition ${
+                    dragOver === i ? 'bg-brand/5 ring-1 ring-inset ring-brand/40' : ''
+                  }`}
+                >
+                  <span
+                    className="cursor-grab active:cursor-grabbing text-slate-300 select-none leading-none"
+                    title="Drag to reorder"
+                    aria-hidden
+                  >
+                    ⠿
+                  </span>
+                  <span className="text-xs tabular-nums text-slate-400 w-5 shrink-0 text-right">
+                    {i + 1}
+                  </span>
+                  {p ? (
+                    <Thumb p={p} />
+                  ) : (
+                    <span className="w-9 h-9 rounded bg-slate-100 shrink-0" />
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm text-slate-800">
+                      {p?.name ?? sku}
+                    </span>
+                    <span className="block truncate text-[11px] text-slate-400">
+                      {sku}
+                      {p ? ` · ${p.category}` : ' · not in active catalog'}
+                    </span>
+                  </span>
                   <button
                     type="button"
-                    onClick={() => setOpenSub(isOpen && !filterQ ? null : key)}
-                    className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-slate-50 transition"
-                    aria-expanded={isOpen}
+                    onClick={() => remove(sku)}
+                    aria-label="Remove"
+                    className="text-slate-400 hover:text-red-600 shrink-0 text-xl leading-none px-1"
                   >
-                    <span className="flex items-center gap-2 text-sm text-slate-800">
-                      <Chevron open={isOpen} />
-                      <span className="font-medium">{s.subName}</span>
-                      <span className="text-xs text-slate-400">
-                        · {selectedHere}/{s.products.length}
-                      </span>
-                    </span>
-                    {isOpen && s.products.length > 0 && (
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (allHere) clearAllIn(s.products);
-                          else selectAllIn(s.products);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (allHere) clearAllIn(s.products);
-                            else selectAllIn(s.products);
-                          }
-                        }}
-                        className={
-                          allHere
-                            ? 'text-[11px] text-slate-500 hover:text-red-600'
-                            : 'text-[11px] text-brand hover:underline'
-                        }
-                      >
-                        {allHere
-                          ? 'Deselect all'
-                          : selectedHere > 0
-                          ? 'Select rest'
-                          : 'Select all'}
-                      </span>
-                    )}
+                    ×
                   </button>
-                  {isOpen && (
-                    <ul className="px-3 pb-3 pt-1">
-                      {s.products.map((p) => (
-                        <li key={p.sku}>
-                          <label
-                            className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer hover:bg-slate-50 rounded px-1.5 py-1"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selected.has(p.sku)}
-                              onChange={() => toggle(p.sku)}
-                            />
-                            <span className="truncate">{p.name}</span>
-                          </label>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+                </li>
               );
             })}
-          </div>
-        ))}
+          </ul>
+        )}
       </div>
     </div>
   );
 }
 
-function Chevron({ open }: { open: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 12 12"
-      width="10"
-      height="10"
-      className={`transition-transform text-slate-400 ${open ? 'rotate-90' : ''}`}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 2l4 4-4 4" />
-    </svg>
+function Thumb({ p }: { p: ProductLite }) {
+  return p.imageUrl ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={p.imageUrl}
+      alt=""
+      className="w-9 h-9 rounded object-cover bg-slate-100 shrink-0"
+      loading="lazy"
+    />
+  ) : (
+    <span className="w-9 h-9 rounded bg-slate-100 grid place-items-center text-[10px] text-slate-400 shrink-0">
+      —
+    </span>
   );
 }
