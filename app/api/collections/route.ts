@@ -2,9 +2,13 @@
  * Collections endpoint.
  *
  * GET /api/collections — returns the curated collections (`bestsellers`,
- * `new-arrivals`) plus the full product tree the admin can pick from. The
- * tree is grouped category → subcategory → products so the UI can render
- * expandable subcategory rows with per-product checkboxes.
+ * `new-arrivals`) plus a flat list of every **active** product the admin can
+ * pick from (sku, name, category, subcategory, image, price).
+ *
+ * Products WITHOUT a category/subcategory are deliberately INCLUDED — the
+ * storefront curates the home tabs by SKU (not by category), so those products
+ * can be featured too. An earlier version filtered them out, which hid ~60
+ * products from the picker.
  *
  * Auto-creates the two collection rows on first call so a fresh install
  * just works.
@@ -31,10 +35,10 @@ export const GET = withAuth(async () => {
       ),
     );
 
-    const [collections, products] = await Promise.all([
+    const [collections, rows] = await Promise.all([
       prisma.collection.findMany({ orderBy: { id: 'asc' } }),
       prisma.product.findMany({
-        where: { status: 'active', category: { not: null }, subcategory: { not: null } },
+        where: { status: 'active' },
         select: {
           sku: true,
           name: true,
@@ -43,44 +47,20 @@ export const GET = withAuth(async () => {
           imageUrl: true,
           price: true,
         },
-        orderBy: [{ category: 'asc' }, { subcategory: 'asc' }, { name: 'asc' }],
+        orderBy: [{ name: 'asc' }],
       }),
     ]);
 
-    interface ProductLite {
-      sku: string;
-      name: string;
-      imageUrl: string | null;
-      price: number;
-    }
-    interface SubNode {
-      subName: string;
-      products: ProductLite[];
-    }
-    type Tree = Record<string, SubNode[]>;
+    const products = rows.map((p) => ({
+      sku: p.sku,
+      name: p.name,
+      category: p.category, // may be null — the picker labels these "Uncategorized"
+      subcategory: p.subcategory, // may be null
+      imageUrl: p.imageUrl,
+      price: Number(p.price),
+    }));
 
-    // Pivot rows into category → subcategory → products[].
-    const tree: Tree = {};
-    const subIndex = new Map<string, ProductLite[]>(); // "cat||sub" → products
-    for (const p of products) {
-      const cat = p.category as string;
-      const sub = p.subcategory as string;
-      const key = `${cat}||${sub}`;
-      let bucket = subIndex.get(key);
-      if (!bucket) {
-        bucket = [];
-        subIndex.set(key, bucket);
-        (tree[cat] ||= []).push({ subName: sub, products: bucket });
-      }
-      bucket.push({
-        sku: p.sku,
-        name: p.name,
-        imageUrl: p.imageUrl,
-        price: Number(p.price),
-      });
-    }
-
-    return ok({ collections, tree });
+    return ok({ collections, products });
   } catch (e) {
     return handleError(e);
   }

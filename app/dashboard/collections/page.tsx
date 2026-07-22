@@ -27,14 +27,17 @@ interface ProductLite {
   price: number;
 }
 type CatalogItem = ProductLite & { category: string; subName: string };
-interface SubNode {
-  subName: string;
-  products: ProductLite[];
+interface ApiProduct {
+  sku: string;
+  name: string;
+  category: string | null;
+  subcategory: string | null;
+  imageUrl: string | null;
+  price: number;
 }
-type Tree = Record<string, SubNode[]>;
 interface ApiResponse {
   collections: Collection[];
-  tree: Tree;
+  products: ApiProduct[];
 }
 
 function asList(raw: unknown): string[] {
@@ -62,20 +65,24 @@ export default function CollectionsPage() {
     load();
   }, []);
 
-  // Flatten the category → subcategory tree into one searchable catalog plus a
-  // sku → product lookup, so search scans every product at once (not per-sub).
+  // Build the searchable catalog + sku → product lookup from the flat product
+  // list. Products with no category/subcategory (the storefront still lets them
+  // be featured) are labelled "Uncategorized" so they're findable, not hidden.
   const { catalog, bySku } = useMemo(() => {
     const catalog: CatalogItem[] = [];
     const bySku = new Map<string, CatalogItem>();
     if (data) {
-      for (const [cat, subs] of Object.entries(data.tree)) {
-        for (const s of subs) {
-          for (const p of s.products) {
-            const item: CatalogItem = { ...p, category: cat, subName: s.subName };
-            catalog.push(item);
-            bySku.set(p.sku, item);
-          }
-        }
+      for (const p of data.products) {
+        const item: CatalogItem = {
+          sku: p.sku,
+          name: p.name,
+          imageUrl: p.imageUrl,
+          price: p.price,
+          category: p.category?.trim() || 'Uncategorized',
+          subName: p.subcategory?.trim() || '',
+        };
+        catalog.push(item);
+        bySku.set(p.sku, item);
       }
     }
     return { catalog, bySku };
@@ -279,7 +286,8 @@ function CollectionCard({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-slate-800">{p.name}</span>
                     <span className="block truncate text-[11px] text-slate-400">
-                      {p.sku} · {p.category} › {p.subName} · {inr(p.price)}
+                      {p.sku} · {p.category}
+                      {p.subName ? ` › ${p.subName}` : ''} · {inr(p.price)}
                     </span>
                   </span>
                   <span className="text-brand text-xl leading-none shrink-0" aria-hidden>
