@@ -26,6 +26,8 @@ export function ProductImages({ productId, sku, imageUrl: initialMain, images: i
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
+  const dragIndex = useRef<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
 
   // Bulk upload sends each file in its OWN request (sequentially). The API
   // appends to the image list, so parallel requests would race and lose images
@@ -116,13 +118,55 @@ export function ProductImages({ productId, sku, imageUrl: initialMain, images: i
     }
   }
 
+  // Persist a drag-reordered list. Optimistic: update the UI immediately, then
+  // PATCH; on failure revert to the previous order. First entry becomes main.
+  async function persistOrder(next: string[]) {
+    const prevImages = images;
+    const prevMain = main;
+    setImages(next);
+    setMain(next[0] ?? null);
+    setErr(null);
+    setBusy('reorder');
+    try {
+      const res = await fetch(`/api/products/${productId}/images`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: next }),
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Reorder failed');
+      setImages(data.images);
+      setMain(data.imageUrl);
+    } catch (e: any) {
+      setImages(prevImages);
+      setMain(prevMain);
+      setErr(e.message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function handleDrop(target: number) {
+    const from = dragIndex.current;
+    dragIndex.current = null;
+    setDragOver(null);
+    if (from == null || from === target || busy) return;
+    const next = [...images];
+    const [moved] = next.splice(from, 1);
+    next.splice(target, 0, moved);
+    persistOrder(next);
+  }
+
   return (
     <div className="card p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Images</div>
           <p className="text-xs text-slate-400 mt-0.5">
-            {images.length === 0 ? 'No images yet.' : `${images.length} image${images.length === 1 ? '' : 's'} · first is the main shown in the shop.`}
+            {images.length === 0
+              ? 'No images yet.'
+              : `${images.length} image${images.length === 1 ? '' : 's'} · drag to reorder · first is the main shown in the shop.`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -156,10 +200,27 @@ export function ProductImages({ productId, sku, imageUrl: initialMain, images: i
           {images.map((url, i) => {
             const isMain = url === main;
             return (
-              <div key={url} className="relative group border border-slate-200 rounded-md overflow-hidden bg-slate-50">
+              <div
+                key={url}
+                draggable={!busy}
+                onDragStart={() => { dragIndex.current = i; }}
+                onDragOver={(e) => { e.preventDefault(); if (dragOver !== i) setDragOver(i); }}
+                onDragLeave={() => setDragOver((d) => (d === i ? null : d))}
+                onDrop={() => handleDrop(i)}
+                onDragEnd={() => { dragIndex.current = null; setDragOver(null); }}
+                className={`relative group border rounded-md overflow-hidden bg-slate-50 transition ${
+                  busy ? '' : 'cursor-grab active:cursor-grabbing'
+                } ${
+                  dragOver === i ? 'border-brand ring-2 ring-brand/50' : 'border-slate-200'
+                } ${dragIndex.current === i ? 'opacity-50' : ''}`}
+              >
                 <div className="aspect-square flex items-center justify-center">
-                  <img src={srcFor(url)} alt={`${sku} ${i + 1}`} className="w-full h-full object-contain" />
+                  {/* draggable=false + pointer-events-none so the tile (not the
+                      browser's native image drag) owns the reorder gesture. */}
+                  <img src={srcFor(url)} alt={`${sku} ${i + 1}`} draggable={false} className="w-full h-full object-contain pointer-events-none" />
                 </div>
+                {/* Order index — makes the gallery order explicit while dragging. */}
+                <div className="absolute top-1.5 right-1.5 bg-black/55 text-white text-[10px] font-semibold w-5 h-5 grid place-items-center rounded-full">{i + 1}</div>
                 {isMain && (
                   <div className="absolute top-1.5 left-1.5 bg-brand text-white text-[10px] font-semibold px-2 py-0.5 rounded">MAIN</div>
                 )}
