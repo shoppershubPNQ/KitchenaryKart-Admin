@@ -103,8 +103,9 @@ export default function ProfitCalculatorPage() {
 
   // Profit
   const profit = netPrice - totalExpense - totalCost;
-  const profitPctCost = pct(profit, totalCost);   // owner's 32%
-  const marginNet = pct(profit, netPrice);
+  const profitPct = pct(profit, totalCost);   // 32% — headline (return on cost incl GST)
+  const marginSale = pct(profit, basic);      // net margin on ex-GST sale
+  const markupCost = pct(profit, cost);       // markup on net cost
   const totalProfit = profit * q;
 
   return (
@@ -212,15 +213,20 @@ export default function ProfitCalculatorPage() {
 
           {/* Net profit */}
           <div className={`mt-4 rounded-xl p-5 ${profit >= 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'}`}>
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-700">Net Profit</span>
-              <span className={`font-head text-2xl font-extrabold ${profit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                {inr(profit)}
-              </span>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-500">Net Profit</div>
+                <div className={`font-head text-2xl font-extrabold ${profit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>{inr(profit)}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-500">Profit Margin</div>
+                <div className={`font-head text-3xl font-extrabold ${profit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>{profitPct.toFixed(0)}%</div>
+              </div>
             </div>
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-              <span>Profit % (on cost): <b className={profit >= 0 ? 'text-emerald-700' : 'text-red-600'}>{profitPctCost.toFixed(1)}%</b></span>
-              <span>Margin (on price): <b className={profit >= 0 ? 'text-emerald-700' : 'text-red-600'}>{marginNet.toFixed(1)}%</b></span>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
+              <span>On cost (incl GST): <b className={profit >= 0 ? 'text-emerald-700' : 'text-red-600'}>{profitPct.toFixed(1)}%</b></span>
+              <span>On sale (ex-GST): <b>{marginSale.toFixed(1)}%</b></span>
+              <span>Markup on cost: <b>{markupCost.toFixed(1)}%</b></span>
             </div>
             {q > 1 && (
               <div className="mt-3 pt-3 border-t border-emerald-200/60 flex items-center justify-between">
