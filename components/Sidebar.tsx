@@ -77,6 +77,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { href: '/dashboard/analytics', label: 'Analytics', icon: 'analytics' },
       { href: '/dashboard/gst-reports', label: 'GST Reports', icon: 'gst', roles: ['admin', 'accounts'] },
+      { href: '/dashboard/profit-calculator', label: 'Profit Calculator', icon: 'analytics', roles: ['admin', 'accounts'] },
     ],
   },
   {
