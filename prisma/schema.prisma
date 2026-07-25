@@ -276,6 +276,10 @@ model Order {
   shippingAddress String? @map("shipping_address")
   shippingMethod  String? @map("shipping_method")
   shippingCost    Decimal @default(0) @map("shipping_cost") @db.Decimal(10, 2)
+  /// Internal-only: the ACTUAL courier/logistics cost the store bears on this
+  /// order. Never shown to the customer (the customer's shipping fee is
+  /// `shippingCost` above). Used by the per-order profit breakdown.
+  internalShippingCost Decimal @default(0) @map("internal_shipping_cost") @db.Decimal(10, 2)
 
   subtotal       Decimal? @db.Decimal(12, 2)
   taxAmount      Decimal? @map("tax_amount") @db.Decimal(12, 2)

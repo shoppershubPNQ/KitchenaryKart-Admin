@@ -15,6 +15,8 @@ const patchSchema = z.object({
   paymentReference: z.string().optional(),
   notes: z.string().optional(),
   internalNotes: z.string().optional(),
+  // Internal-only actual courier cost (₹) — for the per-order profit breakdown.
+  internalShippingCost: z.number().nonnegative().optional(),
   // Shipping / tracking. All optional; empty string clears the field.
   carrierName: z.string().nullable().optional(),
   trackingNumber: z.string().nullable().optional(),
@@ -32,7 +34,12 @@ export const GET = withAuth(async (_req, { params }) => {
     const id = parseInt(params.id);
     const order = await prisma.order.findUnique({
       where: { id },
-      include: { items: true, payments: true, customer: true },
+      include: {
+        // include each item's product cost price (admin-only) for the profit breakdown
+        items: { include: { product: { select: { id: true, costPrice: true } } } },
+        payments: true,
+        customer: true,
+      },
     });
     if (!order) return fail('Not found', 404);
     return ok({ order });
