@@ -1,13 +1,14 @@
 'use client';
 
 /**
- * Profit Calculator — pick a product (or type values) and see true net profit
- * after GST, Razorpay fees, logistics, packaging and cost price.
+ * Profit Calculator — mirrors the owner's manual sheet.
  *
- * Selling price is GST-INCLUSIVE (the store's convention). Cost price can be
- * entered GST-inclusive (then the GST portion is claimable as Input Tax Credit)
- * or GST-exclusive (net cost). Profit = Net Sale − Net Cost − fees − logistics
- * − packaging, and Net GST to govt = GST collected − ITC on the cost.
+ *   COST:  base cost + GST (the GST is reclaimed as Input Tax Credit).
+ *   SALE:  unit price − discount = basic; basic + GST = net price (customer pays).
+ *   EXP:   logistics + packaging + Razorpay% (of net price) + net GST payable
+ *          (GST collected − ITC).
+ *   PROFIT = net price − total expenses − total cost (incl GST).
+ *   Profit % is on the total cost (incl GST), matching the sheet's 32%.
  */
 import { useEffect, useRef, useState } from 'react';
 import { api, inr } from '@/lib/fetch';
@@ -25,6 +26,7 @@ const num = (v: string | number | null | undefined) => {
   const n = typeof v === 'number' ? v : parseFloat(String(v ?? '').replace(/,/g, ''));
   return Number.isFinite(n) ? n : 0;
 };
+const pct = (a: number, b: number) => (b > 0 ? (a / b) * 100 : 0);
 
 export default function ProfitCalculatorPage() {
   const [query, setQuery] = useState('');
@@ -33,13 +35,17 @@ export default function ProfitCalculatorPage() {
   const [picked, setPicked] = useState<ProdHit | null>(null);
   const token = useRef(0);
 
-  const [sellingPrice, setSellingPrice] = useState('');
-  const [costPrice, setCostPrice] = useState('');
-  const [costInclGst, setCostInclGst] = useState(true); // cost entered incl. GST?
+  // Cost
+  const [costPrice, setCostPrice] = useState(''); // base, excl GST
+  const [claimItc, setClaimItc] = useState(true);  // supplier GST-registered?
+  // Sale
+  const [unitPrice, setUnitPrice] = useState('');  // excl GST list price
+  const [discPct, setDiscPct] = useState('0');
   const [gstPct, setGstPct] = useState('18');
+  // Expenses
+  const [rzpPct, setRzpPct] = useState('2.36');
   const [logistics, setLogistics] = useState('0');
   const [packaging, setPackaging] = useState('0');
-  const [rzpPct, setRzpPct] = useState('2');
   const [qty, setQty] = useState('1');
 
   useEffect(() => {
@@ -59,45 +65,61 @@ export default function ProfitCalculatorPage() {
     setPicked(p);
     setQuery(p.name);
     setOpen(false);
-    setSellingPrice(String(num(p.price)));
+    const g = p.taxPercent == null ? 18 : num(p.taxPercent);
+    setGstPct(String(g));
     setCostPrice(p.costPrice == null ? '' : String(num(p.costPrice)));
-    setGstPct(p.taxPercent == null ? '18' : String(num(p.taxPercent)));
+    // product.price is the GST-inclusive selling price → back out the excl-GST
+    // basic as the unit price, with 0 extra discount (price is already final).
+    const basic = num(p.price) / (1 + g / 100);
+    setUnitPrice(basic ? basic.toFixed(2) : '');
+    setDiscPct('0');
   }
 
-  // ── Calculations ──────────────────────────────────────────────
-  const SP = num(sellingPrice);
-  const CPraw = num(costPrice);
+  // ── Calculations (mirror the sheet) ───────────────────────────
   const gst = num(gstPct);
+  const cost = num(costPrice);
+  const unit = num(unitPrice);
+  const disc = num(discPct);
   const rzp = num(rzpPct);
   const logi = num(logistics);
   const pack = num(packaging);
   const q = Math.max(1, Math.round(num(qty)) || 1);
 
-  const gstCollected = SP > 0 && gst > 0 ? (SP * gst) / (100 + gst) : 0; // GST inside SP
-  const netSale = SP - gstCollected;                                     // revenue excl GST
+  // Cost side
+  const gstOnCost = claimItc ? (cost * gst) / 100 : 0;
+  const totalCost = cost + gstOnCost; // incl GST
+  const itc = gstOnCost;
 
-  const netCost = costInclGst && gst > 0 ? (CPraw * 100) / (100 + gst) : CPraw; // COGS excl GST
-  const itc = costInclGst ? CPraw - netCost : 0;                               // input tax credit
-  const netGstPayable = gstCollected - itc;                                    // to govt
+  // Sale side
+  const discAmt = (unit * disc) / 100;
+  const basic = unit - discAmt;
+  const gstCollected = (basic * gst) / 100;
+  const netPrice = basic + gstCollected; // customer pays
 
-  const rzpFee = (SP * rzp) / 100;
-  const profit = netSale - netCost - rzpFee - logi - pack; // per unit
+  // Expenses
+  const rzpFee = (netPrice * rzp) / 100;
+  const netGstPaid = gstCollected - itc;
+  const totalExpense = logi + pack + rzpFee + netGstPaid;
+
+  // Profit
+  const profit = netPrice - totalExpense - totalCost;
+  const profitPctCost = pct(profit, totalCost);   // owner's 32%
+  const marginNet = pct(profit, netPrice);
   const totalProfit = profit * q;
-  const marginSP = SP > 0 ? (profit / SP) * 100 : 0;
-  const markupCost = netCost > 0 ? (profit / netCost) * 100 : 0;
 
   return (
     <div className="max-w-5xl">
       <div className="mb-6">
         <h1 className="text-xl font-bold text-slate-800">Profit Calculator</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Fetch a product (or type values) to see true net profit after GST, Input Tax Credit, Razorpay fees, logistics and packaging.
+          Fetch a product (or type values) — computes true net profit after GST, Input Tax Credit, Razorpay fee, logistics and packaging.
         </p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
         {/* ── Inputs ── */}
-        <div className="card p-6 space-y-4">
+        <div className="card p-6 space-y-5">
+          {/* Product search */}
           <div className="relative">
             <label className="label">Fetch product</label>
             <input
@@ -110,16 +132,11 @@ export default function ProfitCalculatorPage() {
             {open && hits.length > 0 && (
               <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
                 {hits.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => pick(p)}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-0"
-                  >
+                  <button key={p.id} type="button" onClick={() => pick(p)}
+                    className="w-full text-left px-3 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-0">
                     <div className="text-sm font-medium text-slate-800 truncate">{p.name}</div>
                     <div className="text-xs text-slate-500 flex gap-3">
-                      <span>{p.sku}</span>
-                      <span>SP {inr(num(p.price))}</span>
+                      <span>{p.sku}</span><span>SP {inr(num(p.price))}</span>
                       <span>{p.costPrice == null ? 'no cost' : `cost ${inr(num(p.costPrice))}`}</span>
                     </div>
                   </button>
@@ -133,90 +150,77 @@ export default function ProfitCalculatorPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Selling Price (incl. GST) ₹" value={sellingPrice} onChange={setSellingPrice} />
-            <Field label="GST %" value={gstPct} onChange={setGstPct} />
-          </div>
-
-          {/* Cost price + incl/excl GST toggle */}
+          {/* COST */}
           <div>
-            <div className="flex items-center justify-between">
-              <label className="label mb-0">Cost Price ₹</label>
-              <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden text-[11px] font-semibold">
-                <button
-                  type="button"
-                  onClick={() => setCostInclGst(true)}
-                  className={`px-2.5 py-1 transition ${costInclGst ? 'bg-brand text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
-                >
-                  Incl. GST
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCostInclGst(false)}
-                  className={`px-2.5 py-1 transition ${!costInclGst ? 'bg-brand text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
-                >
-                  Excl. GST
-                </button>
-              </div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400">Cost</span>
+              <label className="flex items-center gap-1.5 text-[11px] text-slate-500 cursor-pointer">
+                <input type="checkbox" checked={claimItc} onChange={(e) => setClaimItc(e.target.checked)} />
+                Claim GST input credit (ITC)
+              </label>
             </div>
-            <input
-              className="input mt-1"
-              inputMode="decimal"
-              value={costPrice}
-              onChange={(e) => setCostPrice(e.target.value.replace(/[^0-9.]/g, ''))}
-              placeholder="0"
-            />
-            <p className="text-[11px] text-slate-400 mt-1">
-              {costInclGst
-                ? `GST-inclusive purchase cost — the GST inside it is claimed back as Input Tax Credit. Net cost: ${inr(netCost)}`
-                : 'Net cost, GST already excluded (no input credit shown).'}
-            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Cost Price (excl. GST) ₹" value={costPrice} onChange={setCostPrice} />
+              <Field label="GST %" value={gstPct} onChange={setGstPct} />
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Razorpay fee %" value={rzpPct} onChange={setRzpPct} />
-            <Field label="Quantity" value={qty} onChange={setQty} />
-            <Field label="Logistics / Shipping ₹" value={logistics} onChange={setLogistics} />
-            <Field label="Packaging ₹" value={packaging} onChange={setPackaging} />
+          {/* SALE */}
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400">Selling</span>
+            <div className="grid grid-cols-2 gap-4 mt-1">
+              <Field label="Unit Price (excl. GST) ₹" value={unitPrice} onChange={setUnitPrice} />
+              <Field label="Discount %" value={discPct} onChange={setDiscPct} />
+            </div>
           </div>
-          <p className="text-[11px] text-slate-400 leading-relaxed">
-            Razorpay ~2% + 18% GST on fee ≈ <b>2.36%</b>. Logistics &amp; packaging are per unit.
-          </p>
+
+          {/* EXPENSES */}
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400">Expenses</span>
+            <div className="grid grid-cols-2 gap-4 mt-1">
+              <Field label="Razorpay fee %" value={rzpPct} onChange={setRzpPct} />
+              <Field label="Quantity" value={qty} onChange={setQty} />
+              <Field label="Logistics / Shipping ₹" value={logistics} onChange={setLogistics} />
+              <Field label="Packaging ₹" value={packaging} onChange={setPackaging} />
+            </div>
+          </div>
         </div>
 
         {/* ── Result ── */}
         <div className="card p-6">
-          <Section title="Sale">
-            <Row label="Selling Price (incl. GST)" value={SP} />
-            <Row label={`GST collected @ ${gst || 0}%`} value={gstCollected} muted hint="inside price" />
-            <Row label="Net Sale (excl. GST)" value={netSale} strong />
+          <Section title="Cost">
+            <Row label="Cost Price" value={cost} />
+            <Row label={`+ GST @ ${gst || 0}%`} value={gstOnCost} muted hint="= ITC" />
+            <Row label="Total Cost (incl. GST)" value={totalCost} strong />
           </Section>
 
-          <Section title="Costs (per unit)">
-            <Row label={`Cost Price (${costInclGst ? 'incl.' : 'excl.'} GST)`} value={CPraw} sub />
-            <Row label="Net Cost (COGS, excl. GST)" value={netCost} muted />
-            <Row label="Razorpay fee" value={rzpFee} sub />
+          <Section title="Selling">
+            <Row label="Unit Price (excl. GST)" value={unit} />
+            <Row label={`− Discount ${disc || 0}%`} value={discAmt} muted sub />
+            <Row label="Basic Price (excl. GST)" value={basic} />
+            <Row label={`+ GST @ ${gst || 0}%`} value={gstCollected} muted />
+            <Row label="Net Price (incl. GST)" value={netPrice} strong />
+          </Section>
+
+          <Section title="Expenses">
             <Row label="Logistics" value={logi} sub />
             <Row label="Packaging" value={pack} sub />
-          </Section>
-
-          <Section title="GST to Government">
-            <Row label="GST collected" value={gstCollected} muted />
-            <Row label="− Input Tax Credit (on cost)" value={itc} muted />
-            <Row label="Net GST payable" value={netGstPayable} strong />
+            <Row label={`Razorpay @ ${rzp || 0}%`} value={rzpFee} sub />
+            <Row label="GST paid (collected − ITC)" value={netGstPaid} sub />
+            <Row label="Total Expense" value={totalExpense} strong />
           </Section>
 
           {/* Net profit */}
           <div className={`mt-4 rounded-xl p-5 ${profit >= 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'}`}>
             <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-700">Net Profit / unit</span>
+              <span className="font-bold text-slate-700">Net Profit</span>
               <span className={`font-head text-2xl font-extrabold ${profit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                 {inr(profit)}
               </span>
             </div>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-              <span>Margin on price: <b className={profit >= 0 ? 'text-emerald-700' : 'text-red-600'}>{marginSP.toFixed(1)}%</b></span>
-              {netCost > 0 && <span>Markup on cost: <b className={profit >= 0 ? 'text-emerald-700' : 'text-red-600'}>{markupCost.toFixed(1)}%</b></span>}
+              <span>Profit % (on cost): <b className={profit >= 0 ? 'text-emerald-700' : 'text-red-600'}>{profitPctCost.toFixed(1)}%</b></span>
+              <span>Margin (on price): <b className={profit >= 0 ? 'text-emerald-700' : 'text-red-600'}>{marginNet.toFixed(1)}%</b></span>
             </div>
             {q > 1 && (
               <div className="mt-3 pt-3 border-t border-emerald-200/60 flex items-center justify-between">
@@ -251,9 +255,9 @@ function Row({ label, value, muted, strong, sub, hint }: {
     }`}>
       <span>
         {label}
-        {hint && <span className="text-[11px] text-slate-400 ml-1.5">({hint})</span>}
+        {hint && <span className="text-[11px] text-slate-400 ml-1.5">{hint}</span>}
       </span>
-      <span>{sub && value > 0 ? '− ' : ''}{inr(value)}</span>
+      <span>{inr(value)}</span>
     </div>
   );
 }
