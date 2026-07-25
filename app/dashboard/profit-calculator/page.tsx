@@ -11,7 +11,7 @@
  *   Profit % is on the total cost (incl GST), matching the sheet's 32%.
  */
 import { useEffect, useRef, useState } from 'react';
-import { api, inr } from '@/lib/fetch';
+import { api, inr, dateShort } from '@/lib/fetch';
 
 interface ProdHit {
   id: number;
@@ -239,6 +239,123 @@ export default function ProfitCalculatorPage() {
           </div>
         </div>
       </div>
+
+      {/* Per-order profit (admin only — cost/margin never leave the admin app) */}
+      <OrdersProfit rzpPct={num(rzpPct)} />
+    </div>
+  );
+}
+
+interface OrderRow {
+  orderNumber: string;
+  date: string;
+  customer: string | null;
+  totalAmount: number;
+  revenueIncl: number;
+  costIncl: number;
+  gstCollected: number;
+  itc: number;
+  items: number;
+  costMissing: boolean;
+}
+
+function OrdersProfit({ rzpPct }: { rzpPct: number }) {
+  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api<{ orders: OrderRow[] }>('/api/profit-calc/orders?limit=40');
+        setOrders(res.orders || []);
+      } catch (e: any) {
+        setErr(e?.message || 'Failed to load orders');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const rows = orders.map((o) => {
+    const razorpay = (o.totalAmount * rzpPct) / 100;
+    const gstPaid = o.gstCollected - o.itc;
+    const profit = o.revenueIncl - o.costIncl - razorpay - gstPaid;
+    const margin = o.costIncl > 0 ? (profit / o.costIncl) * 100 : 0;
+    return { ...o, razorpay, gstPaid, profit, margin };
+  });
+  const usable = rows.filter((r) => !r.costMissing);
+  const totalProfit = usable.reduce((s, r) => s + r.profit, 0);
+
+  return (
+    <div className="card p-6 mt-6">
+      <div className="flex items-center justify-between gap-4 mb-3">
+        <div>
+          <h2 className="font-bold text-slate-800">
+            Per-Order Profit <span className="text-xs font-normal text-slate-400">· admin only</span>
+          </h2>
+          <p className="text-xs text-slate-500">
+            Recent paid orders — profit at Razorpay {rzpPct || 0}%. Cost taken from each product's cost price.
+          </p>
+        </div>
+        {usable.length > 0 && (
+          <div className="text-right shrink-0">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Total ({usable.length} orders)</div>
+            <div className={`font-head text-lg font-extrabold ${totalProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>{inr(totalProfit)}</div>
+          </div>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="text-sm text-slate-400 py-6 text-center">Loading orders…</div>
+      ) : err ? (
+        <div className="text-sm text-red-500 py-6 text-center">{err}</div>
+      ) : rows.length === 0 ? (
+        <div className="text-sm text-slate-400 py-6 text-center">No paid orders yet.</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[720px]">
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
+                <th className="py-2 pr-3">Order</th>
+                <th className="py-2 pr-3">Date</th>
+                <th className="py-2 pr-3 text-right">Revenue</th>
+                <th className="py-2 pr-3 text-right">Cost</th>
+                <th className="py-2 pr-3 text-right">GST paid</th>
+                <th className="py-2 pr-3 text-right">Razorpay</th>
+                <th className="py-2 pr-3 text-right">Profit</th>
+                <th className="py-2 text-right">Margin</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.orderNumber} className="border-b border-slate-50">
+                  <td className="py-2 pr-3">
+                    <div className="font-medium text-slate-700">{r.orderNumber}</div>
+                    <div className="text-[11px] text-slate-400 truncate max-w-[130px]">{r.customer || '—'}</div>
+                  </td>
+                  <td className="py-2 pr-3 text-slate-500 whitespace-nowrap">{dateShort(r.date)}</td>
+                  <td className="py-2 pr-3 text-right text-slate-600">{inr(r.revenueIncl)}</td>
+                  <td className="py-2 pr-3 text-right text-slate-600">{inr(r.costIncl)}</td>
+                  <td className="py-2 pr-3 text-right text-slate-500">{inr(r.gstPaid)}</td>
+                  <td className="py-2 pr-3 text-right text-slate-500">{inr(r.razorpay)}</td>
+                  <td className={`py-2 pr-3 text-right font-semibold ${r.profit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                    {r.costMissing ? '—' : inr(r.profit)}
+                  </td>
+                  <td className="py-2 text-right">
+                    {r.costMissing
+                      ? <span className="text-[11px] text-amber-500 whitespace-nowrap">no cost</span>
+                      : <b className={r.margin >= 0 ? 'text-emerald-700' : 'text-red-600'}>{r.margin.toFixed(0)}%</b>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-[11px] text-slate-400 mt-3">
+            "no cost" = product's cost price not set — fill it in Products to include that order. Logistics not included (courier cost isn't stored per order).
+          </p>
+        </div>
+      )}
     </div>
   );
 }
