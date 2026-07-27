@@ -177,8 +177,13 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     // by the storefront as "<Name> · <Phone>\n<full address>" so the
     // name + phone already appear inline; rendering inv.customer.name
     // above it would print the name twice.
-    const billingAddr = inv.customer.billingAddress || inv.customer.shippingAddress;
-    const shippingAddr = inv.customer.shippingAddress || inv.customer.billingAddress;
+    // Proper-case the customer-entered name + addresses so values typed in ALL
+    // CAPS or all lowercase render cleanly on the invoice. GSTIN (separate
+    // field, must stay upper) and any digits/phone inside the address string
+    // are left untouched — see toTitleCase.
+    const customerName = toTitleCase(inv.customer.name) || inv.customer.name;
+    const billingAddr = toTitleCase(inv.customer.billingAddress || inv.customer.shippingAddress);
+    const shippingAddr = toTitleCase(inv.customer.shippingAddress || inv.customer.billingAddress);
 
     doc.font('Body-Bold').fontSize(10).fillColor('#000').text('Billing Address:', rightX, y, {
       width: colW,
@@ -188,7 +193,7 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     if (billingAddr) {
       doc.text(billingAddr, rightX, doc.y + 2, { width: colW, align: 'right' });
     } else {
-      doc.text(inv.customer.name, rightX, doc.y + 2, { width: colW, align: 'right' });
+      doc.text(customerName, rightX, doc.y + 2, { width: colW, align: 'right' });
     }
     if (inv.customer.gstNumber) {
       doc.text(`GSTIN: ${inv.customer.gstNumber}`, rightX, doc.y, { width: colW, align: 'right' });
@@ -212,7 +217,7 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     if (shippingAddr) {
       doc.text(shippingAddr, rightX, doc.y + 2, { width: colW, align: 'right' });
     } else {
-      doc.text(inv.customer.name, rightX, doc.y + 2, { width: colW, align: 'right' });
+      doc.text(customerName, rightX, doc.y + 2, { width: colW, align: 'right' });
     }
     if (inv.placeOfSupply) {
       doc.text(`State/UT Code: ${inv.placeOfSupply.code}`, rightX, doc.y + 2, {
@@ -550,6 +555,23 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
 
     doc.end();
   });
+}
+
+/**
+ * Proper-case customer-entered text (name + address) for the invoice: the
+ * first letter of every word is capitalised and the rest lowercased, so a name
+ * or address typed in ALL CAPS or all lowercase renders cleanly
+ * ("KONDHWA BUDRUK" → "Kondhwa Budruk", "john doe" → "John Doe").
+ *
+ * Only runs of letters are transformed — digits, "/", "-", "·" and phone
+ * numbers embedded in the storefront's "<Name> · <Phone>" shipping string are
+ * left exactly as-is. Deliberately NOT applied to the GSTIN (alphanumeric, must
+ * stay upper-case) or email (case-sensitive), which render from their own
+ * untouched fields.
+ */
+function toTitleCase(s: string | undefined): string | undefined {
+  if (!s) return s;
+  return s.replace(/\p{L}+/gu, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
 }
 
 /** Currency formatting with the rupee sign, Indian grouping. Always shows
