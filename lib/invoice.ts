@@ -250,17 +250,22 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     // rendered, we revisit each page (bufferedPages) to draw the
     // vertical column separators and outer table border per page.
     const PAD = 5;
-    // Proportional widths (≈ % of contentW) so columns stay compact and
-    // balanced — no large blank gap after the description. Sl 5 · Desc 35 ·
-    // Qty 8 · Unit Price 18 · Discount 14 · GST 10 · Total 10.
+    // Column widths in points (must sum to contentW = 523). The money columns
+    // (Unit Price, Discount, GST, Total) render right-aligned amounts like
+    // "₹1,96,352.00" on a single line, so GST + Total are widened — a 6-figure
+    // amount used to wrap ("₹1,96,352." + ".00" on the next line). The extra
+    // width is taken from Unit Price + Discount (per-unit / discount amounts are
+    // usually smaller) and a slightly tighter Sl./Qty, keeping the description
+    // column roughly the same. Sl 24 · Desc 181 · Qty 36 · Unit 74 · Disc 62 ·
+    // GST 66 · Total 80  = 523.
     const cols = {
-      sl:   { x: leftX,        w: 26,  label: 'Sl.', align: 'center' as const },
-      desc: { x: leftX + 26,   w: 183, label: 'Description', align: 'left' as const },
-      qty:  { x: leftX + 209,  w: 42,  label: 'Qty', align: 'center' as const },
-      unit: { x: leftX + 251,  w: 94,  label: 'Unit Price', align: 'right' as const },
-      disc: { x: leftX + 345,  w: 73,  label: 'Discount', align: 'right' as const },
-      gst:  { x: leftX + 418,  w: 52,  label: 'GST', align: 'right' as const },
-      tot:  { x: leftX + 470,  w: 53,  label: 'Total', align: 'right' as const },
+      sl:   { x: leftX,        w: 24,  label: 'Sl.', align: 'center' as const },
+      desc: { x: leftX + 24,   w: 181, label: 'Description', align: 'left' as const },
+      qty:  { x: leftX + 205,  w: 36,  label: 'Qty', align: 'center' as const },
+      unit: { x: leftX + 241,  w: 74,  label: 'Unit Price', align: 'right' as const },
+      disc: { x: leftX + 315,  w: 62,  label: 'Discount', align: 'right' as const },
+      gst:  { x: leftX + 377,  w: 66,  label: 'GST', align: 'right' as const },
+      tot:  { x: leftX + 443,  w: 80,  label: 'Total', align: 'right' as const },
     };
     const tableRight = leftX + contentW;
     const HEADER_H = 22;
