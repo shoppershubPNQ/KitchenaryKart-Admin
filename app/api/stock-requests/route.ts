@@ -15,12 +15,20 @@ export const GET = withAuth(async () => {
   try {
     const rows = await prisma.stockNotification.findMany({
       orderBy: { createdAt: 'desc' },
-      select: { productSku: true, email: true, createdAt: true, notifiedAt: true },
+      select: { productSku: true, email: true, phone: true, createdAt: true, notifiedAt: true },
     });
 
     const bySku = new Map<
       string,
-      { sku: string; waiting: number; notified: number; lastRequestedAt: Date; emails: string[] }
+      {
+        sku: string;
+        waiting: number;
+        notified: number;
+        lastRequestedAt: Date;
+        emails: string[];
+        /** Who to CALL — only the requests that left a number. */
+        contacts: { email: string; phone: string }[];
+      }
     >();
     for (const r of rows) {
       const e = bySku.get(r.productSku) ?? {
@@ -29,11 +37,13 @@ export const GET = withAuth(async () => {
         notified: 0,
         lastRequestedAt: r.createdAt,
         emails: [],
+        contacts: [],
       };
       if (r.notifiedAt) e.notified++;
       else e.waiting++;
       if (r.createdAt > e.lastRequestedAt) e.lastRequestedAt = r.createdAt;
       if (e.emails.length < 50) e.emails.push(r.email);
+      if (r.phone && e.contacts.length < 50) e.contacts.push({ email: r.email, phone: r.phone });
       bySku.set(r.productSku, e);
     }
 

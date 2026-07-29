@@ -11,6 +11,7 @@ interface Item {
   notified: number;
   lastRequestedAt: string;
   emails: string[];
+  contacts: { email: string; phone: string }[];
 }
 
 /**
@@ -79,7 +80,7 @@ export default function StockRequestsPage() {
                 <th className="px-3 py-2.5 font-semibold text-right">Notified</th>
                 <th className="px-3 py-2.5 font-semibold text-right">Stock now</th>
                 <th className="px-3 py-2.5 font-semibold">Last asked</th>
-                <th className="px-3 py-2.5 font-semibold">Emails</th>
+                <th className="px-3 py-2.5 font-semibold">Contacts</th>
               </tr>
             </thead>
             <tbody>
@@ -106,8 +107,24 @@ export default function StockRequestsPage() {
                       {open === it.sku ? 'Hide' : `Show (${it.emails.length})`}
                     </button>
                     {open === it.sku && (
-                      <div className="mt-1.5 text-[12.5px] text-ink-soft break-all">
-                        {it.emails.join(', ')}
+                      <div className="mt-1.5 text-[12.5px] text-ink-soft space-y-1">
+                        {/* Numbers first — a call converts a bulk enquiry far
+                            better than waiting on an email. */}
+                        {it.contacts.length > 0 && (
+                          <div className="flex flex-wrap gap-x-3 gap-y-1">
+                            {it.contacts.map((c) => (
+                              <a
+                                key={c.phone + c.email}
+                                href={`tel:+91${c.phone}`}
+                                className="text-brand font-semibold whitespace-nowrap"
+                                title={c.email}
+                              >
+                                📞 +91 {c.phone}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                        <div className="break-all">{it.emails.join(', ')}</div>
                       </div>
                     )}
                   </td>

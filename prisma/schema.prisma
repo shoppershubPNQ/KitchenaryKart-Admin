@@ -729,6 +729,8 @@ model StockNotification {
   id         Int       @id @default(autoincrement())
   productSku String    @map("product_sku")
   email      String
+  /// Optional phone so the team can CALL a waiting customer, not just email.
+  phone      String?
   createdAt  DateTime  @default(now()) @map("created_at")
   /// Set when the back-in-stock email went out. NULL = still waiting.
   notifiedAt DateTime? @map("notified_at")
