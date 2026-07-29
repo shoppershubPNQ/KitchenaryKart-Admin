@@ -720,3 +720,22 @@ model CouponRedemption {
   @@index([customerPhone])
   @@map("coupon_redemptions")
 }
+
+/// A customer asking to be emailed when a sold-out item is back.
+/// `productSku` may be a PARENT product SKU or a VARIANT SKU
+/// (ProductVariant.skuSuffix) — the storefront records whichever the shopper
+/// was actually looking at, and the restock cron resolves both.
+model StockNotification {
+  id         Int       @id @default(autoincrement())
+  productSku String    @map("product_sku")
+  email      String
+  createdAt  DateTime  @default(now()) @map("created_at")
+  /// Set when the back-in-stock email went out. NULL = still waiting.
+  notifiedAt DateTime? @map("notified_at")
+
+  /// One pending request per sku+email. A repeat request after being notified
+  /// re-arms the row (notifiedAt back to NULL) instead of duplicating it.
+  @@unique([productSku, email], name: "stock_notify_sku_email_unique")
+  @@index([notifiedAt])
+  @@map("stock_notifications")
+}

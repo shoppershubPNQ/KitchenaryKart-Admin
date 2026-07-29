@@ -50,6 +50,7 @@ const SECTIONS: NavSection[] = [
       { href: '/dashboard/coupons', label: 'Coupons', icon: 'coupons' },
       { href: '/dashboard/customers', label: 'Customers', icon: 'customers' },
       { href: '/dashboard/inquiries', label: 'Inquiries', icon: 'inquiries' },
+      { href: '/dashboard/stock-requests', label: 'Stock requests', icon: 'inventory' },
     ],
   },
   {

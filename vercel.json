@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/cancel-stale-orders",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/notify-restock",
+      "schedule": "30 * * * *"
     }
   ]
 }
