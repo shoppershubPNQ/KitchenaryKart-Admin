@@ -20,6 +20,7 @@ const createSchema = z.object({
   priceModifier: z.number().optional(),
   price: z.number().nullable().optional(),
   mrp: z.number().nullable().optional(),
+  weight: z.string().trim().max(40).nullable().optional(),
   stock: z.number().int().nonnegative().optional(),
 });
 
@@ -52,6 +53,7 @@ export const POST = withAuth(async (req, { params }) => {
         priceModifier: body.priceModifier ?? 0,
         price: body.price ?? null,
         mrp: body.mrp ?? null,
+        weight: body.weight ?? null,
         stock: body.stock ?? 0,
       },
     });

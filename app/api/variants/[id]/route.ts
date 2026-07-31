@@ -14,6 +14,8 @@ const updateSchema = z.object({
   priceModifier: z.number().optional(),
   price: z.number().nullable().optional(),
   mrp: z.number().nullable().optional(),
+  /** Free-text per-variant weight ("360g"); null = inherit the parent. */
+  weight: z.string().trim().max(40).nullable().optional(),
   stock: z.number().int().nonnegative().optional(),
   /** Per-variant image. The upload endpoint at /api/variants/[id]/image
    *  returns the Cloudinary URL; pass null here to clear it. */

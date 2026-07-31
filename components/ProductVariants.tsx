@@ -24,6 +24,8 @@ interface Variant {
   /** Absolute MRP (sticker) — drives the strike-through + SAVE %. */
   mrp: number | string | null;
   stock: number;
+  /** Per-variant weight ("360g", "1.2 kg"). Null → parent product weight. */
+  weight: string | null;
   imageUrl: string | null;
   images?: string[] | null;
 }
@@ -34,6 +36,7 @@ interface Draft {
   skuSuffix: string;
   price: string;
   mrp: string;
+  weight: string;
   stock: string;
 }
 
@@ -43,6 +46,7 @@ const EMPTY_DRAFT: Draft = {
   skuSuffix: '',
   price: '',
   mrp: '',
+  weight: '',
   stock: '0',
 };
 
@@ -181,6 +185,7 @@ export function ProductVariants({ productId }: { productId: number }) {
           skuSuffix: draft.skuSuffix.trim() || null,
           price: draft.price.trim() === '' ? null : Number(draft.price),
           mrp: draft.mrp.trim() === '' ? null : Number(draft.mrp),
+          weight: draft.weight.trim() || null,
           stock: Math.trunc(Number(draft.stock) || 0),
         }),
       });
@@ -249,6 +254,7 @@ export function ProductVariants({ productId }: { productId: number }) {
               <Th>SKU suffix</Th>
               <Th align="right">Price ₹</Th>
               <Th align="right">MRP ₹</Th>
+              <Th>Weight</Th>
               <Th align="right">Stock</Th>
               <Th></Th>
             </tr>
@@ -321,6 +327,22 @@ export function ProductVariants({ productId }: { productId: number }) {
                   />
                 </td>
                 <td className="px-2 py-1.5">
+                  {/* Free text like the parent product's weight ("360g",
+                      "1.2 kg"). Blank = inherit the parent, so only sizes that
+                      actually differ need filling. Feeds the shipping quote. */}
+                  <input
+                    type="text"
+                    className="input input-sm w-24"
+                    placeholder="parent"
+                    defaultValue={v.weight ?? ''}
+                    onBlur={(e) => {
+                      const raw = e.target.value.trim();
+                      const next = raw === '' ? null : raw;
+                      if (next !== (v.weight ?? null)) update(v, 'weight', next);
+                    }}
+                  />
+                </td>
+                <td className="px-2 py-1.5">
                   <input
                     type="number"
                     className="input input-sm w-full text-right"
@@ -379,6 +401,13 @@ export function ProductVariants({ productId }: { productId: number }) {
             placeholder="MRP ₹"
             value={draft.mrp}
             onChange={(e) => setDraft({ ...draft, mrp: e.target.value })}
+          />
+          <input
+            type="text"
+            className="input input-sm md:col-span-1"
+            placeholder="Weight"
+            value={draft.weight}
+            onChange={(e) => setDraft({ ...draft, weight: e.target.value })}
           />
           <input
             type="number"

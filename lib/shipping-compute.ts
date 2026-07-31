@@ -24,18 +24,19 @@ export async function computeShipping(
 ): Promise<ShippingResult> {
   const skus = items.map((i) => i.sku);
 
-  // Resolve a weight string per sku — parent product weight, or the parent of
-  // a variant sku (variants don't carry their own weight today).
+  // Resolve a weight string per sku. A variant now carries its OWN weight
+  // (sizes of one product differ — a 24" whisk is 360g vs 174g for the 10"),
+  // so prefer that and fall back to the parent only when it's blank.
   const [products, variants] = await Promise.all([
     prisma.product.findMany({ where: { sku: { in: skus } }, select: { sku: true, weight: true } }),
     prisma.productVariant.findMany({
       where: { skuSuffix: { in: skus } },
-      select: { skuSuffix: true, product: { select: { weight: true } } },
+      select: { skuSuffix: true, weight: true, product: { select: { weight: true } } },
     }),
   ]);
   const weightBySku = new Map<string, string | null>();
   for (const p of products) weightBySku.set(p.sku, p.weight);
-  for (const v of variants) if (v.skuSuffix) weightBySku.set(v.skuSuffix, v.product?.weight ?? null);
+  for (const v of variants) if (v.skuSuffix) weightBySku.set(v.skuSuffix, v.weight ?? v.product?.weight ?? null);
 
   const totalGrams = orderWeightGrams(
     items.map((i) => ({ weight: weightBySku.get(i.sku) ?? null, quantity: i.quantity })),

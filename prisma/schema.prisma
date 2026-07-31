@@ -181,6 +181,11 @@ model ProductVariant {
   /// Absolute per-variant MRP (sticker price) driving the strike-through +
   /// SAVE %. Null = no MRP for this variant.
   mrp   Decimal? @db.Decimal(10, 2)
+  /// Per-variant weight, free text like the parent ("360g", "1.2 kg").
+  /// Null = fall back to the parent product weight. Drives the shipping
+  /// quote, so a big size is not charged as if it were the small one.
+  weight        String?
+
 
   /// Order lines that bought this specific variant (for stock decrement).
   orderItems OrderItem[]
