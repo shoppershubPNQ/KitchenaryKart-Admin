@@ -42,10 +42,15 @@ function buildEmail(productName: string, sku: string) {
   <p style="margin:0 0 20px">
     <a href="${url}" style="background:#9E2A2B;color:#fff;text-decoration:none;padding:11px 22px;border-radius:6px;display:inline-block;font-weight:bold">View product</a>
   </p>
-  <p style="margin:0 0 6px;color:#555;font-size:13.5px">Stock is limited and we can't hold it — order soon if you still need it.</p>
+  <p style="margin:0 0 18px;color:#555;font-size:13.5px">Stock is limited and we can't hold it — order soon if you still need it.</p>
+  <p style="margin:0 0 12px">Need it urgently or in bulk? Talk to us directly:</p>
+  <p style="margin:0 0 18px">
+    <a href="https://wa.me/919890352455" style="background:#25D366;color:#fff;text-decoration:none;padding:11px 20px;border-radius:6px;display:inline-block;font-weight:bold;margin:0 8px 8px 0">WhatsApp us</a>
+    <a href="tel:+919890352455" style="background:#1a1a1a;color:#fff;text-decoration:none;padding:11px 20px;border-radius:6px;display:inline-block;font-weight:bold;margin:0 8px 8px 0">Call +91 98903 52455</a>
+  </p>
   <p style="margin:16px 0 0;color:#777;font-size:12.5px">You're getting this because you requested a stock alert on kitchenarykart.com. It's a one-time email for this product.</p>
 </div>`,
-    text: `It's back in stock\n\nYou asked us to let you know when "${productName}" was available again — it is.\n\n${url}\n\nStock is limited and we can't hold it — order soon if you still need it.\n\nYou're getting this because you requested a stock alert on kitchenarykart.com.`,
+    text: `It's back in stock\n\nYou asked us to let you know when "${productName}" was available again — it is.\n\n${url}\n\nStock is limited and we can't hold it — order soon if you still need it.\n\nNeed it urgently or in bulk? Talk to us directly:\nWhatsApp: https://wa.me/919890352455\nCall: +91 98903 52455\n\nYou're getting this because you requested a stock alert on kitchenarykart.com.`,
   };
 }
 
