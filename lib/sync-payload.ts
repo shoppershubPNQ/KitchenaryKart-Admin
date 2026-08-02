@@ -66,6 +66,16 @@ export interface SyncProductPayload {
    * show up as "changed".
    */
   content_hash: string;
+  /**
+   * Which catalogue this listing came from ORIGINALLY, when we know it was
+   * imported rather than authored here. Now that sync runs both ways this is
+   * what stops a product bouncing between the two panels forever: the feed
+   * omits rows whose origin is the partner asking, and a consumer that
+   * receives one anyway can label it rather than offer it as new work.
+   *
+   * Null means "authored here".
+   */
+  origin?: string | null;
 }
 
 /** Prisma `Decimal | number | null` → plain number. */
@@ -195,6 +205,8 @@ export function toSyncPayload(product: any): SyncProductPayload {
     },
     images: galleryUrls(product.imageUrl, product.images),
     variants,
+    // Populated when `syncLinks` was included; a product authored here has none.
+    origin: originOf(product),
   };
 
   return {
@@ -204,7 +216,33 @@ export function toSyncPayload(product: any): SyncProductPayload {
   };
 }
 
+/**
+ * Which partner catalogue this listing was imported from, if any. Drives both
+ * the `origin` field and the loop guard below.
+ */
+export function originOf(product: any): string | null {
+  const links = Array.isArray(product?.syncLinks) ? product.syncLinks : [];
+  const imported = links.find((link: any) => link?.importedAt);
+  return imported ? imported.source : null;
+}
+
+/**
+ * Listings imported FROM a partner are withheld from that partner's own feed.
+ * Publishing them straight back is how a two-way sync becomes a loop, each side
+ * forever reporting the other's products as pending work.
+ *
+ * `includePartnerOrigin` re-admits them for the rare case where an operator
+ * genuinely wants the round trip.
+ */
+export function loopGuardWhere(source: string, includePartnerOrigin: boolean) {
+  if (includePartnerOrigin) return {};
+  return {
+    NOT: { syncLinks: { some: { source, importedAt: { not: null } } } },
+  };
+}
+
 /** Everything the feed needs loaded off the Product row. */
 export const SYNC_PRODUCT_INCLUDE = {
   variants: { orderBy: { id: 'asc' } },
+  syncLinks: { select: { source: true, importedAt: true } },
 } as const;

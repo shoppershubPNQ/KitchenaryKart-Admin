@@ -18,7 +18,14 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { handleError, ok } from '@/lib/api';
 import { syncCorsHeaders, withSyncKey } from '@/lib/sync-auth';
-import { SYNC_SOURCE, SYNC_VERSION, toSyncPayload } from '@/lib/sync-payload';
+import {
+  loopGuardWhere,
+  SYNC_PRODUCT_INCLUDE,
+  SYNC_SOURCE,
+  SYNC_VERSION,
+  toSyncPayload,
+} from '@/lib/sync-payload';
+import { PARTNER_SOURCE } from '@/lib/sync-connection';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +42,15 @@ export const GET = withSyncKey(async (req: NextRequest) => {
     );
     const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10) || 0);
 
-    const where: Prisma.ProductWhereInput = {};
+    const includePartnerOrigin = ['1', 'true', 'yes'].includes(
+      (url.searchParams.get('include_partner_origin') ?? '').toLowerCase(),
+    );
+
+    // Same loop guard the manifest applies — the two must agree, or an import
+    // would fetch a payload the scan never offered.
+    const where: Prisma.ProductWhereInput = {
+      ...loopGuardWhere(PARTNER_SOURCE, includePartnerOrigin),
+    };
 
     const status = url.searchParams.get('status')?.trim();
     if (status && ['active', 'draft', 'discontinued'].includes(status)) {
@@ -70,7 +85,7 @@ export const GET = withSyncKey(async (req: NextRequest) => {
         orderBy: { id: 'asc' },
         take: limit,
         skip: offset,
-        include: { variants: { orderBy: { id: 'asc' } } },
+        include: SYNC_PRODUCT_INCLUDE,
       }),
       prisma.product.count({ where }),
     ]);

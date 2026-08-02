@@ -20,7 +20,14 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { handleError, ok } from '@/lib/api';
 import { syncCorsHeaders, withSyncKey } from '@/lib/sync-auth';
-import { SYNC_SOURCE, SYNC_VERSION, toSyncPayload } from '@/lib/sync-payload';
+import {
+  loopGuardWhere,
+  SYNC_PRODUCT_INCLUDE,
+  SYNC_SOURCE,
+  SYNC_VERSION,
+  toSyncPayload,
+} from '@/lib/sync-payload';
+import { PARTNER_SOURCE } from '@/lib/sync-connection';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +36,15 @@ const MAX_ROWS = 5000;
 export const GET = withSyncKey(async (req: NextRequest) => {
   try {
     const url = new URL(req.url);
-    const where: Prisma.ProductWhereInput = {};
+    const includePartnerOrigin = ['1', 'true', 'yes'].includes(
+      (url.searchParams.get('include_partner_origin') ?? '').toLowerCase(),
+    );
+
+    // Listings we imported from the partner are withheld from the partner's own
+    // feed, or a two-way sync would loop.
+    const where: Prisma.ProductWhereInput = {
+      ...loopGuardWhere(PARTNER_SOURCE, includePartnerOrigin),
+    };
 
     const status = url.searchParams.get('status')?.trim();
     if (status && ['active', 'draft', 'discontinued'].includes(status)) {
@@ -41,7 +56,7 @@ export const GET = withSyncKey(async (req: NextRequest) => {
       where,
       orderBy: { id: 'asc' },
       take: MAX_ROWS,
-      include: { variants: { orderBy: { id: 'asc' } } },
+      include: SYNC_PRODUCT_INCLUDE,
     });
 
     // The hash must be computed over the SAME payload /api/sync/products emits,
@@ -63,6 +78,7 @@ export const GET = withSyncKey(async (req: NextRequest) => {
         variant_count: payload.variants.length,
         content_hash: payload.content_hash,
         updated_at: payload.updated_at,
+        origin: payload.origin ?? null,
       };
     });
 

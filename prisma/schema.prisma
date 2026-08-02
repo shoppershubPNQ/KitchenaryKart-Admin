@@ -83,6 +83,7 @@ model AdminUser {
   productsCreated  Product[]           @relation("CreatedBy")
   movementsCreated InventoryMovement[]
   syncKeysCreated  SyncApiKey[]        @relation("SyncKeyCreatedBy")
+  syncRuns         SyncRun[]           @relation("SyncRunBy")
 
   @@map("admin_users")
 }
@@ -153,6 +154,7 @@ model Product {
   orderItems OrderItem[]
   movements  InventoryMovement[]
   reviews    Review[]
+  syncLinks  SyncLink[]
 
   @@index([category])
   @@index([status])
@@ -775,4 +777,86 @@ model SyncApiKey {
 
   @@index([revokedAt])
   @@map("sync_api_keys")
+}
+
+/// One row per listing seen in a partner catalogue (today: Hotelic Essentials).
+///
+/// The inbound counterpart to SyncApiKey: those let a partner read FROM us,
+/// this remembers what we have read FROM them. SKU is the matching key — names
+/// differ between the two systems and are never used to match — and
+/// `remoteHash` is what separates "changed upstream" from "already in sync",
+/// so a listing that was merely re-saved on the other side does not surface as
+/// pending work.
+///
+/// A row exists for EVERY remote listing, imported or not: `productId` null
+/// means "seen, not imported yet". Ignoring a listing is recorded here too, so
+/// it stops reappearing in the review queue on every scan.
+model SyncLink {
+  id     Int    @id @default(autoincrement())
+  /// Which partner catalogue this came from, e.g. "hotelic-essentials".
+  source String
+
+  /// The partner's primary key. Informational — matching is by SKU, because a
+  /// remote row can be recreated with a new id while keeping its SKU.
+  externalId   Int?    @map("external_id")
+  externalSku  String  @map("external_sku")
+  /// Remote name, kept so the review table can render before import.
+  externalName String? @map("external_name")
+
+  /// Our product once imported. Null until then; SetNull if it is deleted.
+  productId Int?     @map("product_id")
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  /// The partner's content hash as of the last scan, and as of the last
+  /// successful import. They differ exactly when a change is pending.
+  remoteHash   String? @map("remote_hash")
+  importedHash String? @map("imported_hash")
+
+  remoteUpdatedAt DateTime? @map("remote_updated_at")
+  lastScannedAt   DateTime? @map("last_scanned_at")
+  importedAt      DateTime? @map("imported_at")
+
+  /// Set when the operator dismisses a listing. Skipped by the review queue
+  /// until it changes upstream or is restored.
+  ignoredAt DateTime? @map("ignored_at")
+
+  /// Last failure message, so a partial bulk import can be diagnosed later.
+  lastError String? @map("last_error")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  /// One link per SKU per source — the guarantee the whole diff relies on.
+  @@unique([source, externalSku], name: "sync_link_source_sku")
+  @@index([productId])
+  @@index([source])
+  @@map("sync_links")
+}
+
+/// Audit trail: one row per scan or import.
+model SyncRun {
+  id     Int    @id @default(autoincrement())
+  source String
+  /// "scan" | "import"
+  mode   String
+
+  created  Int @default(0)
+  updated  Int @default(0)
+  skipped  Int @default(0)
+  failed   Int @default(0)
+  /// Total remote listings seen (scan) or requested (import).
+  examined Int @default(0)
+
+  message String?
+  /// Row-level failures, capped when written. Shape: ["SKU-1: reason", …]
+  errors  Json?
+
+  userId Int?       @map("user_id")
+  user   AdminUser? @relation("SyncRunBy", fields: [userId], references: [id])
+
+  startedAt  DateTime  @default(now()) @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+
+  @@index([source, startedAt])
+  @@map("sync_runs")
 }
