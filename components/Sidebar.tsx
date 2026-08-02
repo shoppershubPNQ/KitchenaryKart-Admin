@@ -84,6 +84,7 @@ const SECTIONS: NavSection[] = [
   {
     title: 'System',
     items: [
+      { href: '/dashboard/sync', label: 'Sync', icon: 'sync', roles: ['admin'] },
       { href: '/dashboard/users', label: 'Admin users', icon: 'users', roles: ['admin'] },
       { href: '/dashboard/settings', label: 'Settings', icon: 'settings', roles: ['admin'] },
     ],

@@ -82,6 +82,7 @@ model AdminUser {
 
   productsCreated  Product[]           @relation("CreatedBy")
   movementsCreated InventoryMovement[]
+  syncKeysCreated  SyncApiKey[]        @relation("SyncKeyCreatedBy")
 
   @@map("admin_users")
 }
@@ -745,4 +746,33 @@ model StockNotification {
   @@unique([productSku, email], name: "stock_notify_sku_email_unique")
   @@index([notifiedAt])
   @@map("stock_notifications")
+}
+
+/// A partner admin panel (today: Hotelic Essentials) authorised to READ this
+/// catalogue over /api/sync/*. The key itself is never stored — only its
+/// SHA-256 hash — so a leaked database row cannot be replayed against the API.
+/// `keyPrefix` is the first 12 characters, kept in clear so the panel can show
+/// "kk_live_a1b2…" next to each key without being able to reconstruct it.
+model SyncApiKey {
+  id        Int     @id @default(autoincrement())
+  /// Operator-facing label, e.g. "Hotelic Essentials — production".
+  name      String
+  keyPrefix String  @map("key_prefix")
+  keyHash   String  @unique @map("key_hash")
+
+  /// Read-only audit of what the partner has been doing with the key.
+  lastUsedAt   DateTime? @map("last_used_at")
+  lastUsedIp   String?   @map("last_used_ip")
+  requestCount Int       @default(0) @map("request_count")
+
+  /// Set on revoke. A revoked key stays in the table so the audit trail
+  /// survives; auth rejects it from the moment this is non-null.
+  revokedAt DateTime? @map("revoked_at")
+
+  createdById Int?       @map("created_by")
+  createdBy   AdminUser? @relation("SyncKeyCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  @@index([revokedAt])
+  @@map("sync_api_keys")
 }
