@@ -1,7 +1,13 @@
 import { Prisma, ProductStatus } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { PARTNER_LABEL, PARTNER_SOURCE, partnerGet } from '@/lib/sync-connection';
-import { effectiveGstPercent, retailPriceNote, toRetailPrice } from '@/lib/sync-pricing';
+import {
+  applyPricingRule,
+  effectiveGstPercent,
+  getPricingRule,
+  pricingNote,
+  type PricingRule,
+} from '@/lib/sync-pricing';
 
 /**
  * Catalogue sync — the INBOUND half, importing what Hotelic Essentials
@@ -335,7 +341,8 @@ export async function diff(sku: string) {
       })
     : null;
 
-  const mapped = mapProduct(remote);
+  const rule = await getPricingRule();
+  const mapped = mapProduct(remote, rule);
   const derived = remote.variants.length > 0 || (product?.variants.length ?? 0) > 0;
 
   const fields: {
@@ -383,10 +390,10 @@ export async function diff(sku: string) {
     mapped.price,
     derived
       ? { informational: true, note: 'Taken from the variants, not this figure.' }
-      : { note: retailPriceNote(remote.tax_percent) },
+      : { note: pricingNote(remote.tax_percent, rule) },
   );
   add('mrp', 'MRP', product?.mrp != null ? Number(product.mrp) : null, mapped.mrp, {
-    note: retailPriceNote(remote.tax_percent),
+    note: pricingNote(remote.tax_percent, rule),
   });
   add('taxPercent', 'GST rate', product ? Number(product.taxPercent) : null, mapped.taxPercent);
   add('stock', 'Stock', product?.stock, mapped.stock);
@@ -442,6 +449,7 @@ export async function runImport(options: ImportOptions, userId?: number | null) 
     data: { source: PARTNER_SOURCE, mode: 'import', userId: userId ?? null, examined: skus.length },
   });
 
+  const rule = await getPricingRule();
   const stats = { created: 0, updated: 0, skipped: 0, failed: 0, examined: skus.length };
   const errors: string[] = [];
 
@@ -473,7 +481,7 @@ export async function runImport(options: ImportOptions, userId?: number | null) 
 
     for (const remote of products) {
       try {
-        const outcome = await importOne(remote, options, userId);
+        const outcome = await importOne(remote, options, rule, userId);
         if (outcome === 'created') stats.created++;
         else stats.updated++;
       } catch (e: any) {
@@ -542,15 +550,15 @@ async function resolveSkus(options: ImportOptions): Promise<string[]> {
  * import and the review diff come through here, so what the operator previews
  * is exactly what gets written.
  */
-function mapProduct(remote: RemoteProduct) {
+function mapProduct(remote: RemoteProduct, rule: PricingRule) {
   return {
     name: remote.name,
     description: remote.description,
     category: remote.category_path[0] ?? null,
     subcategory: remote.category_path[1] ?? null,
     leafCategory: remote.category_path[2] ?? null,
-    price: toRetailPrice(remote.price, remote.tax_percent),
-    mrp: remote.mrp != null ? toRetailPrice(remote.mrp, remote.tax_percent) : null,
+    price: applyPricingRule(remote.price, remote.tax_percent, rule),
+    mrp: remote.mrp != null ? applyPricingRule(remote.mrp, remote.tax_percent, rule) : null,
     taxPercent: effectiveGstPercent(remote.tax_percent),
     discountPercent: Number.isFinite(remote.discount_percent) ? remote.discount_percent : 0,
     stock: remote.stock,
@@ -574,9 +582,10 @@ function makeProductCode(id: number): string {
 async function importOne(
   remote: RemoteProduct,
   options: ImportOptions,
+  rule: PricingRule,
   userId?: number | null,
 ): Promise<'created' | 'updated'> {
-  const mapped = mapProduct(remote);
+  const mapped = mapProduct(remote, rule);
   const images = (remote.images ?? [])
     .filter((u) => typeof u === 'string' && /^https?:\/\//i.test(u))
     .slice(0, MAX_IMAGES);
@@ -657,7 +666,7 @@ async function importOne(
     }
   }
 
-  await syncVariants(productId, remote, options);
+  await syncVariants(productId, remote, options, rule);
 
   await prisma.syncLink.upsert({
     where: { sync_link_source_sku: { source: PARTNER_SOURCE, externalSku: remote.sku } },
@@ -696,6 +705,7 @@ async function syncVariants(
   productId: number,
   remote: RemoteProduct,
   options: ImportOptions,
+  rule: PricingRule,
 ): Promise<void> {
   if (!remote.variants?.length) return;
 
@@ -729,8 +739,8 @@ async function syncVariants(
         data: {
           ...base,
           productId,
-          price: toRetailPrice(rv.price, rate),
-          mrp: rv.mrp != null ? toRetailPrice(rv.mrp, rate) : null,
+          price: applyPricingRule(rv.price, rate, rule),
+          mrp: rv.mrp != null ? applyPricingRule(rv.mrp, rate, rule) : null,
           stock: rv.stock,
           imageUrl: images[0] ?? null,
           images: images.length ? (images as any) : undefined,
@@ -741,8 +751,8 @@ async function syncVariants(
 
     const data: Prisma.ProductVariantUpdateInput = { ...base };
     if (options.updatePrice !== false) {
-      data.price = toRetailPrice(rv.price, rate);
-      data.mrp = rv.mrp != null ? toRetailPrice(rv.mrp, rate) : null;
+      data.price = applyPricingRule(rv.price, rate, rule);
+      data.mrp = rv.mrp != null ? applyPricingRule(rv.mrp, rate, rule) : null;
     }
     if (options.updateStock !== false) data.stock = rv.stock;
     if (options.updateImages !== false && images.length) {

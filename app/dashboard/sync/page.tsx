@@ -350,6 +350,8 @@ function ImportPanel() {
 
       <ConnectionCard conn={conn} onChanged={loadConn} />
 
+      {conn.configured && <PricingCard />}
+
       {!conn.configured ? (
         <div className="card border-dashed p-10 text-center">
           <p className="font-medium text-slate-800">Not connected yet</p>
@@ -547,6 +549,153 @@ function ImportPanel() {
       )}
 
       {diffSku && <DiffModal sku={diffSku} onClose={() => setDiffSku(null)} />}
+    </div>
+  );
+}
+
+/**
+ * The re-pricing rule, with a worked example under it.
+ *
+ * The percentage and the GST handling used to be constants in the source. They
+ * are settings now — a trade markup is a commercial decision, not a deployment
+ * — and the preview is here because a signed percentage plus a tax step is easy
+ * to get backwards. Seeing ₹1,000 become a real number beats any label text.
+ */
+function PricingCard() {
+  const [rule, setRule] = useState<{ percent: number; gstMode: string } | null>(null);
+  const [preview, setPreview] = useState<any>(null);
+  const [percent, setPercent] = useState('');
+  const [gstMode, setGstMode] = useState('add');
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const d = await api<any>('/api/sync/pricing');
+      setRule(d.rule);
+      setPreview(d.preview);
+      setPercent(String(d.rule.percent));
+      setGstMode(d.rule.gstMode);
+      setDirty(false);
+    } catch (e: any) {
+      setErr(e.message);
+    }
+  }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const numeric = Number(percent);
+  const valid = Number.isFinite(numeric) && numeric >= -95 && numeric <= 500;
+
+  async function save() {
+    setBusy(true);
+    setErr(null);
+    try {
+      const d = await api<any>('/api/sync/pricing', {
+        method: 'PUT',
+        body: JSON.stringify({ percent: numeric, gstMode }),
+      });
+      setRule(d.rule);
+      setPreview(d.preview);
+      setNote(d.message);
+      setDirty(false);
+    } catch (e: any) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!rule) return null;
+
+  return (
+    <div className="card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-slate-900">Import pricing</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Applied to every price and MRP that comes in, including variants. The Compare view shows
+          the result before anything is written.
+        </p>
+      </div>
+
+      {err && <ErrorBar message={err} />}
+      {note && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          {note}
+        </div>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="label">Price adjustment</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              step="0.5"
+              className="input"
+              value={percent}
+              onChange={(e) => {
+                setPercent(e.target.value);
+                setDirty(true);
+              }}
+            />
+            <span className="text-sm text-slate-500">%</span>
+          </div>
+          <p className="mt-1 text-xs text-slate-400">
+            Positive adds money, negative takes it off. +30 means you sell 30% above their price.
+          </p>
+        </div>
+
+        <div>
+          <label className="label">GST handling</label>
+          <select
+            className="input"
+            value={gstMode}
+            onChange={(e) => {
+              setGstMode(e.target.value);
+              setDirty(true);
+            }}
+          >
+            <option value="add">Add GST — their price excludes it, ours should include it</option>
+            <option value="remove">Remove GST — their price includes it, ours should not</option>
+            <option value="none">Leave tax alone</option>
+          </select>
+          <p className="mt-1 text-xs text-slate-400">
+            Uses each listing&apos;s own rate — 18%, 5%, or 0% for zero-rated goods.
+          </p>
+        </div>
+      </div>
+
+      {preview && (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+            Worked example
+          </p>
+          <p className="mt-1 text-sm text-slate-800">
+            A listing at <span className="font-semibold">{inr(preview.sample)}</span> with{' '}
+            {preview.tax_percent}% GST is stored as{' '}
+            <span className="font-semibold text-brand">{inr(preview.result)}</span>.
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500">{preview.note}</p>
+          {dirty && (
+            <p className="mt-1.5 text-xs font-medium text-amber-700">
+              Unsaved — the example still shows the saved rule.
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2">
+        <button type="button" className="btn-primary" onClick={save} disabled={busy || !valid || !dirty}>
+          {busy ? 'Saving…' : 'Save pricing rule'}
+        </button>
+        {!valid && (
+          <span className="text-xs text-red-600">Enter a percentage between −95 and 500.</span>
+        )}
+      </div>
     </div>
   );
 }
