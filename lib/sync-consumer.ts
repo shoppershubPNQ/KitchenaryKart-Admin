@@ -177,6 +177,7 @@ export async function scan(userId?: number | null) {
     const entries = Array.isArray(body?.products) ? body.products : [];
     const now = new Date();
     const seenSkus = entries.map((e) => e.sku).filter((s) => typeof s === 'string');
+    const seen = new Set(seenSkus);
 
     // Everything needed to classify, in two queries rather than 2N.
     const [existingLinks, ourProducts] = await Promise.all([
@@ -190,6 +191,20 @@ export async function scan(userId?: number | null) {
     const linkBySku = new Map(existingLinks.map((l) => [l.externalSku, l]));
     const ourIdBySku = new Map(ourProducts.map((p) => [p.sku, p.id]));
 
+    /*
+     * A link may still name a product that has since been deleted here.
+     * Trusting the stored id would keep reporting the listing as imported and
+     * in sync long after the product stopped existing, so it is re-checked
+     * against the catalogue as it is now.
+     */
+    const linkedIds = existingLinks
+      .map((l) => l.productId)
+      .filter((id): id is number => id !== null);
+    const liveProducts = linkedIds.length
+      ? await prisma.product.findMany({ where: { id: { in: linkedIds } }, select: { id: true } })
+      : [];
+    const live = new Set(liveProducts.map((p) => p.id));
+
     let created = 0;
     let updated = 0;
 
@@ -199,7 +214,8 @@ export async function scan(userId?: number | null) {
 
       // Adoption: a product we already hold under this SKU becomes the link's
       // target even though it was never imported through sync.
-      const adopted = link?.productId ?? ourIdBySku.get(entry.sku) ?? null;
+      const stored = link?.productId != null && live.has(link.productId) ? link.productId : null;
+      const adopted = stored ?? ourIdBySku.get(entry.sku) ?? null;
 
       const data = {
         externalId: entry.external_id ?? null,
@@ -208,6 +224,8 @@ export async function scan(userId?: number | null) {
         remoteHash: entry.content_hash ?? null,
         remoteUpdatedAt: entry.updated_at ? new Date(entry.updated_at) : null,
         lastScannedAt: now,
+        // The product it pointed at is gone, so it is not 'already imported'.
+        ...(adopted === null ? { importedHash: null, importedAt: null } : {}),
       };
 
       if (link) {
