@@ -424,7 +424,12 @@ function VariantsPanel({
                     <span className="text-slate-400">{v.variantType || '—'}:</span>{' '}
                     <span className="font-medium text-slate-800">{v.variantValue || '—'}</span>
                   </td>
-                  <td className="px-3 py-2 font-mono text-[11px] text-slate-500">{p.sku}{v.skuSuffix || ''}</td>
+                  {/* Despite the column name, skuSuffix holds a COMPLETE sku in
+                      this catalogue — all 1,037 variant rows start with "KK".
+                      Concatenating it onto the parent produced doubled codes
+                      like "KKBT0264-372KKBT0277-232", which match nothing and
+                      cannot be searched, scanned or quoted to a customer. */}
+                  <td className="px-3 py-2 font-mono text-[11px] text-slate-500">{v.skuSuffix || p.sku}</td>
                   <td className="px-3 py-2 text-right text-slate-600 tabular-nums">{inr(g.net)}</td>
                   <td className="px-3 py-2 text-right text-slate-600 tabular-nums">{inr(g.gst)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">
