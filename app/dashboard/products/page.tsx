@@ -31,6 +31,9 @@ interface Variant {
   variantValue: string | null;
   skuSuffix: string | null;
   priceModifier: number | string;
+  /** Absolute GST-inclusive price. When set it WINS over parent + modifier —
+   *  same precedence the storefront and checkout apply. */
+  price: number | string | null;
   stock: number;
   imageUrl: string | null;
 }
@@ -405,8 +408,16 @@ function VariantsPanel({
           </thead>
           <tbody className="divide-y divide-slate-100">
             {variants.map((v) => {
+              // Show what the customer is actually charged. An absolute
+              // per-variant price wins over parent + modifier, exactly as
+              // checkout and the storefront PDP resolve it — otherwise a stale
+              // or junk modifier renders a price nobody will ever pay (one
+              // import artifact had 9 variants displaying -Rs 44 against a real
+              // Rs 810, and a live steamer still shows its parent's old price).
               const mod = Number(v.priceModifier || 0);
-              const g = computeProductGst(Number(p.price) + mod, rate, null);
+              const hasAbsolute = v.price !== null && v.price !== undefined && v.price !== '';
+              const effective = hasAbsolute ? Number(v.price) : Number(p.price) + mod;
+              const g = computeProductGst(effective, rate, null);
               return (
                 <tr key={v.id} className="hover:bg-slate-50/60">
                   <td className="px-3 py-2">
@@ -418,7 +429,11 @@ function VariantsPanel({
                   <td className="px-3 py-2 text-right text-slate-600 tabular-nums">{inr(g.gst)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     <span className="font-medium text-slate-900">{inr(g.inclusive)}</span>
-                    {mod !== 0 && (
+                    {/* Only annotate with the modifier when it is what actually
+                        produced the price. With an absolute price set, the
+                        modifier is inert and showing it reads as a discount
+                        that does not exist. */}
+                    {!hasAbsolute && mod !== 0 && (
                       <span className={`ml-1 text-[11px] ${mod > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                         ({mod > 0 ? '+' : ''}{inr(mod)})
                       </span>
