@@ -509,6 +509,46 @@ model Collection {
   @@map("collections")
 }
 
+/// A BUSINESS-facing grouping — "Pizza Equipment", "Cafe Setup" — as opposed to
+/// `Category`, which is the product taxonomy (HOT EQUIPMENT, ACCESSORIES…).
+///
+/// These deliberately CROSS-CUT the taxonomy: one deep fryer belongs to Pizza,
+/// Burger and Cafe at the same time, so this can never be a column on Product.
+///
+/// Membership is resolved as:
+///     (every active product whose subcategory is in `subcategories`)
+///   + (every sku listed in `productSkus`)
+///   - (every sku listed in `excludeSkus`)
+///
+/// The rule half keeps a 150-product category from being assembled by hand;
+/// the manual halves let a curator add a one-off or drop something the rule
+/// wrongly pulled in. `excludeSkus` wins over both.
+model BusinessCategory {
+  id          Int     @id @default(autoincrement())
+  slug        String  @unique
+  name        String
+  description String?
+  imageUrl    String? @map("image_url")
+
+  /// Subcategory NAMES (matching Product.subcategory) included wholesale.
+  subcategories Json @default("[]")
+  /// Individual SKUs added on top of the subcategory rule.
+  productSkus   Json @default("[]") @map("product_skus")
+  /// Individual SKUs removed; takes precedence over both lists above.
+  excludeSkus   Json @default("[]") @map("exclude_skus")
+
+  metaTitle       String? @map("meta_title")
+  metaDescription String? @map("meta_description")
+
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@map("business_categories")
+}
+
 /// Hero-carousel slides managed from the admin panel.
 /// - `imageUrl` points at `/banners/<file>` (served from web/public/banners/).
 /// - Text overlays (eyebrow/title/subtitle) are optional; if left blank the
