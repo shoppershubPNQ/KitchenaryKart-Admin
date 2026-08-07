@@ -1,13 +1,13 @@
 /**
  * Business category — update / delete one.
  *
- * Deleting is safe: membership is computed from rules, so removing a category
- * never touches a product row. Only the grouping disappears.
+ * Deleting is safe: membership is a curated list held on THIS row, so removing
+ * a category never touches a product. Only the grouping disappears.
  */
 import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { handleError, ok, fail } from '@/lib/api';
-import { countProducts, rulesOf } from '@/lib/business-categories';
+import { countProducts, toSkuList } from '@/lib/business-categories';
 import { z } from 'zod';
 
 const patchSchema = z.object({
@@ -17,9 +17,7 @@ const patchSchema = z.object({
   imageUrl: z.string().trim().nullable().optional(),
   metaTitle: z.string().trim().nullable().optional(),
   metaDescription: z.string().trim().nullable().optional(),
-  subcategories: z.array(z.string()).optional(),
   productSkus: z.array(z.string()).optional(),
-  excludeSkus: z.array(z.string()).optional(),
   sortOrder: z.number().int().optional(),
   isActive: z.boolean().optional(),
 });
@@ -39,8 +37,11 @@ export const PATCH = withAuth(async (req, { params }) => {
       if (clash) return fail(`Slug "${body.slug}" is already used by "${clash.name}"`, 409);
     }
 
-    const updated = await prisma.businessCategory.update({ where: { id }, data: body as any });
-    return ok({ ...updated, productCount: await countProducts(rulesOf(updated)) });
+    const data: any = { ...body };
+    if (body.productSkus) data.productSkus = toSkuList(body.productSkus);
+
+    const updated = await prisma.businessCategory.update({ where: { id }, data });
+    return ok({ ...updated, productCount: await countProducts(updated.productSkus) });
   } catch (e) {
     return handleError(e);
   }

@@ -515,14 +515,11 @@ model Collection {
 /// These deliberately CROSS-CUT the taxonomy: one deep fryer belongs to Pizza,
 /// Burger and Cafe at the same time, so this can never be a column on Product.
 ///
-/// Membership is resolved as:
-///     (every active product whose subcategory is in `subcategories`)
-///   + (every sku listed in `productSkus`)
-///   - (every sku listed in `excludeSkus`)
-///
-/// The rule half keeps a 150-product category from being assembled by hand;
-/// the manual halves let a curator add a one-off or drop something the rule
-/// wrongly pulled in. `excludeSkus` wins over both.
+/// Membership is a fully CURATED list — `productSkus`, in the order the curator
+/// arranged them. There is deliberately no rule tying these to the existing
+/// subcategories: the owner introduces each business category by hand so the
+/// selection reflects what a buyer of that format actually needs, not whatever
+/// the taxonomy happens to contain.
 model BusinessCategory {
   id          Int     @id @default(autoincrement())
   slug        String  @unique
@@ -530,12 +527,8 @@ model BusinessCategory {
   description String?
   imageUrl    String? @map("image_url")
 
-  /// Subcategory NAMES (matching Product.subcategory) included wholesale.
-  subcategories Json @default("[]")
-  /// Individual SKUs added on top of the subcategory rule.
-  productSkus   Json @default("[]") @map("product_skus")
-  /// Individual SKUs removed; takes precedence over both lists above.
-  excludeSkus   Json @default("[]") @map("exclude_skus")
+  /// SKUs picked into this category, in display order.
+  productSkus Json @default("[]") @map("product_skus")
 
   metaTitle       String? @map("meta_title")
   metaDescription String? @map("meta_description")

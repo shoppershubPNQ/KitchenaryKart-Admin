@@ -5,17 +5,13 @@
  * ("Pizza Equipment", "Cafe Equipment"), as opposed to Products → Category,
  * which is the internal taxonomy.
  *
- * These cross-cut the taxonomy on purpose: one deep fryer belongs to Pizza,
- * Burger and Cafe at once, so membership is a RULE, not a column on the
- * product. Each category resolves to:
+ * These cross-cut the taxonomy on purpose: one deep fryer can sit in Pizza,
+ * Burger and Cafe at once, so membership is a curated list rather than a
+ * column on the product.
  *
- *     (active products in the ticked subcategories)
- *   + (individually added SKUs)
- *   - (individually removed SKUs)
- *
- * Tick a subcategory to pull in 40 products at once; use the search box below
- * to add a one-off, or Remove to drop something the rule wrongly caught. The
- * count next to each category is live — it is what the storefront will show.
+ * Every category is built BY HAND — search the catalogue, click to add, and
+ * arrange with the arrows. The saved order is the order the storefront renders,
+ * so put the anchor products first.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/fetch';
@@ -28,9 +24,7 @@ interface BusinessCategory {
   imageUrl: string | null;
   metaTitle: string | null;
   metaDescription: string | null;
-  subcategories: string[];
   productSkus: string[];
-  excludeSkus: string[];
   sortOrder: number;
   isActive: boolean;
   productCount: number;
@@ -44,14 +38,12 @@ interface ApiProduct {
 }
 interface ApiResponse {
   categories: BusinessCategory[];
-  subcategoryOptions: string[];
   products: ApiProduct[];
 }
 
 const BLANK = {
   name: '', slug: '', description: '', imageUrl: '', metaTitle: '', metaDescription: '',
-  subcategories: [] as string[], productSkus: [] as string[], excludeSkus: [] as string[],
-  sortOrder: 0, isActive: true,
+  productSkus: [] as string[], sortOrder: 0, isActive: true,
 };
 
 /** "Pizza Equipment" → "pizza-equipment" */
@@ -89,24 +81,15 @@ export default function BusinessCategoriesPage() {
     return m;
   }, [data]);
 
-  /** How many products each subcategory would contribute — shown on the chip
-   *  so the curator can see the weight of a rule before ticking it. */
-  const subCounts = useMemo(() => {
-    const m = new Map<string, number>();
-    data?.products.forEach((p) => {
-      if (!p.subcategory) return;
-      m.set(p.subcategory, (m.get(p.subcategory) || 0) + 1);
-    });
-    return m;
-  }, [data]);
-
   const results = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (q.length < 2) return [];
+    const chosen = new Set(form.productSkus);
     return (data?.products || [])
+      .filter((p) => !chosen.has(p.sku))
       .filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))
       .slice(0, 25);
-  }, [search, data]);
+  }, [search, data, form.productSkus]);
 
   function startNew() {
     setEditingId('new');
@@ -119,41 +102,29 @@ export default function BusinessCategoriesPage() {
     setForm({
       name: c.name, slug: c.slug, description: c.description || '', imageUrl: c.imageUrl || '',
       metaTitle: c.metaTitle || '', metaDescription: c.metaDescription || '',
-      subcategories: [...c.subcategories], productSkus: [...c.productSkus], excludeSkus: [...c.excludeSkus],
-      sortOrder: c.sortOrder, isActive: c.isActive,
+      productSkus: [...c.productSkus], sortOrder: c.sortOrder, isActive: c.isActive,
     });
     setSearch('');
     setMsg(null);
   }
 
-  function toggleSub(s: string) {
-    setForm((f) => ({
-      ...f,
-      subcategories: f.subcategories.includes(s)
-        ? f.subcategories.filter((x) => x !== s)
-        : [...f.subcategories, s],
-    }));
-  }
-
   function addSku(sku: string) {
-    setForm((f) => ({
-      ...f,
-      // Adding a sku also clears any prior exclusion of it, otherwise the
-      // exclude list would silently cancel the add.
-      productSkus: f.productSkus.includes(sku) ? f.productSkus : [...f.productSkus, sku],
-      excludeSkus: f.excludeSkus.filter((x) => x !== sku),
-    }));
+    setForm((f) => (f.productSkus.includes(sku) ? f : { ...f, productSkus: [...f.productSkus, sku] }));
     setSearch('');
   }
-  function excludeSku(sku: string) {
-    setForm((f) => ({
-      ...f,
-      productSkus: f.productSkus.filter((x) => x !== sku),
-      excludeSkus: f.excludeSkus.includes(sku) ? f.excludeSkus : [...f.excludeSkus, sku],
-    }));
+  function removeSku(sku: string) {
+    setForm((f) => ({ ...f, productSkus: f.productSkus.filter((x) => x !== sku) }));
   }
-  function unexclude(sku: string) {
-    setForm((f) => ({ ...f, excludeSkus: f.excludeSkus.filter((x) => x !== sku) }));
+  /** Move a picked product one slot up or down — the stored order IS the
+   *  storefront order, so this is how the anchor products get to the top. */
+  function move(i: number, dir: -1 | 1) {
+    setForm((f) => {
+      const next = [...f.productSkus];
+      const j = i + dir;
+      if (j < 0 || j >= next.length) return f;
+      [next[i], next[j]] = [next[j], next[i]];
+      return { ...f, productSkus: next };
+    });
   }
 
   async function save() {
@@ -214,7 +185,8 @@ export default function BusinessCategoriesPage() {
       <p className="text-xs text-slate-500 mb-5 max-w-3xl">
         The grouping a customer shops by — “Pizza Equipment”, “Cafe Equipment”. Separate from
         Products → Category, and deliberately overlapping: one fryer can sit in Pizza, Burger and
-        Cafe at the same time. Membership = ticked subcategories + added SKUs − removed SKUs.
+        Cafe at the same time. Each category is built by hand, and the order you arrange is the
+        order the website shows.
       </p>
 
       {msg && <div className="mb-4 text-sm px-3 py-2 rounded bg-slate-100 text-slate-700">{msg}</div>}
@@ -224,7 +196,7 @@ export default function BusinessCategoriesPage() {
           <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
             <tr>
               <th className="text-left px-3 py-2 font-medium">Name</th>
-              <th className="text-left px-3 py-2 font-medium">Slug</th>
+              <th className="text-left px-3 py-2 font-medium">Page</th>
               <th className="text-right px-3 py-2 font-medium">Products</th>
               <th className="text-right px-3 py-2 font-medium">Order</th>
               <th className="text-left px-3 py-2 font-medium">Status</th>
@@ -250,7 +222,11 @@ export default function BusinessCategoriesPage() {
               </tr>
             ))}
             {!data?.categories.length && (
-              <tr><td colSpan={6} className="px-3 py-6 text-center text-slate-400 text-sm">No business categories yet.</td></tr>
+              <tr>
+                <td colSpan={6} className="px-3 py-8 text-center text-slate-400 text-sm">
+                  No business categories yet — click “New category” to create your first one.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
@@ -267,11 +243,12 @@ export default function BusinessCategoriesPage() {
               <span className="text-xs font-medium text-slate-600">Name</span>
               <input
                 className="mt-1 w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
+                placeholder="e.g. Pizza Equipment"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({
                   ...f,
                   name: e.target.value,
-                  // Only auto-fill the slug while creating; changing it later
+                  // Auto-fill the slug only while creating; changing it later
                   // would break a live URL.
                   slug: editingId === 'new' ? slugify(e.target.value) : f.slug,
                 }))}
@@ -293,6 +270,7 @@ export default function BusinessCategoriesPage() {
             <textarea
               rows={2}
               className="mt-1 w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
+              placeholder="Shown under the heading on the page."
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
             />
@@ -302,7 +280,9 @@ export default function BusinessCategoriesPage() {
             <label className="block">
               <span className="text-xs font-medium text-slate-600">Meta title (SEO)</span>
               <input className="mt-1 w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
+                placeholder="Leave blank to use the name"
                 value={form.metaTitle} onChange={(e) => setForm((f) => ({ ...f, metaTitle: e.target.value }))} />
+              <span className="text-[11px] text-slate-400">“— KitchenaryKart” is added automatically.</span>
             </label>
             <label className="block">
               <span className="text-xs font-medium text-slate-600">Meta description (SEO)</span>
@@ -321,6 +301,7 @@ export default function BusinessCategoriesPage() {
               <span className="text-xs font-medium text-slate-600">Sort order</span>
               <input type="number" className="mt-1 w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
                 value={form.sortOrder} onChange={(e) => setForm((f) => ({ ...f, sortOrder: Number(e.target.value) }))} />
+              <span className="text-[11px] text-slate-400">Lower shows first.</span>
             </label>
             <label className="flex items-end gap-2 pb-1.5">
               <input type="checkbox" checked={form.isActive}
@@ -329,45 +310,20 @@ export default function BusinessCategoriesPage() {
             </label>
           </div>
 
-          {/* ---- subcategory rule ---- */}
+          {/* ---- product picker ---- */}
           <div className="mb-5">
             <div className="text-xs font-medium text-slate-600 mb-1">
-              Subcategories — tick to include every active product in them
-              <span className="ml-2 text-slate-400 font-normal">{form.subcategories.length} selected</span>
-            </div>
-            <div className="border border-slate-200 rounded p-2 max-h-48 overflow-y-auto flex flex-wrap gap-1.5">
-              {data?.subcategoryOptions.map((s) => {
-                const on = form.subcategories.includes(s);
-                return (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => toggleSub(s)}
-                    className={`text-[11px] px-2 py-1 rounded border ${on
-                      ? 'bg-slate-800 text-white border-slate-800'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'}`}
-                  >
-                    {s} <span className={on ? 'text-slate-300' : 'text-slate-400'}>({subCounts.get(s) || 0})</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ---- manual additions ---- */}
-          <div className="mb-5">
-            <div className="text-xs font-medium text-slate-600 mb-1">
-              Add individual products
-              <span className="ml-2 text-slate-400 font-normal">{form.productSkus.length} added</span>
+              Products
+              <span className="ml-2 text-slate-400 font-normal">{form.productSkus.length} selected</span>
             </div>
             <input
               className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
-              placeholder="Search by name or SKU (min 2 characters)…"
+              placeholder="Search the catalogue by name or SKU (min 2 characters)…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             {results.length > 0 && (
-              <div className="border border-slate-200 rounded mt-1 max-h-52 overflow-y-auto">
+              <div className="border border-slate-200 rounded mt-1 max-h-64 overflow-y-auto">
                 {results.map((p) => (
                   <button
                     key={p.sku}
@@ -377,52 +333,38 @@ export default function BusinessCategoriesPage() {
                   >
                     <span className="font-mono text-[10px] text-slate-400 mr-2">{p.sku}</span>
                     {p.name}
+                    {p.subcategory && <span className="text-slate-400 ml-2">· {p.subcategory}</span>}
                   </button>
                 ))}
               </div>
             )}
-            {form.productSkus.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {form.productSkus.map((sku) => (
-                  <span key={sku} className="text-[11px] bg-emerald-50 text-emerald-800 border border-emerald-200 rounded px-2 py-1">
-                    {bySku.get(sku)?.name?.slice(0, 40) || sku}
-                    <button type="button" onClick={() => setForm((f) => ({ ...f, productSkus: f.productSkus.filter((x) => x !== sku) }))}
-                      className="ml-1.5 text-emerald-600 hover:text-emerald-900">×</button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
 
-          {/* ---- exclusions ---- */}
-          <div className="mb-5">
-            <div className="text-xs font-medium text-slate-600 mb-1">
-              Removed products — these never appear, even if a ticked subcategory includes them
-              <span className="ml-2 text-slate-400 font-normal">{form.excludeSkus.length} removed</span>
-            </div>
-            {form.excludeSkus.length === 0 ? (
-              <p className="text-[11px] text-slate-400">
-                Nothing removed. Use this when a subcategory rule pulls in something that does not belong.
+            {form.productSkus.length === 0 ? (
+              <p className="text-[11px] text-slate-400 mt-2">
+                No products yet. Search above and click a result to add it.
               </p>
             ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {form.excludeSkus.map((sku) => (
-                  <span key={sku} className="text-[11px] bg-red-50 text-red-800 border border-red-200 rounded px-2 py-1">
-                    {bySku.get(sku)?.name?.slice(0, 40) || sku}
-                    <button type="button" onClick={() => unexclude(sku)} className="ml-1.5 text-red-500 hover:text-red-800">undo</button>
-                  </span>
-                ))}
-              </div>
+              <ol className="mt-3 border border-slate-200 rounded divide-y divide-slate-100">
+                {form.productSkus.map((sku, i) => {
+                  const p = bySku.get(sku);
+                  return (
+                    <li key={sku} className="flex items-center gap-2 px-2 py-1.5 text-xs">
+                      <span className="w-6 text-slate-400 tabular-nums">{i + 1}</span>
+                      <span className="flex-1 truncate">
+                        <span className="font-mono text-[10px] text-slate-400 mr-2">{sku}</span>
+                        {p ? p.name : <span className="text-red-600">not found in catalogue</span>}
+                      </span>
+                      <button type="button" onClick={() => move(i, -1)} disabled={i === 0}
+                        className="px-1 text-slate-400 hover:text-slate-800 disabled:opacity-30" title="Move up">↑</button>
+                      <button type="button" onClick={() => move(i, 1)} disabled={i === form.productSkus.length - 1}
+                        className="px-1 text-slate-400 hover:text-slate-800 disabled:opacity-30" title="Move down">↓</button>
+                      <button type="button" onClick={() => removeSku(sku)}
+                        className="px-1 text-red-500 hover:text-red-700" title="Remove">×</button>
+                    </li>
+                  );
+                })}
+              </ol>
             )}
-            <input
-              className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm mt-2"
-              placeholder="Type a SKU to remove it from this category…"
-              onKeyDown={(e) => {
-                if (e.key !== 'Enter') return;
-                const v = (e.target as HTMLInputElement).value.trim();
-                if (v) { excludeSku(v); (e.target as HTMLInputElement).value = ''; }
-              }}
-            />
           </div>
 
           <div className="flex items-center gap-3">

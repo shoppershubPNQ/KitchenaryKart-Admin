@@ -2,64 +2,45 @@
  * Business-category membership.
  *
  * A business category ("Pizza Equipment") cross-cuts the product taxonomy, so
- * membership is computed, not stored on the product:
+ * membership can never be a column on Product — one deep fryer belongs to
+ * Pizza, Burger and Cafe at once.
  *
- *     (active products whose subcategory is in `subcategories`)
- *   + (products whose sku is in `productSkus`)
- *   - (products whose sku is in `excludeSkus`)
+ * Membership is a fully CURATED list: `productSkus`, in the order the curator
+ * arranged them. There is no rule tying a business category to the existing
+ * subcategories — each one is introduced by hand so the selection reflects what
+ * a buyer of that format actually needs.
  *
- * `excludeSkus` wins over both, so a curator can always drop something the
- * subcategory rule wrongly pulled in.
- *
- * This lives in one place and is used by BOTH the admin preview and the
- * storefront page — if the two computed membership separately they would drift
- * and the admin would show a count the site does not match.
+ * This lives in one place and is used by BOTH the admin count and the
+ * storefront page — computing membership separately would let the two drift
+ * and the admin would show a number the site does not match.
  */
 import { prisma } from '@/lib/db';
 
-export type BusinessCategoryRules = {
-  subcategories: string[];
-  productSkus: string[];
-  excludeSkus: string[];
-};
-
-/** Json columns come back as `unknown`; coerce to a clean string[]. */
-export function toStringArray(v: unknown): string[] {
+/** Json columns come back as `unknown`; coerce to a clean, de-duplicated list
+ *  while preserving the curator's order. */
+export function toSkuList(v: unknown): string[] {
   if (!Array.isArray(v)) return [];
-  return v.filter((x): x is string => typeof x === 'string' && x.trim() !== '');
-}
-
-export function rulesOf(row: {
-  subcategories: unknown;
-  productSkus: unknown;
-  excludeSkus: unknown;
-}): BusinessCategoryRules {
-  return {
-    subcategories: toStringArray(row.subcategories),
-    productSkus: toStringArray(row.productSkus),
-    excludeSkus: toStringArray(row.excludeSkus),
-  };
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const x of v) {
+    if (typeof x !== 'string') continue;
+    const s = x.trim();
+    if (!s || seen.has(s)) continue;
+    seen.add(s);
+    out.push(s);
+  }
+  return out;
 }
 
 /**
- * Prisma `where` fragment selecting the products in a business category.
- * Returns null when the category has no rule at all — the caller should treat
- * that as "empty" rather than running a query that would match everything.
+ * How many of a category's picked SKUs are still active products.
+ *
+ * Counted against the catalogue rather than just the array length: a SKU can be
+ * discontinued or renamed after it was picked, and the admin should show what
+ * the storefront will really render, not a stale list length.
  */
-export function whereForRules(rules: BusinessCategoryRules) {
-  const or: any[] = [];
-  if (rules.subcategories.length) or.push({ subcategory: { in: rules.subcategories } });
-  if (rules.productSkus.length) or.push({ sku: { in: rules.productSkus } });
-  if (!or.length) return null;
-
-  const where: any = { status: 'active', OR: or };
-  if (rules.excludeSkus.length) where.sku = { notIn: rules.excludeSkus };
-  return where;
-}
-
-/** How many active products a category currently resolves to. */
-export async function countProducts(rules: BusinessCategoryRules): Promise<number> {
-  const where = whereForRules(rules);
-  if (!where) return 0;
-  return prisma.product.count({ where });
+export async function countProducts(productSkus: unknown): Promise<number> {
+  const skus = toSkuList(productSkus);
+  if (!skus.length) return 0;
+  return prisma.product.count({ where: { status: 'active', sku: { in: skus } } });
 }
