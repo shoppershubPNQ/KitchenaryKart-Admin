@@ -180,9 +180,26 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
   for (const p of await prisma.product.findMany({ select: { sku: true, hsnCode: true } })) {
     if (p.hsnCode) skuHsn.set(p.sku, p.hsnCode);
   }
+
+  // Variant SKUs resolved through the VARIANT TABLE, not by string surgery.
+  //
+  // The old fallback assumed a variant sku is "<parentSku>-<suffix>" and
+  // trimmed at the last hyphen. That is not this catalogue's convention —
+  // skuSuffix holds a COMPLETE, independent sku (KKA0009-BBQRERB belongs to
+  // parent KKA0008-BBQRERS), so the trim produced a sku that does not exist and
+  // the line was filed with a BLANK HSN. GSTR-1's HSN summary needs it.
+  const variantHsn = new Map<string, string>();
+  for (const v of await prisma.productVariant.findMany({
+    where: { skuSuffix: { not: null } },
+    select: { skuSuffix: true, product: { select: { hsnCode: true } } },
+  })) {
+    if (v.skuSuffix && v.product?.hsnCode) variantHsn.set(v.skuSuffix, v.product.hsnCode);
+  }
+
   const hsnForSku = (sku: string): string => {
     if (skuHsn.has(sku)) return skuHsn.get(sku)!;
-    // Variant SKUs look like "<parentSku>-<suffix>"; fall back to the parent.
+    if (variantHsn.has(sku)) return variantHsn.get(sku)!;
+    // Last resort: some legacy skus really are "<parentSku>-<suffix>".
     const cut = sku.lastIndexOf('-');
     if (cut > 0 && skuHsn.has(sku.slice(0, cut))) return skuHsn.get(sku.slice(0, cut))!;
     return '';
