@@ -45,6 +45,7 @@ interface GstReportSummary {
   /** Freight billed and the GST collected on it. */
   shippingTaxable: number;
   shippingGst: number;
+  shippingInclGst: number;
   roundOff: number;
   /** Sum of the orders' own totals, and the gap against the report's lines.
    *  Must be 0 — anything else means the report has drifted from the invoices. */
@@ -238,7 +239,7 @@ export default function GstReportsPage() {
           </div>
           {!!data.summary.shippingTaxable && (
             <div className="text-xs">
-              Shipping is billed with GST ({inr(data.summary.shippingGst)} collected) and is reported
+              Shipping: {inr(data.summary.shippingTaxable)} excl. GST + {inr(data.summary.shippingGst)} GST = {inr(data.summary.shippingInclGst)} charged. Reported
               on its own rows under SAC 9965.
             </div>
           )}

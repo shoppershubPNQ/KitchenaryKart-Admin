@@ -91,6 +91,13 @@ export interface GstReportRow {
    *  of the order's rows, as MTR exports do, so invoice-level totals can be
    *  taken without re-summing the lines. */
   orderInvoiceValue: number;
+  /** Freight on this invoice, stated BOTH ways and repeated on every row of the
+   *  order. `shippingCost` is stored ex-GST and the customer is charged it plus
+   *  GST, so one figure alone is ambiguous: the ex-GST amount is what goes in
+   *  the return, the incl-GST amount is what ties back to the money collected. */
+  shippingExGst: number;
+  shippingGst: number;
+  shippingInclGst: number;
 }
 
 export interface GstReportSummary {
@@ -113,10 +120,12 @@ export interface GstReportSummary {
    *  taxable total it was deducted from. `taxableValue` above is already NET. */
   discountTotal: number;
   grossTaxableValue: number;
-  /** Freight billed in the period and the GST collected on it — previously
-   *  missing from the return entirely. */
+  /** Freight billed in the period, stated both ways — previously missing from
+   *  the return entirely. `shippingTaxable` is the ex-GST amount included in
+   *  `taxableValue`; `shippingInclGst` is what customers actually paid. */
   shippingTaxable: number;
   shippingGst: number;
+  shippingInclGst: number;
   /** Invoice-level rounding across the period. */
   roundOff: number;
   /** Sum of the orders' own stored totals. `totalInvoiceValue` above is built
@@ -239,6 +248,17 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
     // historical or not, and the round-off column then states the truth.
     const orderRows: GstReportRow[] = [];
 
+    // Freight both ways, resolved once and carried on EVERY row of the invoice.
+    // `shippingCost` is stored EX-GST and the customer is charged it plus GST,
+    // so quoting only one of the two is ambiguous — an accountant reading the
+    // sheet needs the taxable figure for the return and the gross figure to tie
+    // back to the amount collected.
+    const shipRates = [...new Set(order.items.map((i) => Number(i.taxPercent)))];
+    const shipRateForOrder = shipRates.length === 1 ? shipRates[0] : 18;
+    const shippingExGst = round2(Number(order.shippingCost || 0));
+    const shippingGstAmt = round2(shippingExGst * (shipRateForOrder / 100));
+    const shippingInclGst = round2(shippingExGst + shippingGstAmt);
+
     order.items.forEach((it, idx) => {
       const line = breakdown.lines[idx];
       const taxPercent = line.taxPercent;
@@ -280,6 +300,9 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
         reverseCharge: 'N',
         invoiceType: 'Regular',
         roundOff: 0, // set below, from the amount actually charged
+        shippingExGst,
+        shippingGst: shippingGstAmt,
+        shippingInclGst,
         orderInvoiceValue: breakdown.netPayable,
         orderStatus: order.orderStatus,
         paymentStatus: order.paymentStatus,
@@ -329,6 +352,9 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
         reverseCharge: 'N',
         invoiceType: 'Regular',
         roundOff: 0,
+        shippingExGst,
+        shippingGst: shippingGstAmt,
+        shippingInclGst,
         orderInvoiceValue: breakdown.netPayable,
         orderStatus: order.orderStatus,
         paymentStatus: order.paymentStatus,
@@ -372,6 +398,10 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
     shippingGst: round2(
       rows.filter((r) => r.lineType === 'Shipping')
         .reduce((s, r) => s + r.cgst + r.sgst + r.igst, 0),
+    ),
+    shippingInclGst: round2(
+      rows.filter((r) => r.lineType === 'Shipping')
+        .reduce((s, r) => s + r.totalInvoiceValue, 0),
     ),
     roundOff: round2(rows.reduce((s, r) => s + r.roundOff, 0)),
     ordersTotalAmount: round2(
@@ -422,6 +452,11 @@ export const REPORT_COLUMNS: Array<{ key: keyof GstReportRow; label: string }> =
   { key: 'totalInvoiceValue', label: 'Line Total' },
   { key: 'roundOff', label: 'Round Off' },
   { key: 'orderInvoiceValue', label: 'Invoice Value' },
+  // Freight stated both ways — the ex-GST figure is what is filed, the
+  // incl-GST figure is what the customer was charged.
+  { key: 'shippingExGst', label: 'Shipping (Excl. GST)' },
+  { key: 'shippingGst', label: 'Shipping GST' },
+  { key: 'shippingInclGst', label: 'Shipping (Incl. GST)' },
   { key: 'placeOfSupplyName', label: 'Place of Supply' },
   { key: 'placeOfSupplyCode', label: 'State Code' },
   { key: 'isInterState', label: 'Inter-state' },
