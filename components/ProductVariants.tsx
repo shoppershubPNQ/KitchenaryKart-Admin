@@ -26,6 +26,11 @@ interface Variant {
   stock: number;
   /** Per-variant weight ("360g", "1.2 kg"). Null → parent product weight. */
   weight: string | null;
+  /** Per-variant specs. Null → inherit the parent's, so only sizes that really
+   *  differ need filling. The PDP shows the SELECTED size's values. */
+  capacity: string | null;
+  power: string | null;
+  dimensions: string | null;
   imageUrl: string | null;
   images?: string[] | null;
 }
@@ -37,6 +42,9 @@ interface Draft {
   price: string;
   mrp: string;
   weight: string;
+  capacity: string;
+  power: string;
+  dimensions: string;
   stock: string;
 }
 
@@ -47,6 +55,9 @@ const EMPTY_DRAFT: Draft = {
   price: '',
   mrp: '',
   weight: '',
+  capacity: '',
+  power: '',
+  dimensions: '',
   stock: '0',
 };
 
@@ -186,6 +197,9 @@ export function ProductVariants({ productId }: { productId: number }) {
           price: draft.price.trim() === '' ? null : Number(draft.price),
           mrp: draft.mrp.trim() === '' ? null : Number(draft.mrp),
           weight: draft.weight.trim() || null,
+          capacity: draft.capacity.trim() || null,
+          power: draft.power.trim() || null,
+          dimensions: draft.dimensions.trim() || null,
           stock: Math.trunc(Number(draft.stock) || 0),
         }),
       });
@@ -255,16 +269,19 @@ export function ProductVariants({ productId }: { productId: number }) {
               <Th align="right">Price ₹</Th>
               <Th align="right">MRP ₹</Th>
               <Th>Weight</Th>
+              <Th>Capacity</Th>
+              <Th>Power</Th>
+              <Th>Dimensions</Th>
               <Th align="right">Stock</Th>
               <Th></Th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading && (
-              <tr><td colSpan={7} className="p-4 text-center text-slate-400">Loading…</td></tr>
+              <tr><td colSpan={10} className="p-4 text-center text-slate-400">Loading…</td></tr>
             )}
             {!loading && variants.length === 0 && (
-              <tr><td colSpan={7} className="p-4 text-center text-slate-400">No variants yet.</td></tr>
+              <tr><td colSpan={10} className="p-4 text-center text-slate-400">No variants yet.</td></tr>
             )}
             {variants.map((v) => (
               <tr key={v.id} className="hover:bg-slate-50">
@@ -342,6 +359,24 @@ export function ProductVariants({ productId }: { productId: number }) {
                     }}
                   />
                 </td>
+                {/* Per-variant specs. Blank inherits the parent, so only sizes
+                    that genuinely differ need filling — but when they DO differ
+                    the PDP must show the selected size's, not the parent's. */}
+                {(['capacity', 'power', 'dimensions'] as const).map((field) => (
+                  <td key={field} className="px-2 py-1.5">
+                    <input
+                      type="text"
+                      className={`input input-sm ${field === 'dimensions' ? 'w-36' : 'w-28'}`}
+                      placeholder="parent"
+                      defaultValue={v[field] ?? ''}
+                      onBlur={(e) => {
+                        const raw = e.target.value.trim();
+                        const next = raw === '' ? null : raw;
+                        if (next !== (v[field] ?? null)) update(v, field, next);
+                      }}
+                    />
+                  </td>
+                ))}
                 <td className="px-2 py-1.5">
                   <input
                     type="number"
@@ -408,6 +443,27 @@ export function ProductVariants({ productId }: { productId: number }) {
             placeholder="Weight"
             value={draft.weight}
             onChange={(e) => setDraft({ ...draft, weight: e.target.value })}
+          />
+          <input
+            type="text"
+            className="input input-sm md:col-span-1"
+            placeholder="Capacity"
+            value={draft.capacity}
+            onChange={(e) => setDraft({ ...draft, capacity: e.target.value })}
+          />
+          <input
+            type="text"
+            className="input input-sm md:col-span-1"
+            placeholder="Power"
+            value={draft.power}
+            onChange={(e) => setDraft({ ...draft, power: e.target.value })}
+          />
+          <input
+            type="text"
+            className="input input-sm md:col-span-1"
+            placeholder="Dimensions"
+            value={draft.dimensions}
+            onChange={(e) => setDraft({ ...draft, dimensions: e.target.value })}
           />
           <input
             type="number"

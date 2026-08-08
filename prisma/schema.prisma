@@ -189,6 +189,17 @@ model ProductVariant {
   /// quote, so a big size is not charged as if it were the small one.
   weight        String?
 
+  /// Per-variant SPECS. Same free-text convention and same null-inherits-parent
+  /// rule as `weight` above.
+  ///
+  /// Sizes of one machine genuinely differ — the 400g masala grinder is 1880W
+  /// and 3.8kg, the 2500g is 3200W and 10.7kg — but the PDP could only read the
+  /// parent, so every size advertised the smallest one's specs. A customer
+  /// buying "Large" was shown 400g capacity.
+  capacity   String?
+  power      String?
+  dimensions String?
+
 
   /// Order lines that bought this specific variant (for stock decrement).
   orderItems OrderItem[]

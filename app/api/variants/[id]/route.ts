@@ -16,6 +16,11 @@ const updateSchema = z.object({
   mrp: z.number().nullable().optional(),
   /** Free-text per-variant weight ("360g"); null = inherit the parent. */
   weight: z.string().trim().max(40).nullable().optional(),
+  /** Per-variant specs; null = inherit the parent. Sizes of one machine really
+   *  do differ, so the PDP must not show the parent's for every size. */
+  capacity: z.string().trim().max(80).nullable().optional(),
+  power: z.string().trim().max(80).nullable().optional(),
+  dimensions: z.string().trim().max(120).nullable().optional(),
   stock: z.number().int().nonnegative().optional(),
   /** Per-variant image. The upload endpoint at /api/variants/[id]/image
    *  returns the Cloudinary URL; pass null here to clear it. */

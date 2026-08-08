@@ -21,6 +21,10 @@ const createSchema = z.object({
   price: z.number().nullable().optional(),
   mrp: z.number().nullable().optional(),
   weight: z.string().trim().max(40).nullable().optional(),
+  /** Per-variant specs; null = inherit the parent. */
+  capacity: z.string().trim().max(80).nullable().optional(),
+  power: z.string().trim().max(80).nullable().optional(),
+  dimensions: z.string().trim().max(120).nullable().optional(),
   stock: z.number().int().nonnegative().optional(),
 });
 
@@ -54,6 +58,9 @@ export const POST = withAuth(async (req, { params }) => {
         price: body.price ?? null,
         mrp: body.mrp ?? null,
         weight: body.weight ?? null,
+        capacity: body.capacity ?? null,
+        power: body.power ?? null,
+        dimensions: body.dimensions ?? null,
         stock: body.stock ?? 0,
       },
     });
