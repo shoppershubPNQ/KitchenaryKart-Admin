@@ -60,6 +60,16 @@ export interface GstReportRow {
   /** Payment state, always 'completed' given the query filter — carried so the
    *  sheet is self-explanatory and the filter is auditable from the file. */
   paymentStatus: string;
+  /** Coupon applied to the order, blank when none. */
+  couponCode: string;
+  /** This line's share of the order-level coupon discount, apportioned by
+   *  value. Shares across an order add back to the order's discount. */
+  lineDiscount: number;
+  /** `taxableValue` recomputed with the line's discount share netted off.
+   *  INFORMATIONAL — `taxableValue` remains the gross figure the report has
+   *  always produced. Which of the two is filed depends on how the discount is
+   *  shown on the invoice, which is the accountant's call, so both are given. */
+  taxableValueAfterDiscount: number;
 }
 
 export interface GstReportSummary {
@@ -78,6 +88,12 @@ export interface GstReportSummary {
   /** Rupee value of those cancelled lines, so the size of the problem is
    *  visible without filtering the sheet. */
   cancelledValue: number;
+  /** Coupon discount given across the period, and the taxable total once it is
+   *  netted off. Shown alongside the gross `taxableValue` so the difference the
+   *  discount makes to the filing is a single number, not a spreadsheet
+   *  exercise. */
+  discountTotal: number;
+  taxableValueAfterDiscount: number;
 }
 
 export interface GstReportResult {
@@ -157,6 +173,18 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
     );
     const invoiceDate = order.createdAt.toLocaleDateString('en-IN');
 
+    // A coupon discount is stored once on the ORDER, but GST is filed per line.
+    // Apportion it across the lines by value so each row carries its own share
+    // and the shares add back up to the order's discount.
+    //
+    // These columns are INFORMATIONAL — `taxableValue` below is still computed
+    // on the gross line, exactly as before. Whether the discount may be netted
+    // off the taxable value depends on how it is shown on the invoice, which is
+    // an accounting decision, so the report presents both figures rather than
+    // silently changing the one that gets filed.
+    const orderDiscount = Number(order.discountAmount ?? 0);
+    const grossLineSum = order.items.reduce((s, i) => s + Number(i.lineTotal), 0);
+
     for (const it of order.items) {
       const taxPercent = Number(it.taxPercent);
       const lineTotal = Number(it.lineTotal);
@@ -165,6 +193,17 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
       const cgst = isInterState ? 0 : +(totalTax / 2).toFixed(2);
       const sgst = isInterState ? 0 : +(totalTax / 2).toFixed(2);
       const igst = isInterState ? totalTax : 0;
+
+      // This line's share of the order-level coupon discount, and what the
+      // taxable value would be if that share were netted off.
+      const lineDiscount =
+        orderDiscount > 0 && grossLineSum > 0
+          ? +((orderDiscount * lineTotal) / grossLineSum).toFixed(2)
+          : 0;
+      const taxableValueAfterDiscount = +(
+        (lineTotal - lineDiscount) /
+        (1 + taxPercent / 100)
+      ).toFixed(2);
 
       rows.push({
         orderId: order.id,
@@ -187,6 +226,9 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
         placeOfSupplyName,
         placeOfSupplyCode,
         isInterState: isInterState ? 'Yes' : 'No',
+        couponCode: order.couponCode ?? '',
+        lineDiscount,
+        taxableValueAfterDiscount,
         orderStatus: order.orderStatus,
         paymentStatus: order.paymentStatus,
       });
@@ -208,6 +250,10 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
     cancelledValue: round2(
       rows.filter((r) => r.orderStatus === 'cancelled')
         .reduce((s, r) => s + r.totalInvoiceValue, 0),
+    ),
+    discountTotal: round2(rows.reduce((s, r) => s + r.lineDiscount, 0)),
+    taxableValueAfterDiscount: round2(
+      rows.reduce((s, r) => s + r.taxableValueAfterDiscount, 0),
     ),
   };
 
@@ -232,6 +278,11 @@ export const REPORT_COLUMNS: Array<{ key: keyof GstReportRow; label: string }> =
   { key: 'hsnCode', label: 'HSN Code' },
   { key: 'quantity', label: 'Quantity' },
   { key: 'taxableValue', label: 'Taxable Value' },
+  // Sit next to Taxable Value so the gross figure and the net-of-discount
+  // figure can be compared without scrolling to the end of the sheet.
+  { key: 'couponCode', label: 'Coupon' },
+  { key: 'lineDiscount', label: 'Discount' },
+  { key: 'taxableValueAfterDiscount', label: 'Taxable Value After Discount' },
   { key: 'taxRate', label: 'Tax Rate %' },
   { key: 'cgst', label: 'CGST' },
   { key: 'sgst', label: 'SGST' },

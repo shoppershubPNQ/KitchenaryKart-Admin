@@ -39,6 +39,9 @@ interface GstReportSummary {
   /** Paid-but-cancelled orders caught in this period. Normally 0. */
   cancelledOrders: number;
   cancelledValue: number;
+  /** Coupon discount given, and the taxable total net of it. */
+  discountTotal: number;
+  taxableValueAfterDiscount: number;
 }
 
 interface GstReportResponse {
@@ -179,6 +182,23 @@ export default function GstReportsPage() {
         <StatCard label="IGST" value={inr(data?.summary.igst ?? 0)} />
         <StatCard label="Total invoice" value={inr(data?.summary.totalInvoiceValue ?? 0)} highlight />
       </div>
+
+      {/* Coupon discounts are stored per ORDER but GST is filed per line, so the
+          sheet apportions them. The gross taxable value is what this report has
+          always produced; whether the discount may be netted off depends on how
+          it appears on the invoice, so both totals are shown and neither is
+          silently chosen. */}
+      {!!data?.summary.discountTotal && (
+        <div className="card p-4 border-l-4 border-sky-500 text-sm bg-sky-50 text-sky-900">
+          <span className="font-semibold">
+            {inr(data.summary.discountTotal)} of coupon discount in this period.
+          </span>{' '}
+          Taxable value is {inr(data.summary.taxableValue)} gross, or{' '}
+          <span className="font-semibold">{inr(data.summary.taxableValueAfterDiscount)}</span> net of discount.
+          The sheet shows both per line (“Discount”, “Taxable Value After Discount”).
+          Which one you file depends on how the discount is shown on the invoice — check with your accountant.
+        </div>
+      )}
 
       {/* A paid order that was later cancelled still carries an invoice number,
           so it sits in this report looking like an ordinary sale. Filing it as
