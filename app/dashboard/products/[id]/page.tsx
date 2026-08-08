@@ -11,7 +11,12 @@ export default async function EditProductPage({ params }: { params: { id: string
   if (!p) notFound();
 
   return (
-    <div className="max-w-4xl space-y-4">
+    // Full width, because the variants table below now carries ten columns
+    // (price, mrp, weight, capacity, power, dimensions, stock…) and at the old
+    // max-w-4xl they were pushed into a horizontal scroll — the price and stock
+    // fields were simply off-screen. The images and the detail form stay capped
+    // at a readable width; only the table is allowed to use the whole page.
+    <div className="space-y-4">
       <div>
         <div className="text-xs font-mono text-slate-500">
           {p.sku}
@@ -20,6 +25,7 @@ export default async function EditProductPage({ params }: { params: { id: string
         <h1 className="text-2xl font-semibold text-slate-900">{p.name}</h1>
       </div>
 
+      <div className="max-w-5xl space-y-4">
       <ProductImages
         productId={p.id}
         sku={p.sku}
@@ -53,6 +59,7 @@ export default async function EditProductPage({ params }: { params: { id: string
           isNewArrival: p.isNewArrival,
         }}
       />
+      </div>
 
       <ProductVariants productId={p.id} />
     </div>

@@ -349,7 +349,7 @@ export function ProductVariants({ productId }: { productId: number }) {
                       actually differ need filling. Feeds the shipping quote. */}
                   <input
                     type="text"
-                    className="input input-sm w-24"
+                    className="input input-sm w-full"
                     placeholder="parent"
                     defaultValue={v.weight ?? ''}
                     onBlur={(e) => {
@@ -366,7 +366,7 @@ export function ProductVariants({ productId }: { productId: number }) {
                   <td key={field} className="px-2 py-1.5">
                     <input
                       type="text"
-                      className={`input input-sm ${field === 'dimensions' ? 'w-36' : 'w-28'}`}
+                      className="input input-sm w-full"
                       placeholder="parent"
                       defaultValue={v[field] ?? ''}
                       onBlur={(e) => {
@@ -402,7 +402,7 @@ export function ProductVariants({ productId }: { productId: number }) {
       {/* Inline add form */}
       <div className="border border-dashed border-slate-300 rounded-md p-3">
         <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Add variant</div>
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-6 xl:grid-cols-11 gap-2">
           <input
             className="input input-sm md:col-span-1"
             placeholder="Type (e.g. Size)"
