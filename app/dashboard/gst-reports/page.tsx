@@ -36,6 +36,9 @@ interface GstReportSummary {
   sgst: number;
   igst: number;
   totalInvoiceValue: number;
+  /** Paid-but-cancelled orders caught in this period. Normally 0. */
+  cancelledOrders: number;
+  cancelledValue: number;
 }
 
 interface GstReportResponse {
@@ -176,6 +179,21 @@ export default function GstReportsPage() {
         <StatCard label="IGST" value={inr(data?.summary.igst ?? 0)} />
         <StatCard label="Total invoice" value={inr(data?.summary.totalInvoiceValue ?? 0)} highlight />
       </div>
+
+      {/* A paid order that was later cancelled still carries an invoice number,
+          so it sits in this report looking like an ordinary sale. Filing it as
+          revenue overstates the liability — a credit note is due instead. Flag
+          it here rather than leaving it to be spotted inside the sheet. */}
+      {!!data?.summary.cancelledOrders && (
+        <div className="card p-4 border-l-4 border-amber-500 text-sm bg-amber-50 text-amber-900">
+          <span className="font-semibold">
+            {data.summary.cancelledOrders} cancelled {data.summary.cancelledOrders === 1 ? 'order is' : 'orders are'} included
+            {' '}({inr(data.summary.cancelledValue)}).
+          </span>{' '}
+          These were paid and then cancelled. Filter the “Order Status” column before filing —
+          a cancelled invoice normally needs a credit note, not a GSTR-1 entry.
+        </div>
+      )}
 
       {/* Errors / empty / table */}
       {error && (

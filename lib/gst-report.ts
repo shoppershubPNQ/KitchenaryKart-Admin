@@ -50,6 +50,16 @@ export interface GstReportRow {
   placeOfSupplyName: string;
   placeOfSupplyCode: string;
   isInterState: 'Yes' | 'No';
+  /** Fulfilment state of the order — delivered / shipped / processing /
+   *  cancelled. The report only ever includes PAID orders, but "paid" and
+   *  "not cancelled" are different things: an order can be paid and then
+   *  cancelled before dispatch, and it would sit in this file looking like a
+   *  normal sale. Surfaced so a cancelled line can be spotted and a credit
+   *  note raised instead of it being filed as revenue. */
+  orderStatus: string;
+  /** Payment state, always 'completed' given the query filter — carried so the
+   *  sheet is self-explanatory and the filter is auditable from the file. */
+  paymentStatus: string;
 }
 
 export interface GstReportSummary {
@@ -60,6 +70,14 @@ export interface GstReportSummary {
   sgst: number;
   igst: number;
   totalInvoiceValue: number;
+  /** Orders in this report that are PAID but CANCELLED. Normally 0. When it is
+   *  not, those lines are sitting in the file looking like ordinary sales, and
+   *  a credit note is due rather than the invoice being filed as revenue —
+   *  so it is surfaced before the file is opened, not after filing. */
+  cancelledOrders: number;
+  /** Rupee value of those cancelled lines, so the size of the problem is
+   *  visible without filtering the sheet. */
+  cancelledValue: number;
 }
 
 export interface GstReportResult {
@@ -169,6 +187,8 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
         placeOfSupplyName,
         placeOfSupplyCode,
         isInterState: isInterState ? 'Yes' : 'No',
+        orderStatus: order.orderStatus,
+        paymentStatus: order.paymentStatus,
       });
     }
   }
@@ -182,6 +202,13 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
     sgst: round2(rows.reduce((s, r) => s + r.sgst, 0)),
     igst: round2(rows.reduce((s, r) => s + r.igst, 0)),
     totalInvoiceValue: round2(rows.reduce((s, r) => s + r.totalInvoiceValue, 0)),
+    cancelledOrders: new Set(
+      rows.filter((r) => r.orderStatus === 'cancelled').map((r) => r.orderId),
+    ).size,
+    cancelledValue: round2(
+      rows.filter((r) => r.orderStatus === 'cancelled')
+        .reduce((s, r) => s + r.totalInvoiceValue, 0),
+    ),
   };
 
   return { filters, rangeStart: start, rangeEnd: end, rows, summary };
@@ -213,4 +240,9 @@ export const REPORT_COLUMNS: Array<{ key: keyof GstReportRow; label: string }> =
   { key: 'placeOfSupplyName', label: 'Place of Supply' },
   { key: 'placeOfSupplyCode', label: 'State Code' },
   { key: 'isInterState', label: 'Inter-state' },
+  // Last two on purpose: the GST-relevant columns stay in the familiar MTR
+  // order, and these sit at the end where they are easy to filter on without
+  // shifting anything the accountant already reads by position.
+  { key: 'orderStatus', label: 'Order Status' },
+  { key: 'paymentStatus', label: 'Payment Status' },
 ];
