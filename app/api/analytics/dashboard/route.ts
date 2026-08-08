@@ -2,6 +2,13 @@ import { prisma } from '@/lib/db';
 import { Prisma } from '@prisma/client';
 import { withAuth } from '@/lib/auth';
 import { handleError, ok } from '@/lib/api';
+import {
+  formatRange,
+  isPeriodKey,
+  resolvePeriod,
+  type PeriodKey,
+  type ResolvedPeriod,
+} from '@/lib/dashboard-period';
 
 /**
  * Admin dashboard stats. Fires a batch of parallel queries; under concurrent
@@ -26,6 +33,13 @@ interface TopProduct {
 }
 
 interface CachedStats {
+  /** Which window the period-scoped figures below cover. */
+  period: {
+    key: PeriodKey;
+    label: string;
+    range: string;
+    compareLabel: string | null;
+  };
   // Headline totals
   totalOrders: number;
   totalRevenue: number;
@@ -34,11 +48,15 @@ interface CachedStats {
   // Today
   todayOrders: number;
   todayRevenue: number;
-  // This month vs last month (paid revenue) — drives the growth indicator
-  monthRevenue: number;
-  prevMonthRevenue: number;
-  newCustomersThisMonth: number;
-  // Averages
+  // Selected period vs the preceding equivalent window — drives the growth
+  // indicator. Previously hard-coded to this-month vs last-month, which made
+  // the number meaningless once any other range could be selected.
+  periodRevenue: number;
+  prevPeriodRevenue: number;
+  periodOrders: number;
+  periodNewCustomers: number;
+  periodAvgOrderValue: number;
+  // Averages (all-time)
   avgOrderValue: number;
   // Actionable queues
   pendingOrders: number;
@@ -59,11 +77,17 @@ const PAID_WHERE: Prisma.OrderWhereInput = {
   orderStatus: { not: 'cancelled' },
 };
 
-async function compute(): Promise<CachedStats> {
+/** createdAt filter for a resolved window; `{}` when the window is unbounded. */
+function inRange(start: Date | null, end: Date | null): Prisma.OrderWhereInput {
+  if (!start) return {};
+  return { createdAt: end ? { gte: start, lt: end } : { gte: start } };
+}
+
+async function compute(period: ResolvedPeriod): Promise<CachedStats> {
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const periodWhere = inRange(period.start, period.end);
+  const prevWhere = inRange(period.prevStart, period.prevEnd);
 
   const [
     totalOrders,
@@ -71,15 +95,15 @@ async function compute(): Promise<CachedStats> {
     paidAgg,
     todayOrders,
     todayRevenueAgg,
-    monthRevenueAgg,
-    prevMonthRevenueAgg,
+    periodAgg,
+    prevPeriodAgg,
     pendingOrders,
     toShipOrders,
     pendingPayments,
     lowStock,
     outOfStock,
     totalCustomers,
-    newCustomersThisMonth,
+    periodNewCustomers,
     totalProducts,
     newInquiries,
     activeCoupons,
@@ -95,13 +119,16 @@ async function compute(): Promise<CachedStats> {
       _sum: { totalAmount: true },
       where: { ...PAID_WHERE, createdAt: { gte: startOfToday } },
     }),
+    // Selected period: revenue, order count and average order value.
     prisma.order.aggregate({
       _sum: { totalAmount: true },
-      where: { ...PAID_WHERE, createdAt: { gte: startOfMonth } },
+      _avg: { totalAmount: true },
+      _count: { _all: true },
+      where: { ...PAID_WHERE, ...periodWhere },
     }),
     prisma.order.aggregate({
       _sum: { totalAmount: true },
-      where: { ...PAID_WHERE, createdAt: { gte: startOfPrevMonth, lt: startOfMonth } },
+      where: { ...PAID_WHERE, ...prevWhere },
     }),
     prisma.order.count({ where: { orderStatus: { in: ['pending', 'processing'] } } }),
     // Paid & ready to ship, not yet shipped.
@@ -112,7 +139,7 @@ async function compute(): Promise<CachedStats> {
     `,
     prisma.product.count({ where: { stock: { lte: 0 }, status: 'active' } }),
     prisma.customer.count(),
-    prisma.customer.count({ where: { createdAt: { gte: startOfMonth } } }),
+    prisma.customer.count({ where: inRange(period.start, period.end) as any }),
     prisma.product.count(),
     prisma.inquiry.count({ where: { status: 'new' } }),
     prisma.coupon.count({ where: { isActive: true } }),
@@ -140,6 +167,9 @@ async function compute(): Promise<CachedStats> {
       -- Same rule as PAID_WHERE above: only money actually received. Without
       -- this the list counted unpaid/abandoned orders and overstated revenue.
       WHERE o.payment_status = 'completed' AND o.order_status <> 'cancelled'
+      -- Scoped to the selected period, so "top products" answers "best sellers
+      -- LAST YEAR" rather than always showing all-time winners.
+      ${period.start ? Prisma.sql`AND o.created_at >= ${period.start} AND o.created_at < ${period.end}` : Prisma.empty}
       GROUP BY p.id
       ORDER BY total_revenue DESC NULLS LAST
       LIMIT 5
@@ -147,15 +177,23 @@ async function compute(): Promise<CachedStats> {
   ]);
 
   return {
+    period: {
+      key: period.key,
+      label: period.label,
+      range: formatRange(period),
+      compareLabel: period.compareLabel,
+    },
     totalOrders,
     totalRevenue: Number(totalRevenueAgg._sum.totalAmount ?? 0),
     totalCustomers,
     totalProducts,
     todayOrders,
     todayRevenue: Number(todayRevenueAgg._sum.totalAmount ?? 0),
-    monthRevenue: Number(monthRevenueAgg._sum.totalAmount ?? 0),
-    prevMonthRevenue: Number(prevMonthRevenueAgg._sum.totalAmount ?? 0),
-    newCustomersThisMonth,
+    periodRevenue: Number(periodAgg._sum.totalAmount ?? 0),
+    prevPeriodRevenue: Number(prevPeriodAgg._sum.totalAmount ?? 0),
+    periodOrders: periodAgg._count._all,
+    periodNewCustomers,
+    periodAvgOrderValue: Number(periodAgg._avg.totalAmount ?? 0),
     avgOrderValue: Number(paidAgg._avg.totalAmount ?? 0),
     pendingOrders,
     toShipOrders,
@@ -183,15 +221,21 @@ async function compute(): Promise<CachedStats> {
 }
 
 const TTL_MS = 60 * 1000;
-let cache: { data: CachedStats; expires: number } | null = null;
+// Keyed BY PERIOD — a single slot would serve last year's numbers to someone
+// who just switched back to this month, for up to a minute.
+const cache = new Map<PeriodKey, { data: CachedStats; expires: number }>();
 
-export const GET = withAuth(async () => {
+export const GET = withAuth(async (req) => {
   try {
-    if (cache && cache.expires > Date.now()) {
-      return ok(cache.data);
+    const raw = new URL(req.url).searchParams.get('period');
+    const key: PeriodKey = isPeriodKey(raw) ? raw : 'this-month';
+
+    const hit = cache.get(key);
+    if (hit && hit.expires > Date.now()) {
+      return ok(hit.data);
     }
-    const data = await compute();
-    cache = { data, expires: Date.now() + TTL_MS };
+    const data = await compute(resolvePeriod(key));
+    cache.set(key, { data, expires: Date.now() + TTL_MS });
     return ok(data);
   } catch (e) {
     return handleError(e);

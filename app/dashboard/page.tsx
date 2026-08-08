@@ -23,15 +23,18 @@ interface TopProduct {
 }
 
 interface Stats {
+  period: { key: string; label: string; range: string; compareLabel: string | null };
   totalOrders: number;
   totalRevenue: number;
   totalCustomers: number;
   totalProducts: number;
   todayOrders: number;
   todayRevenue: number;
-  monthRevenue: number;
-  prevMonthRevenue: number;
-  newCustomersThisMonth: number;
+  periodRevenue: number;
+  prevPeriodRevenue: number;
+  periodOrders: number;
+  periodNewCustomers: number;
+  periodAvgOrderValue: number;
   avgOrderValue: number;
   pendingOrders: number;
   toShipOrders: number;
@@ -55,29 +58,70 @@ const statusPill: Record<string, string> = {
   refunded: 'pill-gray',
 };
 
+/** Period options, mirroring lib/dashboard-period.ts. */
+const PERIODS: Array<{ key: string; label: string }> = [
+  { key: 'today', label: 'Today' },
+  { key: 'this-month', label: 'This month' },
+  { key: 'last-month', label: 'Last month' },
+  { key: 'last-3-months', label: 'Last 3 months' },
+  { key: 'this-year', label: 'This year' },
+  { key: 'last-year', label: 'Last year' },
+  { key: 'this-fy', label: 'This financial year' },
+  { key: 'last-fy', label: 'Last financial year' },
+  { key: 'all', label: 'All time' },
+];
+
 export default function DashboardHome() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [period, setPeriod] = useState('this-month');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api<Stats>('/api/analytics/dashboard').then(setStats).catch(e => setErr(e.message));
-  }, []);
+    let cancelled = false;
+    setLoading(true);
+    setErr(null);
+    api<Stats>(`/api/analytics/dashboard?period=${period}`)
+      // Guard against a slow earlier request landing after a newer one and
+      // painting the wrong period's numbers.
+      .then((d) => { if (!cancelled) setStats(d); })
+      .catch((e) => { if (!cancelled) setErr(e.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [period]);
 
-  // Month-over-month growth of paid revenue.
-  const growth = stats && stats.prevMonthRevenue > 0
-    ? ((stats.monthRevenue - stats.prevMonthRevenue) / stats.prevMonthRevenue) * 100
+  // Growth against the PRECEDING equivalent window (last month vs the month
+  // before, last year vs the year before), so the comparison stays meaningful
+  // whichever period is selected.
+  const growth = stats && stats.prevPeriodRevenue > 0
+    ? ((stats.periodRevenue - stats.prevPeriodRevenue) / stats.prevPeriodRevenue) * 100
     : null;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
-          <p className="text-sm text-slate-500">Snapshot of store health.</p>
+          <p className="text-sm text-slate-500">
+            {stats ? `${stats.period.label} · ${stats.period.range}` : 'Snapshot of store health.'}
+          </p>
         </div>
-        <Link href="/dashboard/analytics" className="text-sm text-brand hover:underline whitespace-nowrap">
-          Full analytics →
-        </Link>
+        <div className="flex items-center gap-3">
+          <select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            className="input input-sm"
+            aria-label="Reporting period"
+          >
+            {PERIODS.map((p) => (
+              <option key={p.key} value={p.key}>{p.label}</option>
+            ))}
+          </select>
+          {loading && <span className="text-xs text-slate-400">Loading…</span>}
+          <Link href="/dashboard/analytics" className="text-sm text-brand hover:underline whitespace-nowrap">
+            Full analytics →
+          </Link>
+        </div>
       </div>
 
       {err && <div className="card p-4 text-sm text-red-600">Couldn't load stats: {err}</div>}
@@ -85,15 +129,29 @@ export default function DashboardHome() {
       {/* Headline KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
-          label="Revenue this month"
-          value={stats ? inr(stats.monthRevenue) : '…'}
+          label={stats ? `Revenue · ${stats.period.label.toLowerCase()}` : 'Revenue'}
+          value={stats ? inr(stats.periodRevenue) : '…'}
           accent="brand"
-          hint={growth === null ? undefined : `${growth >= 0 ? '▲' : '▼'} ${Math.abs(growth).toFixed(1)}% vs last month`}
+          hint={
+            growth === null
+              ? undefined
+              : `${growth >= 0 ? '▲' : '▼'} ${Math.abs(growth).toFixed(1)}% ${stats?.period.compareLabel ?? ''}`
+          }
           hintTone={growth === null ? undefined : growth >= 0 ? 'up' : 'down'}
         />
-        <StatCard label="Revenue (all-time, paid)" value={stats ? inr(stats.totalRevenue) : '…'} accent="green" />
+        <StatCard
+          label="Orders (paid)"
+          value={stats ? stats.periodOrders.toLocaleString() : '…'}
+          accent="green"
+          hint={stats ? `${inr(stats.totalRevenue)} all-time` : undefined}
+        />
         <StatCard label="Today's revenue" value={stats ? inr(stats.todayRevenue) : '…'} accent="blue" hint={stats ? `${stats.todayOrders} order${stats.todayOrders === 1 ? '' : 's'} today` : undefined} />
-        <StatCard label="Avg. order value" value={stats ? inr(stats.avgOrderValue) : '…'} accent="slate" />
+        <StatCard
+          label="Avg. order value"
+          value={stats ? inr(stats.periodAvgOrderValue) : '…'}
+          accent="slate"
+          hint={stats ? `${inr(stats.avgOrderValue)} all-time` : undefined}
+        />
       </div>
 
       {/* Action queues */}
@@ -123,7 +181,7 @@ export default function DashboardHome() {
             <dl className="space-y-2 text-sm">
               <Row label="Products" value={stats ? stats.totalProducts.toLocaleString() : '…'} href="/dashboard/products" />
               <Row label="Customers" value={stats ? stats.totalCustomers.toLocaleString() : '…'} href="/dashboard/customers" />
-              <Row label="New customers (month)" value={stats ? stats.newCustomersThisMonth.toLocaleString() : '…'} />
+              <Row label={stats ? `New customers (${stats.period.label.toLowerCase()})` : "New customers"} value={stats ? stats.periodNewCustomers.toLocaleString() : "…"} />
             </dl>
           </div>
           <div className="card p-6">
@@ -184,7 +242,7 @@ export default function DashboardHome() {
 
         <div className="card p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold">Top products</h2>
+            <h2 className="font-semibold">Top products{stats ? <span className="ml-2 text-xs font-normal text-slate-400">{stats.period.label.toLowerCase()}</span> : null}</h2>
             <Link href="/dashboard/analytics" className="text-xs text-brand hover:underline">All</Link>
           </div>
           {!stats ? (
