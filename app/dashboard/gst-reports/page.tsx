@@ -39,9 +39,17 @@ interface GstReportSummary {
   /** Paid-but-cancelled orders caught in this period. Normally 0. */
   cancelledOrders: number;
   cancelledValue: number;
-  /** Coupon discount given, and the taxable total net of it. */
+  /** Coupon discount deducted, and the pre-discount taxable total. */
   discountTotal: number;
-  taxableValueAfterDiscount: number;
+  grossTaxableValue: number;
+  /** Freight billed and the GST collected on it. */
+  shippingTaxable: number;
+  shippingGst: number;
+  roundOff: number;
+  /** Sum of the orders' own totals, and the gap against the report's lines.
+   *  Must be 0 — anything else means the report has drifted from the invoices. */
+  ordersTotalAmount: number;
+  reconciliationGap: number;
 }
 
 interface GstReportResponse {
@@ -188,15 +196,52 @@ export default function GstReportsPage() {
           always produced; whether the discount may be netted off depends on how
           it appears on the invoice, so both totals are shown and neither is
           silently chosen. */}
-      {!!data?.summary.discountTotal && (
-        <div className="card p-4 border-l-4 border-sky-500 text-sm bg-sky-50 text-sky-900">
-          <span className="font-semibold">
-            {inr(data.summary.discountTotal)} of coupon discount in this period.
-          </span>{' '}
-          Taxable value is {inr(data.summary.taxableValue)} gross, or{' '}
-          <span className="font-semibold">{inr(data.summary.taxableValueAfterDiscount)}</span> net of discount.
-          The sheet shows both per line (“Discount”, “Taxable Value After Discount”).
-          Which one you file depends on how the discount is shown on the invoice — check with your accountant.
+      {/* The one number that says whether this file is safe to submit: the
+          report's own lines, plus round-off, must equal what the customers were
+          actually charged. */}
+      {data && (
+        <div
+          className={`card p-4 border-l-4 text-sm ${
+            data.summary.reconciliationGap === 0
+              ? 'border-emerald-500 bg-emerald-50 text-emerald-900'
+              : 'border-red-500 bg-red-50 text-red-900'
+          }`}
+        >
+          {data.summary.reconciliationGap === 0 ? (
+            <>
+              <span className="font-semibold">Reconciled.</span> The {data.summary.rows} lines
+              total {inr(data.summary.totalInvoiceValue)} plus {inr(data.summary.roundOff)} round-off,
+              which matches the {inr(data.summary.ordersTotalAmount)} charged across{' '}
+              {data.summary.orders} invoices.
+            </>
+          ) : (
+            <>
+              <span className="font-semibold">
+                Does not reconcile — off by {inr(data.summary.reconciliationGap)}.
+              </span>{' '}
+              The report and the issued invoices disagree. Do not file until this is resolved.
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Taxable value is filed NET of discount and INCLUDES freight, matching
+          the invoice. Both moving parts are spelled out so the figure can be
+          checked without opening the sheet. */}
+      {data && (!!data.summary.discountTotal || !!data.summary.shippingTaxable) && (
+        <div className="card p-4 border-l-4 border-sky-500 text-sm bg-sky-50 text-sky-900 space-y-1">
+          <div>
+            <span className="font-semibold">Taxable value {inr(data.summary.taxableValue)}</span>{' '}
+            = {inr(data.summary.grossTaxableValue)} goods
+            {!!data.summary.discountTotal && <> − {inr(data.summary.discountTotal)} coupon discount</>}
+            {!!data.summary.shippingTaxable && <> + {inr(data.summary.shippingTaxable)} shipping</>}.
+          </div>
+          {!!data.summary.shippingTaxable && (
+            <div className="text-xs">
+              Shipping is billed with GST ({inr(data.summary.shippingGst)} collected) and is reported
+              on its own rows under SAC 9965.
+            </div>
+          )}
         </div>
       )}
 

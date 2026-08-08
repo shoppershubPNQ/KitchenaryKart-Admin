@@ -87,12 +87,25 @@ export const GET = withAuth(async (req: NextRequest) => {
       [],
       ['Totals', ''],
       ['Rows', report.summary.rows],
-      ['Orders', report.summary.orders],
-      ['Taxable Value', report.summary.taxableValue],
+      ['Invoices', report.summary.orders],
+      ['Taxable Value (before discount)', report.summary.grossTaxableValue],
+      ['Less: coupon discount', -report.summary.discountTotal],
+      ['Of which shipping / freight', report.summary.shippingTaxable],
+      ['Taxable Value (filed)', report.summary.taxableValue],
       ['CGST', report.summary.cgst],
       ['SGST', report.summary.sgst],
       ['IGST', report.summary.igst],
-      ['Total Invoice Value', report.summary.totalInvoiceValue],
+      ['GST on shipping (incl. above)', report.summary.shippingGst],
+      ['Line Total', report.summary.totalInvoiceValue],
+      ['Round Off', report.summary.roundOff],
+      [],
+      // The check that says whether this file may be submitted: the report's
+      // own lines must equal what the customers were charged.
+      ['Reconciliation', ''],
+      ['Amount charged to customers', report.summary.ordersTotalAmount],
+      ['Lines + round off', report.summary.totalInvoiceValue + report.summary.roundOff],
+      ['Gap (must be 0)', report.summary.reconciliationGap],
+      ['Cancelled orders included', report.summary.cancelledOrders],
     ]);
 
     const wb = XLSX.utils.book_new();

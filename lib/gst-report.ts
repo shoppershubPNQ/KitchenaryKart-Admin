@@ -17,6 +17,7 @@ import {
   getMonthBounds,
 } from './invoice-serial';
 import { detectStateFromAddress, GST_STATES } from './gst-states';
+import { computeOrderSummary } from './order-summary';
 
 export type GstReportType = 'b2b' | 'b2c' | 'all';
 
@@ -62,14 +63,34 @@ export interface GstReportRow {
   paymentStatus: string;
   /** Coupon applied to the order, blank when none. */
   couponCode: string;
-  /** This line's share of the order-level coupon discount, apportioned by
-   *  value. Shares across an order add back to the order's discount. */
+  /** This line's share of the order-level coupon discount (ex-GST), apportioned
+   *  by value. Shares across an order add back to the order's discount. */
   lineDiscount: number;
-  /** `taxableValue` recomputed with the line's discount share netted off.
-   *  INFORMATIONAL — `taxableValue` remains the gross figure the report has
-   *  always produced. Which of the two is filed depends on how the discount is
-   *  shown on the invoice, which is the accountant's call, so both are given. */
-  taxableValueAfterDiscount: number;
+  /** Ex-GST line value BEFORE the discount. `taxableValue` above is the figure
+   *  that gets filed (after discount); this is kept so the deduction is
+   *  visible and the sheet can be audited without re-deriving it. */
+  grossTaxableValue: number;
+  /** 'Goods' or 'Shipping'. Shipping is billed to the customer with GST, so it
+   *  is an outward supply and gets its own row under SAC 9965. */
+  lineType: 'Goods' | 'Shipping';
+  /** Unit Quantity Code for the GSTR-1 HSN summary. NOS for goods, OTH for
+   *  freight — we do not store per-product units, so goods default to NOS. */
+  uqc: string;
+  /** Compensation cess. Always 0 — nothing in this catalogue attracts it —
+   *  but GSTR-1 expects the column, so it is emitted rather than omitted. */
+  cess: number;
+  /** Reverse charge applicability. 'N' throughout: these are ordinary B2B/B2C
+   *  outward supplies, not notified reverse-charge categories. */
+  reverseCharge: 'Y' | 'N';
+  /** GSTR-1 invoice type. 'Regular' — no SEZ, export or deemed-export sales. */
+  invoiceType: string;
+  /** Invoice-level rounding to a whole rupee, carried on the order's FIRST row
+   *  so the rows sum to the invoice value exactly. 0 on the others. */
+  roundOff: number;
+  /** The order's whole invoice value (what the customer paid). Repeated on each
+   *  of the order's rows, as MTR exports do, so invoice-level totals can be
+   *  taken without re-summing the lines. */
+  orderInvoiceValue: number;
 }
 
 export interface GstReportSummary {
@@ -88,12 +109,23 @@ export interface GstReportSummary {
   /** Rupee value of those cancelled lines, so the size of the problem is
    *  visible without filtering the sheet. */
   cancelledValue: number;
-  /** Coupon discount given across the period, and the taxable total once it is
-   *  netted off. Shown alongside the gross `taxableValue` so the difference the
-   *  discount makes to the filing is a single number, not a spreadsheet
-   *  exercise. */
+  /** Coupon discount deducted across the period (ex-GST), and the pre-discount
+   *  taxable total it was deducted from. `taxableValue` above is already NET. */
   discountTotal: number;
-  taxableValueAfterDiscount: number;
+  grossTaxableValue: number;
+  /** Freight billed in the period and the GST collected on it — previously
+   *  missing from the return entirely. */
+  shippingTaxable: number;
+  shippingGst: number;
+  /** Invoice-level rounding across the period. */
+  roundOff: number;
+  /** Sum of the orders' own stored totals. `totalInvoiceValue` above is built
+   *  from the report's own lines, so the two agreeing is proof the report
+   *  reconciles to what the customer was actually charged. */
+  ordersTotalAmount: number;
+  /** ordersTotalAmount − totalInvoiceValue. Must be ~0; anything else means the
+   *  report and the invoices have drifted apart. */
+  reconciliationGap: number;
 }
 
 export interface GstReportResult {
@@ -173,39 +205,52 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
     );
     const invoiceDate = order.createdAt.toLocaleDateString('en-IN');
 
-    // A coupon discount is stored once on the ORDER, but GST is filed per line.
-    // Apportion it across the lines by value so each row carries its own share
-    // and the shares add back up to the order's discount.
+    // THE SAME breakdown the invoice PDF renders. Previously this file did its
+    // own arithmetic on the gross line total, which disagreed with the invoice
+    // the customer actually received in two ways:
     //
-    // These columns are INFORMATIONAL — `taxableValue` below is still computed
-    // on the gross line, exactly as before. Whether the discount may be netted
-    // off the taxable value depends on how it is shown on the invoice, which is
-    // an accounting decision, so the report presents both figures rather than
-    // silently changing the one that gets filed.
-    const orderDiscount = Number(order.discountAmount ?? 0);
-    const grossLineSum = order.items.reduce((s, i) => s + Number(i.lineTotal), 0);
+    //   * the coupon discount was never netted off, so taxable value and GST
+    //     were BOTH overstated (July: Rs 7,986 taxable / Rs 1,218 GST);
+    //   * shipping was omitted entirely, even though GST is charged on it and
+    //     it forms part of the taxable value under CGST Act s.15 (July:
+    //     Rs 2,150 taxable / Rs 387 GST simply missing from the return).
+    //
+    // GSTR-1 has to match the issued invoice, so the report now derives from
+    // the same helper rather than re-deriving the numbers a second way.
+    const breakdown = computeOrderSummary(
+      order.items.map((it) => ({
+        name: it.productName || '',
+        sku: it.productSku || '',
+        hsnCode: it.product?.hsnCode ?? null,
+        lineInclusive: Number(it.lineTotal),
+        quantity: it.quantity,
+        taxPercent: Number(it.taxPercent),
+      })),
+      Number(order.discountAmount || 0),
+      Number(order.shippingCost || 0),
+    );
 
-    for (const it of order.items) {
-      const taxPercent = Number(it.taxPercent);
-      const lineTotal = Number(it.lineTotal);
-      const taxableValue = +(lineTotal / (1 + taxPercent / 100)).toFixed(2);
-      const totalTax = +(lineTotal - taxableValue).toFixed(2);
-      const cgst = isInterState ? 0 : +(totalTax / 2).toFixed(2);
-      const sgst = isInterState ? 0 : +(totalTax / 2).toFixed(2);
+    // Rows for THIS order are collected first so the round-off can be derived
+    // from what the customer was actually charged, rather than re-deriving it
+    // with Math.round. Orders placed before whole-rupee rounding was introduced
+    // were charged half-rupee totals, and a fresh Math.round disagrees with them
+    // by 50 paise — which showed up as the report failing to reconcile. Taking
+    // the difference against the stored total makes every invoice tie exactly,
+    // historical or not, and the round-off column then states the truth.
+    const orderRows: GstReportRow[] = [];
+
+    order.items.forEach((it, idx) => {
+      const line = breakdown.lines[idx];
+      const taxPercent = line.taxPercent;
+      const taxableValue = line.lineNetValue;   // ex-GST, AFTER discount
+      const totalTax = line.lineGst;            // GST on the discounted value
+      const cgst = isInterState ? 0 : round2(totalTax / 2);
+      const sgst = isInterState ? 0 : round2(totalTax / 2);
       const igst = isInterState ? totalTax : 0;
+      const lineTotal = line.lineTotal;
+      const lineDiscount = line.lineDiscount;
 
-      // This line's share of the order-level coupon discount, and what the
-      // taxable value would be if that share were netted off.
-      const lineDiscount =
-        orderDiscount > 0 && grossLineSum > 0
-          ? +((orderDiscount * lineTotal) / grossLineSum).toFixed(2)
-          : 0;
-      const taxableValueAfterDiscount = +(
-        (lineTotal - lineDiscount) /
-        (1 + taxPercent / 100)
-      ).toFixed(2);
-
-      rows.push({
+      orderRows.push({
         orderId: order.id,
         orderNumber: order.orderNumber,
         invoiceNumber,
@@ -228,11 +273,79 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
         isInterState: isInterState ? 'Yes' : 'No',
         couponCode: order.couponCode ?? '',
         lineDiscount,
-        taxableValueAfterDiscount,
+        grossTaxableValue: line.lineNetPrice,
+        lineType: 'Goods',
+        uqc: 'NOS',
+        cess: 0,
+        reverseCharge: 'N',
+        invoiceType: 'Regular',
+        roundOff: 0, // set below, from the amount actually charged
+        orderInvoiceValue: breakdown.netPayable,
+        orderStatus: order.orderStatus,
+        paymentStatus: order.paymentStatus,
+      });
+    });
+
+    // Shipping is a separate line on the invoice, so it is a separate line
+    // here. It was previously absent from the return altogether even though
+    // GST is collected on it — the customer is charged it, so it is an outward
+    // supply and belongs in GSTR-1.
+    //
+    // SAC 9965 (goods transport). Rate follows the order's goods rate, matching
+    // computeOrderSummary and the composite-supply rule: freight incidental to
+    // a supply of goods takes the rate of the principal supply.
+    const shipping = round2(Number(order.shippingCost || 0));
+    if (shipping > 0) {
+      const rates = [...new Set(order.items.map((i) => Number(i.taxPercent)))];
+      const shipRate = rates.length === 1 ? rates[0] : 18;
+      const shipGst = round2(shipping * (shipRate / 100));
+      orderRows.push({
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        invoiceNumber,
+        invoiceDate,
+        customerName: order.customerName || order.customer?.name || '',
+        customerGstin: gstin,
+        customerType: isB2B ? 'B2B' : 'B2C',
+        productSku: '',
+        productName: 'Shipping / Freight',
+        hsnCode: '9965',
+        quantity: 1,
+        taxableValue: shipping,
+        taxRate: shipRate,
+        cgst: isInterState ? 0 : round2(shipGst / 2),
+        sgst: isInterState ? 0 : round2(shipGst / 2),
+        igst: isInterState ? shipGst : 0,
+        totalInvoiceValue: round2(shipping + shipGst),
+        placeOfSupplyName,
+        placeOfSupplyCode,
+        isInterState: isInterState ? 'Yes' : 'No',
+        couponCode: order.couponCode ?? '',
+        lineDiscount: 0,               // the coupon applies to goods, not freight
+        grossTaxableValue: shipping,
+        lineType: 'Shipping',
+        uqc: 'OTH',
+        cess: 0,
+        reverseCharge: 'N',
+        invoiceType: 'Regular',
+        roundOff: 0,
+        orderInvoiceValue: breakdown.netPayable,
         orderStatus: order.orderStatus,
         paymentStatus: order.paymentStatus,
       });
     }
+
+    // Tie this invoice to the rupee. Round-off is the difference between what
+    // the customer was CHARGED and what these lines add up to — not a fresh
+    // Math.round, which disagrees by 50 paise on orders placed before
+    // whole-rupee rounding existed and made the whole month look unreconciled.
+    const charged = round2(Number(order.totalAmount));
+    const lineSum = round2(orderRows.reduce((s, r) => s + r.totalInvoiceValue, 0));
+    if (orderRows.length) {
+      orderRows[0].roundOff = round2(charged - lineSum);
+      for (const r of orderRows) r.orderInvoiceValue = charged;
+    }
+    rows.push(...orderRows);
   }
 
   // 4. Reconciliation totals
@@ -252,10 +365,27 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
         .reduce((s, r) => s + r.totalInvoiceValue, 0),
     ),
     discountTotal: round2(rows.reduce((s, r) => s + r.lineDiscount, 0)),
-    taxableValueAfterDiscount: round2(
-      rows.reduce((s, r) => s + r.taxableValueAfterDiscount, 0),
+    grossTaxableValue: round2(rows.reduce((s, r) => s + r.grossTaxableValue, 0)),
+    shippingTaxable: round2(
+      rows.filter((r) => r.lineType === 'Shipping').reduce((s, r) => s + r.taxableValue, 0),
     ),
+    shippingGst: round2(
+      rows.filter((r) => r.lineType === 'Shipping')
+        .reduce((s, r) => s + r.cgst + r.sgst + r.igst, 0),
+    ),
+    roundOff: round2(rows.reduce((s, r) => s + r.roundOff, 0)),
+    ordersTotalAmount: round2(
+      orders
+        .filter((o) => new Set(rows.map((r) => r.orderId)).has(o.id))
+        .reduce((s, o) => s + Number(o.totalAmount), 0),
+    ),
+    reconciliationGap: 0, // filled below, once both sides are known
   };
+  // Lines + round-off must add up to what the customer was charged. If this is
+  // not ~0 the report has drifted from the invoices and must not be filed.
+  summary.reconciliationGap = round2(
+    summary.ordersTotalAmount - (summary.totalInvoiceValue + summary.roundOff),
+  );
 
   return { filters, rangeStart: start, rangeEnd: end, rows, summary };
 }
@@ -276,21 +406,27 @@ export const REPORT_COLUMNS: Array<{ key: keyof GstReportRow; label: string }> =
   { key: 'productSku', label: 'Product SKU' },
   { key: 'productName', label: 'Product Name' },
   { key: 'hsnCode', label: 'HSN Code' },
+  { key: 'lineType', label: 'Line Type' },
+  { key: 'uqc', label: 'UQC' },
   { key: 'quantity', label: 'Quantity' },
-  { key: 'taxableValue', label: 'Taxable Value' },
-  // Sit next to Taxable Value so the gross figure and the net-of-discount
-  // figure can be compared without scrolling to the end of the sheet.
+  // Gross → discount → taxable, in the order an auditor reads them.
+  { key: 'grossTaxableValue', label: 'Taxable Value (Before Discount)' },
   { key: 'couponCode', label: 'Coupon' },
   { key: 'lineDiscount', label: 'Discount' },
-  { key: 'taxableValueAfterDiscount', label: 'Taxable Value After Discount' },
+  { key: 'taxableValue', label: 'Taxable Value' },
   { key: 'taxRate', label: 'Tax Rate %' },
   { key: 'cgst', label: 'CGST' },
   { key: 'sgst', label: 'SGST' },
   { key: 'igst', label: 'IGST' },
-  { key: 'totalInvoiceValue', label: 'Total Invoice Value' },
+  { key: 'cess', label: 'Cess' },
+  { key: 'totalInvoiceValue', label: 'Line Total' },
+  { key: 'roundOff', label: 'Round Off' },
+  { key: 'orderInvoiceValue', label: 'Invoice Value' },
   { key: 'placeOfSupplyName', label: 'Place of Supply' },
   { key: 'placeOfSupplyCode', label: 'State Code' },
   { key: 'isInterState', label: 'Inter-state' },
+  { key: 'reverseCharge', label: 'Reverse Charge' },
+  { key: 'invoiceType', label: 'Invoice Type' },
   // Last two on purpose: the GST-relevant columns stay in the familiar MTR
   // order, and these sit at the end where they are easy to filter on without
   // shifting anything the accountant already reads by position.
