@@ -284,20 +284,36 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
     // is reported under the goods' own HSN. A separate SAC 9965 line would be
     // declaring a transport SERVICE we do not separately supply.
     //
-    // Both the taxable amount and the tax are apportioned by line value, and
-    // BOTH are apportioned — rather than re-taxing each share at its line's own
-    // rate — so the totals stay exactly equal to what was charged even on a
-    // mixed-rate order (one exists: 18% and 5% goods with Rs 250 freight).
-    // Rounding residue lands on the last line so the shares add up precisely.
-    const netBase = round2(breakdown.lines.reduce((s, l) => s + l.lineNetValue, 0));
+    // The freight is spread ONLY across lines charged at the freight's own GST
+    // rate. GSTR-1 is filed rate-wise and every line must satisfy
+    // tax = taxable x rate; putting a share of 18%-rate freight into a 5% line
+    // breaks that identity and the return fails validation. (Caught on the one
+    // mixed-rate invoice in the data, KKMQWBN2NQ: 18% and 5% goods with Rs 250
+    // freight — the 5% line came out as 1,158.02 taxable with Rs 69.01 tax,
+    // where 5% of 1,158.02 is Rs 57.90.)
+    //
+    // Confining it to the matching rate is also the correct treatment: freight
+    // incidental to a mixed supply takes the rate of the PRINCIPAL supply, which
+    // is the rate computeOrderSummary already charged it at.
+    //
+    // Fallback to every line only if no line carries that rate, which would mean
+    // the freight was charged at a rate nothing in the cart uses.
+    const eligible = breakdown.lines.filter((l) => l.taxPercent === shipRateForOrder);
+    const target = eligible.length ? eligible : breakdown.lines;
+    const netBase = round2(target.reduce((s, l) => s + l.lineNetValue, 0));
+    const lastTarget = target[target.length - 1];
+
     const shipShare: Array<{ taxable: number; gst: number }> = [];
     let allocTaxable = 0;
     let allocGst = 0;
-    breakdown.lines.forEach((l, i) => {
-      const last = i === breakdown.lines.length - 1;
+    breakdown.lines.forEach((l) => {
+      if (!target.includes(l)) { shipShare.push({ taxable: 0, gst: 0 }); return; }
       const ratio = netBase > 0 ? l.lineNetValue / netBase : 0;
-      const t = last ? round2(shippingExGst - allocTaxable) : round2(shippingExGst * ratio);
-      const g = last ? round2(shippingGstAmt - allocGst) : round2(shippingGstAmt * ratio);
+      // Rounding residue lands on the last eligible line so the shares add up
+      // to the freight exactly.
+      const isLast = l === lastTarget;
+      const t = isLast ? round2(shippingExGst - allocTaxable) : round2(shippingExGst * ratio);
+      const g = isLast ? round2(shippingGstAmt - allocGst) : round2(shippingGstAmt * ratio);
       allocTaxable = round2(allocTaxable + t);
       allocGst = round2(allocGst + g);
       shipShare.push({ taxable: t, gst: g });
