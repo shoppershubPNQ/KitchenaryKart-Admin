@@ -70,11 +70,12 @@ export interface GstReportRow {
    *  that gets filed (after discount); this is kept so the deduction is
    *  visible and the sheet can be audited without re-deriving it. */
   grossTaxableValue: number;
-  /** 'Goods' or 'Shipping'. Shipping is billed to the customer with GST, so it
-   *  is an outward supply and gets its own row under SAC 9965. */
-  lineType: 'Goods' | 'Shipping';
-  /** Unit Quantity Code for the GSTR-1 HSN summary. NOS for goods, OTH for
-   *  freight — we do not store per-product units, so goods default to NOS. */
+  /** This line's share of the order's freight, included in `taxableValue`.
+   *  Freight is a composite supply with the goods, so it is reported under the
+   *  goods' HSN rather than as a separate SAC 9965 service line. */
+  shippingShareTaxable: number;
+  /** Unit Quantity Code for the GSTR-1 HSN summary. We do not store per-product
+   *  units, so everything defaults to NOS. */
   uqc: string;
   /** Compensation cess. Always 0 — nothing in this catalogue attracts it —
    *  but GSTR-1 expects the column, so it is emitted rather than omitted. */
@@ -276,15 +277,45 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
     const shippingGstAmt = round2(shippingExGst * (shipRateForOrder / 100));
     const shippingInclGst = round2(shippingExGst + shippingGstAmt);
 
+    // Freight is folded INTO the goods lines, not given a row of its own.
+    //
+    // It is a composite supply: the freight is incidental to the goods, so its
+    // value forms part of the taxable value of those goods (CGST Act s.15) and
+    // is reported under the goods' own HSN. A separate SAC 9965 line would be
+    // declaring a transport SERVICE we do not separately supply.
+    //
+    // Both the taxable amount and the tax are apportioned by line value, and
+    // BOTH are apportioned — rather than re-taxing each share at its line's own
+    // rate — so the totals stay exactly equal to what was charged even on a
+    // mixed-rate order (one exists: 18% and 5% goods with Rs 250 freight).
+    // Rounding residue lands on the last line so the shares add up precisely.
+    const netBase = round2(breakdown.lines.reduce((s, l) => s + l.lineNetValue, 0));
+    const shipShare: Array<{ taxable: number; gst: number }> = [];
+    let allocTaxable = 0;
+    let allocGst = 0;
+    breakdown.lines.forEach((l, i) => {
+      const last = i === breakdown.lines.length - 1;
+      const ratio = netBase > 0 ? l.lineNetValue / netBase : 0;
+      const t = last ? round2(shippingExGst - allocTaxable) : round2(shippingExGst * ratio);
+      const g = last ? round2(shippingGstAmt - allocGst) : round2(shippingGstAmt * ratio);
+      allocTaxable = round2(allocTaxable + t);
+      allocGst = round2(allocGst + g);
+      shipShare.push({ taxable: t, gst: g });
+    });
+
     order.items.forEach((it, idx) => {
       const line = breakdown.lines[idx];
+      const share = shipShare[idx] ?? { taxable: 0, gst: 0 };
       const taxPercent = line.taxPercent;
-      const taxableValue = line.lineNetValue;   // ex-GST, AFTER discount
-      const totalTax = line.lineGst;            // GST on the discounted value
+      // Goods net of discount PLUS this line's share of the freight — the
+      // taxable value of the composite supply.
+      const shippingShareTaxable = share.taxable;
+      const taxableValue = round2(line.lineNetValue + share.taxable);
+      const totalTax = round2(line.lineGst + share.gst);
       const cgst = isInterState ? 0 : round2(totalTax / 2);
       const sgst = isInterState ? 0 : round2(totalTax / 2);
       const igst = isInterState ? totalTax : 0;
-      const lineTotal = line.lineTotal;
+      const lineTotal = round2(taxableValue + totalTax);
       const lineDiscount = line.lineDiscount;
 
       orderRows.push({
@@ -311,7 +342,7 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
         couponCode: order.couponCode ?? '',
         lineDiscount,
         grossTaxableValue: line.lineNetPrice,
-        lineType: 'Goods',
+        shippingShareTaxable,
         uqc: 'NOS',
         cess: 0,
         reverseCharge: 'N',
@@ -326,57 +357,6 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
       });
     });
 
-    // Shipping is a separate line on the invoice, so it is a separate line
-    // here. It was previously absent from the return altogether even though
-    // GST is collected on it — the customer is charged it, so it is an outward
-    // supply and belongs in GSTR-1.
-    //
-    // SAC 9965 (goods transport). Rate follows the order's goods rate, matching
-    // computeOrderSummary and the composite-supply rule: freight incidental to
-    // a supply of goods takes the rate of the principal supply.
-    const shipping = round2(Number(order.shippingCost || 0));
-    if (shipping > 0) {
-      const rates = [...new Set(order.items.map((i) => Number(i.taxPercent)))];
-      const shipRate = rates.length === 1 ? rates[0] : 18;
-      const shipGst = round2(shipping * (shipRate / 100));
-      orderRows.push({
-        orderId: order.id,
-        orderNumber: order.orderNumber,
-        invoiceNumber,
-        invoiceDate,
-        customerName: order.customerName || order.customer?.name || '',
-        customerGstin: gstin,
-        customerType: isB2B ? 'B2B' : 'B2C',
-        productSku: '',
-        productName: 'Shipping / Freight',
-        hsnCode: '9965',
-        quantity: 1,
-        taxableValue: shipping,
-        taxRate: shipRate,
-        cgst: isInterState ? 0 : round2(shipGst / 2),
-        sgst: isInterState ? 0 : round2(shipGst / 2),
-        igst: isInterState ? shipGst : 0,
-        totalInvoiceValue: round2(shipping + shipGst),
-        placeOfSupplyName,
-        placeOfSupplyCode,
-        isInterState: isInterState ? 'Yes' : 'No',
-        couponCode: order.couponCode ?? '',
-        lineDiscount: 0,               // the coupon applies to goods, not freight
-        grossTaxableValue: shipping,
-        lineType: 'Shipping',
-        uqc: 'OTH',
-        cess: 0,
-        reverseCharge: 'N',
-        invoiceType: 'Regular',
-        roundOff: 0,
-        shippingExGst,
-        shippingGst: shippingGstAmt,
-        shippingInclGst,
-        orderInvoiceValue: breakdown.netPayable,
-        orderStatus: order.orderStatus,
-        paymentStatus: order.paymentStatus,
-      });
-    }
 
     // Tie this invoice to the rupee. Round-off is the difference between what
     // the customer was CHARGED and what these lines add up to — not a fresh
@@ -410,15 +390,18 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
     discountTotal: round2(rows.reduce((s, r) => s + r.lineDiscount, 0)),
     grossTaxableValue: round2(rows.reduce((s, r) => s + r.grossTaxableValue, 0)),
     shippingTaxable: round2(
-      rows.filter((r) => r.lineType === 'Shipping').reduce((s, r) => s + r.taxableValue, 0),
+      rows.reduce((s, r) => s + r.shippingShareTaxable, 0),
     ),
+    // The shipping figures are ORDER-level and repeated on every row, so they
+    // must be counted once per invoice — summing the rows would multiply them
+    // by the number of line items.
     shippingGst: round2(
-      rows.filter((r) => r.lineType === 'Shipping')
-        .reduce((s, r) => s + r.cgst + r.sgst + r.igst, 0),
+      [...new Map(rows.map((r) => [r.orderId, r])).values()]
+        .reduce((s, r) => s + r.shippingGst, 0),
     ),
     shippingInclGst: round2(
-      rows.filter((r) => r.lineType === 'Shipping')
-        .reduce((s, r) => s + r.totalInvoiceValue, 0),
+      [...new Map(rows.map((r) => [r.orderId, r])).values()]
+        .reduce((s, r) => s + r.shippingInclGst, 0),
     ),
     roundOff: round2(rows.reduce((s, r) => s + r.roundOff, 0)),
     ordersTotalAmount: round2(
@@ -453,13 +436,14 @@ export const REPORT_COLUMNS: Array<{ key: keyof GstReportRow; label: string }> =
   { key: 'productSku', label: 'Product SKU' },
   { key: 'productName', label: 'Product Name' },
   { key: 'hsnCode', label: 'HSN Code' },
-  { key: 'lineType', label: 'Line Type' },
+
   { key: 'uqc', label: 'UQC' },
   { key: 'quantity', label: 'Quantity' },
   // Gross → discount → taxable, in the order an auditor reads them.
   { key: 'grossTaxableValue', label: 'Taxable Value (Before Discount)' },
   { key: 'couponCode', label: 'Coupon' },
   { key: 'lineDiscount', label: 'Discount' },
+  { key: 'shippingShareTaxable', label: 'Shipping (in taxable value)' },
   { key: 'taxableValue', label: 'Taxable Value' },
   { key: 'taxRate', label: 'Tax Rate %' },
   { key: 'cgst', label: 'CGST' },
