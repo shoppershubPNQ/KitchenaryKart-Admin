@@ -393,8 +393,14 @@ export async function diff(sku: string) {
 
   add('name', 'Name', product?.name, mapped.name);
   add('description', 'Description', product?.description, mapped.description);
-  add('category', 'Category', product?.category, mapped.category);
-  add('subcategory', 'Subcategory', product?.subcategory, mapped.subcategory);
+  add('category', 'Category', product?.category, remote.category_path[0] ?? null, {
+    informational: true,
+    note: 'Each site keeps its own categories — sync never changes this.',
+  });
+  add('subcategory', 'Subcategory', product?.subcategory, remote.category_path[1] ?? null, {
+    informational: true,
+    note: 'Each site keeps its own categories — sync never changes this.',
+  });
   // Their trade figure, shown first and unflagged, so the retail price below is
   // visibly a derived number rather than something the partner sent.
   add('remote_price', 'Their trade price', null, remote.price.toFixed(2), {
@@ -572,9 +578,9 @@ function mapProduct(remote: RemoteProduct, rule: PricingRule) {
   return {
     name: remote.name,
     description: remote.description,
-    category: remote.category_path[0] ?? null,
-    subcategory: remote.category_path[1] ?? null,
-    leafCategory: remote.category_path[2] ?? null,
+    // No category/subcategory/leafCategory: the two catalogues are shelved
+    // differently on purpose. A new import lands unfiled for the operator to
+    // place; an update leaves our shelving exactly where it is.
     price: applyPricingRule(remote.price, remote.tax_percent, rule),
     mrp: remote.mrp != null ? applyPricingRule(remote.mrp, remote.tax_percent, rule) : null,
     taxPercent: effectiveGstPercent(remote.tax_percent),
@@ -634,9 +640,6 @@ async function importOne(
     const data: Prisma.ProductUpdateInput = {
       name: mapped.name,
       description: mapped.description,
-      category: mapped.category,
-      subcategory: mapped.subcategory,
-      leafCategory: mapped.leafCategory,
       taxPercent: mapped.taxPercent,
       reorderPoint: mapped.reorderPoint,
       hsnCode: mapped.hsnCode,
