@@ -676,7 +676,7 @@ function CreditNoteCard({ orderId }: { orderId: number }) {
                 <td className="py-1 text-right">{inr(Number(n.cgst) + Number(n.sgst) + Number(n.igst))}</td>
                 <td className="py-1 text-right font-medium">{inr(Number(n.totalAmount))}</td>
                 <td className="py-1 text-right">
-                  <a href={`/api/credit-notes//pdf`} target="_blank" rel="noopener"
+                  <a href={`/api/credit-notes/${n.id}/pdf`} target="_blank" rel="noopener"
                      className="text-brand hover:underline">PDF</a>
                 </td>
               </tr>
