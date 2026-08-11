@@ -4,11 +4,18 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { fail, handleError, ok, paging } from '@/lib/api';
+import { priceManualOrder, ManualOrderPricingError } from '@/lib/manual-order-pricing';
 
 const itemSchema = z.object({
   productId: z.number().int().positive().optional(),
   sku: z.string().optional(),
   quantity: z.number().int().positive(),
+  /**
+   * Optional NEGOTIATED price override, GST-INCLUSIVE — the same basis as the
+   * catalogue price. Unlike the storefront (where a client price is never
+   * trusted) a phone order legitimately gets a agreed price, so an admin may
+   * set one. Omit it and the DB price is used.
+   */
   unitPrice: z.number().nonnegative().optional(),
   taxPercent: z.number().nonnegative().optional(),
 });
@@ -21,7 +28,14 @@ const createSchema = z.object({
   /** GSTIN entered at order time; the invoice prefers this over the profile's. */
   customerGstin: z.string().trim().optional(),
   shippingAddress: z.string().optional(),
+  /**
+   * Ex-GST freight override. OMIT IT to get the same zone x weight charge the
+   * website would quote for this address and basket — that is the default and
+   * the right answer nearly always.
+   */
   shippingCost: z.number().nonnegative().optional(),
+  /** GST-inclusive discount, in rupees. */
+  discountAmount: z.number().nonnegative().optional(),
   notes: z.string().optional(),
   items: z.array(itemSchema).min(1),
 });
@@ -83,32 +97,16 @@ export const POST = withAuth(async (req) => {
   try {
     const body = createSchema.parse(await req.json());
 
-    // Resolve items from productId / sku
-    const resolved: Array<{ productId: number | null; productName: string; productSku: string; unitPrice: number; quantity: number; taxPercent: number; lineTotal: number }> = [];
-    for (const it of body.items) {
-      let product = null as Awaited<ReturnType<typeof prisma.product.findUnique>>;
-      if (it.productId) {
-        product = await prisma.product.findUnique({ where: { id: it.productId } });
-      } else if (it.sku) {
-        product = await prisma.product.findUnique({ where: { sku: it.sku } });
-      }
-      const unitPrice = it.unitPrice ?? (product ? Number(product.price) : 0);
-      const taxPercent = it.taxPercent ?? (product ? Number(product.taxPercent) : 18);
-      resolved.push({
-        productId: product?.id ?? null,
-        productName: product?.name ?? 'Unknown item',
-        productSku: product?.sku ?? (it.sku || ''),
-        unitPrice,
-        quantity: it.quantity,
-        taxPercent,
-        lineTotal: unitPrice * it.quantity,
-      });
+    let priced;
+    try {
+      priced = await priceManualOrder(body);
+    } catch (e) {
+      // A bad sku or empty basket is the operator's to fix — a 400 with the
+      // reason, not a 500.
+      if (e instanceof ManualOrderPricingError) return fail(e.message, 400);
+      throw e;
     }
-
-    const subtotal = resolved.reduce((s, r) => s + r.lineTotal, 0);
-    const tax = resolved.reduce((s, r) => s + (r.lineTotal * r.taxPercent) / 100, 0);
-    const shipping = body.shippingCost ?? 0;
-    const total = subtotal + tax + shipping;
+    const { lines, summary, shippingCost } = priced;
 
     const orderNumber = 'KK-' + Date.now().toString(36).toUpperCase();
 
@@ -121,14 +119,20 @@ export const POST = withAuth(async (req) => {
         customerPhone: body.customerPhone,
         customerGstin: body.customerGstin || null,
         shippingAddress: body.shippingAddress,
-        shippingCost: shipping,
-        subtotal,
-        taxAmount: tax,
-        totalAmount: total,
+        shippingCost,
+        // Stored GST-INCLUSIVE, exactly as the storefront stores it.
+        subtotal: summary.netPrice + summary.lines.reduce((s, l) => s + l.lineGst, 0),
+        discountAmount: summary.discountAmount,
+        // The GST actually embedded in this order — goods GST on the discounted
+        // value plus GST on freight. Never 18% bolted on top of an
+        // already-inclusive price, which is what this route used to do.
+        taxAmount: summary.gstAmount,
+        totalAmount: summary.netPayable,
         notes: body.notes,
         items: {
-          create: resolved.map(r => ({
+          create: lines.map((r) => ({
             productId: r.productId ?? undefined,
+            variantId: r.variantId ?? undefined,
             productName: r.productName,
             productSku: r.productSku,
             unitPrice: r.unitPrice,

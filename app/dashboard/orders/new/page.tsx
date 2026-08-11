@@ -6,6 +6,16 @@ import { api, inr } from '@/lib/fetch';
 
 interface Product { id: number; sku: string; name: string; price: number }
 interface Line { productId: number; sku: string; name: string; unitPrice: number; quantity: number }
+interface Quote {
+  summary: {
+    netPrice: number; discountPct: number; discountAmount: number; netValue: number;
+    gstAmount: number; gstRateLabel: string; shipping: number; roundOff: number; netPayable: number;
+  };
+  shipping: {
+    cost: number; auto: boolean; zone: string | null; grams: number | null;
+    state: string | null; rate: number; gst: number;
+  };
+}
 interface CustomerHit {
   id: number;
   name: string;
@@ -25,9 +35,18 @@ export default function NewOrderPage() {
   const [query, setQuery] = useState('');
   const [lines, setLines] = useState<Line[]>([]);
   const [customer, setCustomer] = useState({ name: '', email: '', phone: '', address: '' });
-  const [shippingCost, setShippingCost] = useState(0);
+  // Freight is calculated (zone x weight) exactly as the website would quote it.
+  // Blank = automatic; type a number only to deliberately override it.
+  const [shipOverride, setShipOverride] = useState('');
+  const [discount, setDiscount] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Live breakdown from the server, using the SAME helper that prices the
+  // order on save — so what the operator sees is what the customer pays.
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [quoting, setQuoting] = useState(false);
+  const [quoteErr, setQuoteErr] = useState<string | null>(null);
 
   // Existing-customer picker. Selecting one fills the fields below AND links
   // the order to that customer id, so the order shows up in their history
@@ -59,6 +78,30 @@ export default function NewOrderPage() {
     }, 250);
     return () => clearTimeout(t);
   }, [custQuery]);
+
+  // Re-price whenever anything that affects the money changes. Debounced so
+  // typing an address or a quantity doesn't fire a request per keystroke.
+  useEffect(() => {
+    if (!lines.length) { setQuote(null); setQuoteErr(null); return; }
+    const t = setTimeout(() => {
+      setQuoting(true);
+      const ship = shipOverride.trim();
+      const disc = discount.trim();
+      api<Quote>('/api/orders/quote', {
+        method: 'POST',
+        body: JSON.stringify({
+          shippingAddress: customer.address || undefined,
+          shippingCost: ship === '' ? undefined : Math.max(0, parseFloat(ship) || 0),
+          discountAmount: disc === '' ? undefined : Math.max(0, parseFloat(disc) || 0),
+          items: lines.map((l) => ({ productId: l.productId, quantity: l.quantity, unitPrice: l.unitPrice })),
+        }),
+      })
+        .then((q) => { setQuote(q); setQuoteErr(null); })
+        .catch((e: any) => { setQuote(null); setQuoteErr(e?.message || 'Could not price this order'); })
+        .finally(() => setQuoting(false));
+    }, 350);
+    return () => clearTimeout(t);
+  }, [lines, customer.address, shipOverride, discount]);
 
   function pickCustomer(c: CustomerHit) {
     setPicked(c);
@@ -128,7 +171,10 @@ export default function NewOrderPage() {
         customerPhone: customer.phone,
         customerGstin: gstin || undefined,
         shippingAddress: customer.address,
-        shippingCost,
+        // Omitted = the server calculates zone x weight freight itself. Only
+        // send a figure when the operator deliberately overrode it.
+        shippingCost: shipOverride.trim() === '' ? undefined : Math.max(0, parseFloat(shipOverride) || 0),
+        discountAmount: discount.trim() === '' ? undefined : Math.max(0, parseFloat(discount) || 0),
         items: lines.map(l => ({ productId: l.productId, quantity: l.quantity, unitPrice: l.unitPrice })),
       };
       const { order } = await api<{ order: { id: number; orderNumber: string } }>(
@@ -254,8 +300,32 @@ export default function NewOrderPage() {
           <div><label className="label">Name</label><input className="input" value={customer.name} onChange={e => setCustomer(c => ({ ...c, name: e.target.value }))} required /></div>
           <div><label className="label">Email</label><input type="email" className="input" value={customer.email} onChange={e => setCustomer(c => ({ ...c, email: e.target.value }))} /></div>
           <div><label className="label">Phone</label><input className="input" value={customer.phone} onChange={e => setCustomer(c => ({ ...c, phone: e.target.value }))} /></div>
-          <div><label className="label">Shipping cost</label><input type="number" step="0.01" className="input" value={shippingCost} onChange={e => setShippingCost(parseFloat(e.target.value) || 0)} /></div>
+          <div>
+            <label className="label">Discount (₹, incl. GST)</label>
+            <input type="number" step="0.01" min="0" className="input" placeholder="0.00"
+              value={discount} onChange={e => setDiscount(e.target.value)} />
+          </div>
           <div className="md:col-span-2"><label className="label">Shipping address</label><textarea className="input" rows={2} value={customer.address} onChange={e => setCustomer(c => ({ ...c, address: e.target.value }))} /></div>
+          <div className="md:col-span-2">
+            <label className="label">Shipping cost</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number" step="0.01" min="0" className="input w-40"
+                placeholder={quote ? `Auto: ${quote.shipping.cost.toFixed(2)}` : 'Auto'}
+                value={shipOverride}
+                onChange={e => setShipOverride(e.target.value)}
+              />
+              {shipOverride.trim() !== '' && (
+                <button type="button" className="text-xs text-blue-600 hover:underline" onClick={() => setShipOverride('')}>
+                  Use calculated
+                </button>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Leave blank and the delivery charge is calculated from the destination and the
+              order weight — the same figure the website quotes. Enter ex-GST; GST is added on top.
+            </p>
+          </div>
         </fieldset>
 
         <div>
@@ -299,10 +369,93 @@ export default function NewOrderPage() {
                 ))}
               </tbody>
               <tfoot className="bg-slate-50 text-sm">
-                <tr><td colSpan={3} className="px-3 py-2 text-right text-slate-500">Subtotal</td><td className="px-3 py-2 text-right font-semibold">{inr(subtotal)}</td><td></td></tr>
+                <tr><td colSpan={3} className="px-3 py-2 text-right text-slate-500">Subtotal (incl. GST)</td><td className="px-3 py-2 text-right font-semibold">{inr(subtotal)}</td><td></td></tr>
               </tfoot>
             </table>
-            <p className="text-xs text-slate-500 mt-2">GST is calculated per line on save.</p>
+
+            {/* The binding breakdown, priced by the server with the same helper
+                the invoice and the GST report use. Shown BEFORE saving so a
+                payment link is never raised for a number nobody checked. */}
+            <div className="mt-3 border border-slate-200 rounded-md overflow-hidden">
+              <div className="bg-slate-100 px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-600 flex items-center gap-2">
+                Breakdown
+                {quoting && <span className="text-[10px] normal-case font-normal text-slate-400">calculating…</span>}
+              </div>
+
+              {quoteErr && (
+                <div className="px-3 py-2 text-sm text-red-700 bg-red-50">{quoteErr}</div>
+              )}
+
+              {quote && !quoteErr && (
+                <table className="w-full text-sm">
+                  <tbody className="divide-y divide-slate-100">
+                    <tr>
+                      <td className="px-3 py-1.5 text-slate-500">Net price (ex-GST)</td>
+                      <td className="px-3 py-1.5 text-right">{inr(quote.summary.netPrice)}</td>
+                    </tr>
+                    {quote.summary.discountAmount > 0 && (
+                      <tr className="text-emerald-700">
+                        <td className="px-3 py-1.5">Discount ({quote.summary.discountPct.toFixed(1)}%)</td>
+                        <td className="px-3 py-1.5 text-right">− {inr(quote.summary.discountAmount)}</td>
+                      </tr>
+                    )}
+                    <tr>
+                      <td className="px-3 py-1.5 text-slate-500">Net value (GST base)</td>
+                      <td className="px-3 py-1.5 text-right">{inr(quote.summary.netValue)}</td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-1.5 text-slate-500">
+                        GST {quote.summary.gstRateLabel || '(mixed rates)'}
+                        <span className="text-[11px] text-slate-400 ml-1">incl. {inr(quote.shipping.gst)} on freight</span>
+                      </td>
+                      <td className="px-3 py-1.5 text-right">{inr(quote.summary.gstAmount)}</td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-1.5 text-slate-500">
+                        Shipping (ex-GST)
+                        {quote.shipping.auto ? (
+                          <span className="text-[11px] text-slate-400 ml-1">
+                            auto · {quote.shipping.zone} zone · {quote.shipping.grams}g
+                            {quote.shipping.state ? ` · ${quote.shipping.state}` : ''}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-amber-600 ml-1">manual override</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-1.5 text-right">{inr(quote.shipping.cost)}</td>
+                    </tr>
+                    {Math.abs(quote.summary.roundOff) >= 0.005 && (
+                      <tr>
+                        <td className="px-3 py-1.5 text-slate-500">Round off</td>
+                        <td className="px-3 py-1.5 text-right">{inr(quote.summary.roundOff)}</td>
+                      </tr>
+                    )}
+                    <tr className="bg-slate-50 font-semibold text-slate-900">
+                      <td className="px-3 py-2">Total payable</td>
+                      <td className="px-3 py-2 text-right text-base">{inr(quote.summary.netPayable)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              )}
+
+              {!quote && !quoteErr && !quoting && (
+                <div className="px-3 py-2 text-xs text-slate-400">Add an item to see the breakdown.</div>
+              )}
+            </div>
+
+            {/* Zone falls back to West when no state can be read out of the
+                address — silently the wrong freight for a far-away customer. */}
+            {quote?.shipping.auto && !quote.shipping.state && (
+              <div className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                No state could be read from the shipping address, so the default zone was used
+                ({quote.shipping.zone}). Add the state to the address for the correct delivery charge.
+              </div>
+            )}
+
+            <p className="text-xs text-slate-500 mt-2">
+              Prices are GST-inclusive — the GST above is backed out of them, not added on top.
+              This is the exact amount the payment link will ask for.
+            </p>
           </div>
         )}
 

@@ -17,6 +17,7 @@ import { handleError, ok, fail } from '@/lib/api';
 import {
   createRazorpayPaymentLink,
   fetchRazorpayPaymentLink,
+  cancelRazorpayPaymentLink,
 } from '@/lib/integrations/razorpay';
 import { finalizePaidOrder } from '@/lib/order-payment';
 
@@ -37,22 +38,38 @@ export const POST = withAuth(async (_req, { params }) => {
     if (order.paymentStatus === 'completed') return fail('This order is already paid', 400);
     if (order.orderStatus === 'cancelled') return fail('This order is cancelled', 400);
 
+    const amountPaise = Math.round(Number(order.totalAmount) * 100);
+    if (amountPaise <= 0) return fail('Order total is zero — nothing to collect', 400);
+
     // Reuse an existing link unless Razorpay says it is dead — raising a second
     // link for the same order invites the customer paying twice.
+    //
+    // But ONLY if it still asks for the right money. If the order has been
+    // edited since (or was raised before the pricing fix), the old link would
+    // collect the WRONG amount and the order would still read "paid" — so the
+    // stale link is cancelled and replaced rather than handed out again.
     if (order.paymentLinkId && order.paymentLinkUrl) {
       try {
         const live = await fetchRazorpayPaymentLink(order.paymentLinkId);
-        if (live.status === 'created' || live.status === 'partially_paid') {
+        const alive = live.status === 'created' || live.status === 'partially_paid';
+        if (alive && live.amount === amountPaise) {
           return ok({ url: order.paymentLinkUrl, id: order.paymentLinkId, reused: true });
+        }
+        if (alive && live.amount !== amountPaise) {
+          // Never leave two payable links against one order.
+          const cancelled = await cancelRazorpayPaymentLink(order.paymentLinkId);
+          if (!cancelled) {
+            return fail(
+              `The existing payment link is for ₹${(live.amount / 100).toFixed(2)} but this order is now ₹${(amountPaise / 100).toFixed(2)}, and it could not be cancelled. Cancel it in the Razorpay dashboard, then try again.`,
+              409,
+            );
+          }
         }
       } catch {
         // Unreachable Razorpay — fall through and make a fresh link rather than
         // leaving the admin stuck.
       }
     }
-
-    const amountPaise = Math.round(Number(order.totalAmount) * 100);
-    if (amountPaise <= 0) return fail('Order total is zero — nothing to collect', 400);
 
     const link = await createRazorpayPaymentLink({
       amountPaise,

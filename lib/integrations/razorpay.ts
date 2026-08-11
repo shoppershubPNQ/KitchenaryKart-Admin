@@ -259,6 +259,30 @@ export async function createRazorpayPaymentLink(args: {
   return res.json() as Promise<RazorpayPaymentLink>;
 }
 
+/**
+ * Cancel a payment link that must not be paid — used when an order's total has
+ * changed since the link was raised. Leaving the old link alive would let the
+ * customer settle the WRONG amount and still look "paid".
+ *
+ * Returns false rather than throwing if Razorpay refuses (a link that is
+ * already paid or cancelled cannot be cancelled again) — the caller decides.
+ */
+export async function cancelRazorpayPaymentLink(linkId: string): Promise<boolean> {
+  if (!razorpayEnabled) return false;
+  const auth = Buffer.from(
+    `${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`
+  ).toString('base64');
+  const res = await fetch(`https://api.razorpay.com/v1/payment_links/${linkId}/cancel`, {
+    method: 'POST',
+    headers: { Authorization: `Basic ${auth}` },
+  });
+  if (!res.ok) {
+    console.error('[razorpay] payment link cancel failed:', res.status, await res.text());
+    return false;
+  }
+  return true;
+}
+
 /** Current state of a payment link, for reconciling an admin-created order. */
 export async function fetchRazorpayPaymentLink(linkId: string): Promise<RazorpayPaymentLink & { payments?: Array<{ payment_id: string; status: string; amount: number }> }> {
   if (!razorpayEnabled) return { id: linkId, short_url: '', status: 'created', amount: 0 };

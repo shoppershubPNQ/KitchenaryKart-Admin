@@ -10,6 +10,7 @@ import { createRazorpayOrder } from '@/lib/integrations/razorpay';
 import { validateCoupon } from '@/lib/coupon';
 import { computeShipping } from '@/lib/shipping-compute';
 import { computeOrderSummary } from '@/lib/order-summary';
+import { resolveOrderItems } from '@/lib/order-items';
 
 /** Indian GSTIN: 2-digit state + 10-char PAN + entity + 'Z' + checksum. */
 const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
@@ -47,54 +48,16 @@ export async function POST(req: NextRequest) {
     const body = schema.parse(await req.json());
 
     const skus = body.items.map((i) => i.sku);
-    const products = await prisma.product.findMany({
-      where: { sku: { in: skus } },
-      select: { id: true, sku: true, name: true, price: true, taxPercent: true, stock: true },
-    });
     // A cart sku can be a parent product OR a variant (skuSuffix). Resolve
     // BOTH so price/stock/name always come from the DB. The client-sent price
     // is NEVER trusted — variant skus aren't in the products table, so the old
-    // `i.price` fallback let a tampered variant be bought for ₹1. Variant
-    // price = parent.price + priceModifier (identical to the storefront's
-    // lib/products.ts, so legit orders are unaffected).
-    const variants = await prisma.productVariant.findMany({
-      where: { skuSuffix: { in: skus } },
-      select: {
-        id: true,
-        skuSuffix: true,
-        stock: true,
-        priceModifier: true,
-        price: true,
-        product: { select: { id: true, name: true, price: true, taxPercent: true } },
-      },
-    });
-
-    type Resolved = { productId: number | null; variantId: number | null; name: string; price: number; taxPercent: number; stock: number };
-    const resolved = new Map<string, Resolved>();
-    for (const p of products) {
-      resolved.set(p.sku, {
-        productId: p.id,
-        variantId: null,
-        name: p.name,
-        price: Number(p.price),
-        taxPercent: Number(p.taxPercent),
-        stock: p.stock,
-      });
-    }
-    for (const v of variants) {
-      if (!v.skuSuffix) continue;
-      resolved.set(v.skuSuffix, {
-        productId: v.product?.id ?? null,
-        variantId: v.id,
-        name: v.product?.name ?? v.skuSuffix,
-        // Prefer the variant's own absolute price; fall back to parent+modifier
-        // for any variant without its own price yet. This is the BINDING charge —
-        // it MUST match the storefront's displayed variant price.
-        price: v.price != null ? Number(v.price) : Number(v.product?.price ?? 0) + Number(v.priceModifier ?? 0),
-        taxPercent: Number(v.product?.taxPercent ?? 18),
-        stock: v.stock,
-      });
-    }
+    // `i.price` fallback let a tampered variant be bought for ₹1.
+    //
+    // Shared with the manual-order route (lib/order-items.ts) so a phone order
+    // and a website order price the same item identically. Variant names are
+    // NOT qualified here, keeping stored order-item names exactly as this route
+    // has always written them.
+    const resolved = await resolveOrderItems(skus);
 
     // Every cart sku MUST resolve to a real product/variant — otherwise the
     // server would have no authoritative price. Reject unknown skus rather
