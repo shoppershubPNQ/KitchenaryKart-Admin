@@ -18,6 +18,8 @@ const createSchema = z.object({
   customerName: z.string().optional(),
   customerEmail: z.string().email().optional(),
   customerPhone: z.string().optional(),
+  /** GSTIN entered at order time; the invoice prefers this over the profile's. */
+  customerGstin: z.string().trim().optional(),
   shippingAddress: z.string().optional(),
   shippingCost: z.number().nonnegative().optional(),
   notes: z.string().optional(),
@@ -117,6 +119,7 @@ export const POST = withAuth(async (req) => {
         customerName: body.customerName,
         customerEmail: body.customerEmail,
         customerPhone: body.customerPhone,
+        customerGstin: body.customerGstin || null,
         shippingAddress: body.shippingAddress,
         shippingCost: shipping,
         subtotal,

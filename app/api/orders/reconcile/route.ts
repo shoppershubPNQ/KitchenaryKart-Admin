@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { handleError, ok } from '@/lib/api';
-import { fetchRazorpayOrderPayments } from '@/lib/integrations/razorpay';
+import { fetchRazorpayOrderPayments, fetchRazorpayPaymentLink } from '@/lib/integrations/razorpay';
 import { finalizePaidOrder } from '@/lib/order-payment';
 
 /**
@@ -20,9 +20,17 @@ import { finalizePaidOrder } from '@/lib/order-payment';
  */
 export const POST = withAuth(async () => {
   try {
+    // Two ways an order can be awaiting money: the website checkout (which
+    // holds a razorpayOrderId) or an admin-raised order paid through a hosted
+    // payment link (which holds a paymentLinkId — the link makes its own
+    // Razorpay order, so there is no shared id). Both are checked here, or a
+    // link-paid order would sit pending forever.
     const pending = await prisma.order.findMany({
-      where: { paymentStatus: 'pending', razorpayOrderId: { not: null } },
-      select: { id: true, orderNumber: true, razorpayOrderId: true },
+      where: {
+        paymentStatus: 'pending',
+        OR: [{ razorpayOrderId: { not: null } }, { paymentLinkId: { not: null } }],
+      },
+      select: { id: true, orderNumber: true, razorpayOrderId: true, paymentLinkId: true },
       orderBy: { id: 'asc' },
     });
 
@@ -32,6 +40,23 @@ export const POST = withAuth(async () => {
 
     for (const o of pending) {
       try {
+        // Payment-link orders first — they have no razorpayOrderId to query.
+        if (!o.razorpayOrderId && o.paymentLinkId) {
+          const link = await fetchRazorpayPaymentLink(o.paymentLinkId);
+          const paid = link.payments?.find((p) => p.status === 'captured');
+          if (link.status === 'paid' && paid) {
+            await finalizePaidOrder(o.id, {
+              razorpayPaymentId: paid.payment_id,
+              amountPaise: paid.amount ?? null,
+              source: 'payment-link',
+            });
+            reconciled.push({ orderNumber: o.orderNumber, paymentId: paid.payment_id });
+          } else {
+            stillPending.push(o.orderNumber);
+          }
+          continue;
+        }
+
         const payments = await fetchRazorpayOrderPayments(o.razorpayOrderId!);
         const captured = payments.find((p) => p.status === 'captured');
         if (captured) {

@@ -27,7 +27,7 @@ export async function finalizePaidOrder(
     /** Captured amount in paise (from Razorpay). Null for the legacy checkout
      * path, which didn't send it — keeps the payment row at 0 as before. */
     amountPaise?: number | null;
-    source: 'checkout' | 'webhook' | 'reconcile';
+    source: 'checkout' | 'webhook' | 'reconcile' | 'payment-link';
   }
 ): Promise<{ order: { id: number; paymentStatus: string }; alreadyProcessed: boolean } | null> {
   const existing = await prisma.order.findUnique({

@@ -312,6 +312,13 @@ model Order {
   paymentReference String? @map("payment_reference")
   razorpayOrderId  String? @map("razorpay_order_id")
 
+  /// Hosted Razorpay payment link for an order the SHOP raised on a customer's
+  /// behalf (phone / WhatsApp order). The link creates its OWN Razorpay order
+  /// internally, so there is no shared id to join on — the link id is stored
+  /// here so the payment can be reconciled back to this order.
+  paymentLinkId  String? @map("payment_link_id")
+  paymentLinkUrl String? @map("payment_link_url")
+
   /// Sequential GST invoice serial within a financial year. Allocated
   /// lazily on first invoice download (see lib/invoice-serial.ts) so
   /// pending/cancelled orders don't create gaps. NULL until allocated.

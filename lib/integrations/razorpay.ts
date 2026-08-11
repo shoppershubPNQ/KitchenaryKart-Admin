@@ -175,3 +175,102 @@ export function verifyRazorpayWebhookSignature(
   const b = Buffer.from(signature);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
+
+// ─────────────────────────── Payment Links ───────────────────────────
+// Used when the shop takes an order FOR a customer (phone/WhatsApp order) and
+// needs to collect payment afterwards. Razorpay hosts the payment page, so no
+// storefront checkout is involved.
+
+export interface RazorpayPaymentLink {
+  id: string;
+  short_url: string;
+  status: string;          // created | paid | cancelled | expired
+  amount: number;
+  reference_id?: string;
+}
+
+/**
+ * Create a hosted payment link for an order.
+ *
+ * `reference_id` carries OUR order number, which is what lets the link be
+ * matched back to the order later — the link creates its own Razorpay order
+ * internally, so there is no shared id to join on otherwise.
+ *
+ * notify.sms/email are FALSE on purpose: sending the customer a message is the
+ * shop's decision, not a side effect of clicking "create". The admin gets the
+ * URL and shares it themselves.
+ */
+export async function createRazorpayPaymentLink(args: {
+  amountPaise: number;
+  orderNumber: string;
+  customerName?: string | null;
+  customerEmail?: string | null;
+  customerPhone?: string | null;
+  description?: string;
+  /** Unix seconds. Razorpay requires at least 15 minutes out. */
+  expireBy?: number;
+}): Promise<RazorpayPaymentLink> {
+  if (!razorpayEnabled) {
+    return {
+      id: 'plink_stub_' + crypto.randomBytes(6).toString('hex'),
+      short_url: 'https://rzp.io/i/STUB' + crypto.randomBytes(3).toString('hex'),
+      status: 'created',
+      amount: args.amountPaise,
+      reference_id: args.orderNumber,
+    };
+  }
+  const auth = Buffer.from(
+    `${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`
+  ).toString('base64');
+
+  // Razorpay rejects a contact that is not 10 digits / +91 form, and rejects
+  // the whole request if `customer` carries a malformed field — so anything
+  // unusable is dropped rather than sent.
+  const digits = (args.customerPhone || '').replace(/\D/g, '');
+  const contact = digits.length >= 10 ? digits.slice(-10) : undefined;
+
+  const body: Record<string, unknown> = {
+    amount: args.amountPaise,
+    currency: 'INR',
+    accept_partial: false,
+    reference_id: args.orderNumber,
+    description: args.description || `Order ${args.orderNumber}`,
+    customer: {
+      name: args.customerName || undefined,
+      email: args.customerEmail || undefined,
+      contact,
+    },
+    notify: { sms: false, email: false },
+    reminder_enable: false,
+    notes: { orderNumber: args.orderNumber },
+  };
+  if (args.expireBy) body.expire_by = args.expireBy;
+
+  const res = await fetch('https://api.razorpay.com/v1/payment_links', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    console.error('[razorpay] payment link creation failed:', res.status, text);
+    throw new Error(`Razorpay payment link failed: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<RazorpayPaymentLink>;
+}
+
+/** Current state of a payment link, for reconciling an admin-created order. */
+export async function fetchRazorpayPaymentLink(linkId: string): Promise<RazorpayPaymentLink & { payments?: Array<{ payment_id: string; status: string; amount: number }> }> {
+  if (!razorpayEnabled) return { id: linkId, short_url: '', status: 'created', amount: 0 };
+  const auth = Buffer.from(
+    `${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`
+  ).toString('base64');
+  const res = await fetch(`https://api.razorpay.com/v1/payment_links/${linkId}`, {
+    headers: { Authorization: `Basic ${auth}` },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Razorpay payment link fetch failed: ${res.status} ${text}`);
+  }
+  return res.json();
+}
