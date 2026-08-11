@@ -37,6 +37,11 @@ enum OrderStatus {
   shipped
   delivered
   cancelled
+  /// Goods came back after delivery. Deliberately DISTINCT from `cancelled`:
+  /// a cancelled order was never invoiced, a returned one was. Its invoice
+  /// stays in the GST return for its own month and the refund is settled by a
+  /// CREDIT NOTE — removing the sale would silently restate a filed period.
+  returned
 }
 
 enum PaymentStatus {

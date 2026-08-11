@@ -39,6 +39,8 @@ interface GstReportSummary {
   /** Paid-but-cancelled orders caught in this period. Normally 0. */
   cancelledOrders: number;
   cancelledValue: number;
+  returnedOrders: number;
+  returnedValue: number;
   /** Coupon discount deducted, and the pre-discount taxable total. */
   discountTotal: number;
   grossTaxableValue: number;
@@ -243,6 +245,20 @@ export default function GstReportsPage() {
               on its own rows under SAC 9965.
             </div>
           )}
+        </div>
+      )}
+
+      {/* A returned invoice stays in the return — the sale happened and was
+          invoiced — but the refund is settled by a CREDIT NOTE in the month the
+          return occurred, so it must not be forgotten. */}
+      {!!data?.summary.returnedOrders && (
+        <div className="card p-4 border-l-4 border-purple-500 text-sm bg-purple-50 text-purple-900">
+          <span className="font-semibold">
+            {data.summary.returnedOrders} returned/refunded {data.summary.returnedOrders === 1 ? 'invoice' : 'invoices'}
+            {' '}({inr(data.summary.returnedValue)}) in this period.
+          </span>{' '}
+          They stay in this return because the sale was invoiced. Raise a CREDIT NOTE
+          in the month the goods came back — do not remove them from here.
         </div>
       )}
 

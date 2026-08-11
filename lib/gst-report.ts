@@ -117,6 +117,12 @@ export interface GstReportSummary {
   /** Rupee value of those cancelled lines, so the size of the problem is
    *  visible without filtering the sheet. */
   cancelledValue: number;
+  /** Invoices in this period that have since been RETURNED or refunded. They
+   *  stay in the return — the sale did happen and was invoiced — but each one
+   *  needs a CREDIT NOTE in the month the return occurred, so they are counted
+   *  here rather than left to be spotted by eye. */
+  returnedOrders: number;
+  returnedValue: number;
   /** Coupon discount deducted across the period (ex-GST), and the pre-discount
    *  taxable total it was deducted from. `taxableValue` above is already NET. */
   discountTotal: number;
@@ -163,7 +169,12 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
   const orders = await prisma.order.findMany({
     where: {
       createdAt: { gte: start, lt: end },
-      paymentStatus: 'completed',
+      // `refunded` is included ON PURPOSE. Once an invoice is issued it belongs
+      // to that month's GSTR-1 for good; a later return or refund is settled by
+      // a CREDIT NOTE in the month it happened, not by deleting the sale.
+      // Filtering these out would silently restate a period that may already be
+      // filed — an order refunded in August would quietly change July's totals.
+      paymentStatus: { in: ['completed', 'refunded'] },
       invoiceSerial: { not: null },
       invoiceFinancialYear: filters.fy,
     },
@@ -401,6 +412,14 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
     ).size,
     cancelledValue: round2(
       rows.filter((r) => r.orderStatus === 'cancelled')
+        .reduce((s, r) => s + r.totalInvoiceValue, 0),
+    ),
+    returnedOrders: new Set(
+      rows.filter((r) => r.orderStatus === 'returned' || r.paymentStatus === 'refunded')
+        .map((r) => r.orderId),
+    ).size,
+    returnedValue: round2(
+      rows.filter((r) => r.orderStatus === 'returned' || r.paymentStatus === 'refunded')
         .reduce((s, r) => s + r.totalInvoiceValue, 0),
     ),
     discountTotal: round2(rows.reduce((s, r) => s + r.lineDiscount, 0)),
