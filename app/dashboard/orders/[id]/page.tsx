@@ -663,6 +663,7 @@ function CreditNoteCard({ orderId }: { orderId: number }) {
               <th className="text-right py-1">Taxable</th>
               <th className="text-right py-1">GST</th>
               <th className="text-right py-1">Total</th>
+              <th className="text-right py-1"></th>
             </tr>
           </thead>
           <tbody>
@@ -674,6 +675,10 @@ function CreditNoteCard({ orderId }: { orderId: number }) {
                 <td className="py-1 text-right">{inr(Number(n.taxableValue))}</td>
                 <td className="py-1 text-right">{inr(Number(n.cgst) + Number(n.sgst) + Number(n.igst))}</td>
                 <td className="py-1 text-right font-medium">{inr(Number(n.totalAmount))}</td>
+                <td className="py-1 text-right">
+                  <a href={`/api/credit-notes//pdf`} target="_blank" rel="noopener"
+                     className="text-brand hover:underline">PDF</a>
+                </td>
               </tr>
             ))}
           </tbody>
