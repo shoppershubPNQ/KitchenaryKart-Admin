@@ -9,7 +9,7 @@ import { buildShippingNotificationEmail } from '@/lib/email-templates/shipping-n
 import { revalidateWeb } from '@/lib/revalidateWeb';
 
 const patchSchema = z.object({
-  orderStatus: z.enum(['pending', 'processing', 'shipped', 'delivered', 'cancelled']).optional(),
+  orderStatus: z.enum(['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned']).optional(),
   paymentStatus: z.enum(['pending', 'completed', 'failed', 'refunded']).optional(),
   paymentMethod: z.string().optional(),
   paymentReference: z.string().optional(),

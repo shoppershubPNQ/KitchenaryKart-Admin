@@ -100,6 +100,15 @@ export const GET = withAuth(async (req: NextRequest) => {
       ['Line Total', report.summary.totalInvoiceValue],
       ['Round Off', report.summary.roundOff],
       [],
+      ['Credit Notes', ''],
+      ['Notes issued this period', report.summary.creditNoteCount],
+      ['Credit note taxable value', -report.summary.creditNoteTaxable],
+      ['Credit note CGST', -report.summary.creditNoteCgst],
+      ['Credit note SGST', -report.summary.creditNoteSgst],
+      ['Credit note IGST', -report.summary.creditNoteIgst],
+      ['NET taxable value (after credit notes)', report.summary.netTaxableValue],
+      ['NET GST (after credit notes)', report.summary.netGst],
+      [],
       // The check that says whether this file may be submitted: the report's
       // own lines must equal what the customers were charged.
       ['Reconciliation', ''],

@@ -41,6 +41,14 @@ interface GstReportSummary {
   cancelledValue: number;
   returnedOrders: number;
   returnedValue: number;
+  creditNoteCount: number;
+  creditNoteTaxable: number;
+  creditNoteCgst: number;
+  creditNoteSgst: number;
+  creditNoteIgst: number;
+  creditNoteTotal: number;
+  netTaxableValue: number;
+  netGst: number;
   /** Coupon discount deducted, and the pre-discount taxable total. */
   discountTotal: number;
   grossTaxableValue: number;
@@ -245,6 +253,21 @@ export default function GstReportsPage() {
               on its own rows under SAC 9965.
             </div>
           )}
+        </div>
+      )}
+
+      {/* Credit notes reduce THIS month's liability and are filed in GSTR-1's own
+          CDNR/CDNUR table, so the net figure is stated rather than left to be
+          worked out from two numbers. */}
+      {!!data?.summary.creditNoteCount && (
+        <div className="card p-4 border-l-4 border-indigo-500 text-sm bg-indigo-50 text-indigo-900">
+          <span className="font-semibold">
+            {data.summary.creditNoteCount} credit {data.summary.creditNoteCount === 1 ? 'note' : 'notes'} issued this period
+            {' '}2014 {inr(data.summary.creditNoteTaxable)} taxable, {inr(data.summary.creditNoteTotal)} total.
+          </span>{' '}
+          After them the month files at <span className="font-semibold">{inr(data.summary.netTaxableValue)} taxable</span>{' '}
+          and <span className="font-semibold">{inr(data.summary.netGst)} GST</span>. They go in GSTR-1's credit note
+          table (CDNR/CDNUR), not netted into the sales rows.
         </div>
       )}
 

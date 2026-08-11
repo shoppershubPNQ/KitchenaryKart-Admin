@@ -93,6 +93,7 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
             <option value="shipped">Shipped</option>
             <option value="delivered">Delivered</option>
             <option value="cancelled">Cancelled</option>
+            <option value="returned">Returned</option>
           </select>
         </div>
         <div className="card p-4">
@@ -201,6 +202,7 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
       <ProfitCard order={order} onSaved={load} />
 
       <RefundCard order={order} onDone={load} />
+      <CreditNoteCard orderId={order.id} />
 
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -585,5 +587,130 @@ function TrackingCard({ order, onSaved }: { order: Order; onSaved: () => void | 
       </div>
     </div>
     </>
+  );
+}
+
+/**
+ * Credit notes for this order.
+ *
+ * A credit note reverses part or all of an invoiced sale. It does NOT edit the
+ * original invoice — that invoice stays in the month it was filed — so the note
+ * carries its own date, and that date decides which month's GSTR-1 it reduces.
+ * The date defaults to today but is editable, because a return processed late
+ * still belongs to the month the goods actually came back.
+ */
+function CreditNoteCard({ orderId }: { orderId: number }) {
+  const [data, setData] = useState<any>(null);
+  const [reason, setReason] = useState('Sales return');
+  const [amount, setAmount] = useState('');
+  const [issuedAt, setIssuedAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function load() {
+    try { setData(await api<any>(`/api/credit-notes?orderId=${orderId}`)); } catch { /* panel just stays empty */ }
+  }
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [orderId]);
+
+  async function issue() {
+    if (!confirm('Issue this credit note? It becomes a numbered tax document and cannot be edited afterwards.')) return;
+    setBusy(true); setMsg(null);
+    try {
+      const res = await api<any>('/api/credit-notes', {
+        method: 'POST',
+        body: JSON.stringify({
+          orderId,
+          reason,
+          notes: notes || null,
+          amount: amount.trim() === '' ? null : Number(amount),
+          issuedAt,
+        }),
+      });
+      setMsg(`Issued ${res.creditNote.number}`);
+      setAmount(''); setNotes('');
+      await load();
+    } catch (e: any) {
+      setMsg(e?.message || 'Could not issue the credit note');
+    } finally { setBusy(false); }
+  }
+
+  if (!data) return null;
+  const p = data.preview || {};
+  const blocked = !!p.error;
+
+  return (
+    <div className="card p-5 space-y-3">
+      <h2 className="font-semibold text-slate-800">Credit notes</h2>
+
+      {blocked ? (
+        <p className="text-sm text-slate-500">{p.error}</p>
+      ) : (
+        <p className="text-xs text-slate-500">
+          Against invoice <span className="font-mono">{p.invoiceNumber}</span> · invoice total{' '}
+          {inr(p.totalAmount)} · already credited {inr(p.alreadyCredited)} ·{' '}
+          <span className="font-medium text-slate-700">{inr(p.creditableRemaining)} still creditable</span>
+        </p>
+      )}
+
+      {data.creditNotes?.length > 0 && (
+        <table className="w-full text-xs">
+          <thead className="text-slate-500">
+            <tr>
+              <th className="text-left py-1">Number</th>
+              <th className="text-left py-1">Issued</th>
+              <th className="text-left py-1">Reason</th>
+              <th className="text-right py-1">Taxable</th>
+              <th className="text-right py-1">GST</th>
+              <th className="text-right py-1">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.creditNotes.map((n: any) => (
+              <tr key={n.id} className="border-t border-slate-100">
+                <td className="py-1 font-mono">{n.number}</td>
+                <td className="py-1">{new Date(n.issuedAt).toLocaleDateString('en-IN')}</td>
+                <td className="py-1">{n.reason}</td>
+                <td className="py-1 text-right">{inr(Number(n.taxableValue))}</td>
+                <td className="py-1 text-right">{inr(Number(n.cgst) + Number(n.sgst) + Number(n.igst))}</td>
+                <td className="py-1 text-right font-medium">{inr(Number(n.totalAmount))}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {!blocked && p.creditableRemaining > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 pt-2 border-t border-slate-100">
+          <label className="block">
+            <span className="text-[11px] text-slate-500">Reason</span>
+            <select className="input input-sm w-full" value={reason} onChange={(e) => setReason(e.target.value)}>
+              {(data.reasons || []).map((r: string) => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-[11px] text-slate-500">Amount (blank = full)</span>
+            <input className="input input-sm w-full text-right" placeholder={String(p.creditableRemaining)}
+              value={amount} onChange={(e) => setAmount(e.target.value)} />
+          </label>
+          <label className="block">
+            <span className="text-[11px] text-slate-500">Issue date</span>
+            <input type="date" className="input input-sm w-full" value={issuedAt}
+              onChange={(e) => setIssuedAt(e.target.value)} />
+            <span className="text-[10px] text-slate-400">Decides the GST month</span>
+          </label>
+          <label className="block">
+            <span className="text-[11px] text-slate-500">Note (optional)</span>
+            <input className="input input-sm w-full" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </label>
+          <div className="md:col-span-4">
+            <button onClick={issue} disabled={busy} className="btn-primary text-sm disabled:opacity-50">
+              {busy ? 'Issuing…' : 'Issue credit note'}
+            </button>
+            {msg && <span className="ml-3 text-xs text-slate-600">{msg}</span>}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

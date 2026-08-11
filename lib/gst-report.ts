@@ -123,6 +123,20 @@ export interface GstReportSummary {
    *  here rather than left to be spotted by eye. */
   returnedOrders: number;
   returnedValue: number;
+  /** Credit notes ISSUED in this period (by issuedAt, not by the invoice's
+   *  date — a note for a July invoice raised in August belongs to August).
+   *  These REDUCE the month's liability and are filed in GSTR-1's CDNR/CDNUR
+   *  table, so they are reported separately rather than netted off above. */
+  creditNoteCount: number;
+  creditNoteTaxable: number;
+  creditNoteCgst: number;
+  creditNoteSgst: number;
+  creditNoteIgst: number;
+  creditNoteTotal: number;
+  /** Taxable value and GST after the credit notes are applied — the figures
+   *  that actually land on the return for this month. */
+  netTaxableValue: number;
+  netGst: number;
   /** Coupon discount deducted across the period (ex-GST), and the pre-discount
    *  taxable total it was deducted from. `taxableValue` above is already NET. */
   discountTotal: number;
@@ -216,6 +230,14 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
     if (cut > 0 && skuHsn.has(sku.slice(0, cut))) return skuHsn.get(sku.slice(0, cut))!;
     return '';
   };
+
+  // Credit notes are selected by ISSUE date, not by the invoice's date: a note
+  // raised in August against a July invoice reduces AUGUST's liability. Pulling
+  // them by invoice date would push the reversal back into a filed month.
+  const creditNotes = await prisma.creditNote.findMany({
+    where: { issuedAt: { gte: start, lt: end } },
+    orderBy: { serial: 'asc' },
+  });
 
   const rows: GstReportRow[] = [];
 
@@ -422,6 +444,14 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
       rows.filter((r) => r.orderStatus === 'returned' || r.paymentStatus === 'refunded')
         .reduce((s, r) => s + r.totalInvoiceValue, 0),
     ),
+    creditNoteCount: creditNotes.length,
+    creditNoteTaxable: round2(creditNotes.reduce((s, c) => s + Number(c.taxableValue), 0)),
+    creditNoteCgst: round2(creditNotes.reduce((s, c) => s + Number(c.cgst), 0)),
+    creditNoteSgst: round2(creditNotes.reduce((s, c) => s + Number(c.sgst), 0)),
+    creditNoteIgst: round2(creditNotes.reduce((s, c) => s + Number(c.igst), 0)),
+    creditNoteTotal: round2(creditNotes.reduce((s, c) => s + Number(c.totalAmount), 0)),
+    netTaxableValue: 0, // filled below
+    netGst: 0,
     discountTotal: round2(rows.reduce((s, r) => s + r.lineDiscount, 0)),
     grossTaxableValue: round2(rows.reduce((s, r) => s + r.grossTaxableValue, 0)),
     shippingTaxable: round2(
@@ -450,6 +480,15 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
   // not ~0 the report has drifted from the invoices and must not be filed.
   summary.reconciliationGap = round2(
     summary.ordersTotalAmount - (summary.totalInvoiceValue + summary.roundOff),
+  );
+
+  // What actually goes on the return: this month's sales LESS the credit notes
+  // raised this month. Kept as separate figures rather than netted into the
+  // rows, because GSTR-1 files sales and credit notes in different tables.
+  summary.netTaxableValue = round2(summary.taxableValue - summary.creditNoteTaxable);
+  summary.netGst = round2(
+    summary.cgst + summary.sgst + summary.igst
+      - (summary.creditNoteCgst + summary.creditNoteSgst + summary.creditNoteIgst),
   );
 
   return { filters, rangeStart: start, rangeEnd: end, rows, summary };

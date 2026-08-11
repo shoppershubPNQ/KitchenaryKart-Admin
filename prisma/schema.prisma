@@ -226,6 +226,60 @@ model ProductVariant {
   @@map("product_variants")
 }
 
+/// A GST credit note against an already-issued invoice.
+///
+/// Why this exists rather than editing the sale: once an invoice is in a filed
+/// GSTR-1 it stays there. A return, a price reduction or a short supply is
+/// settled by issuing a credit note in the month it HAPPENS, which reduces that
+/// month's liability. Restating the original month would break a filed return.
+///
+/// Serials run in their own series (`CN/<FY>/<NNNN>`), separate from invoice
+/// numbers, because GSTR-1 reports credit notes in their own table (CDNR/CDNUR)
+/// and a shared series would collide.
+model CreditNote {
+  id Int @id @default(autoincrement())
+
+  /// Sequential within the financial year, like the invoice serial.
+  serial        Int
+  financialYear String @map("financial_year")
+
+  /// The order/invoice being credited.
+  orderId       Int    @map("order_id")
+  order         Order  @relation(fields: [orderId], references: [id])
+  /// Copied at issue time so the note still reads correctly if the order is
+  /// later edited — a tax document must not change under the taxpayer's feet.
+  invoiceNumber String @map("invoice_number")
+  invoiceDate   DateTime @map("invoice_date")
+
+  /// GSTR-1 reason code: return / deficiency / correction / discount / other.
+  reason String
+  notes  String?
+
+  /// Amounts being credited. Mirror the invoice's split so the return can be
+  /// filed rate-wise without recomputation.
+  taxableValue Decimal @map("taxable_value") @db.Decimal(12, 2)
+  cgst         Decimal @db.Decimal(12, 2)
+  sgst         Decimal @db.Decimal(12, 2)
+  igst         Decimal @db.Decimal(12, 2)
+  totalAmount  Decimal @map("total_amount") @db.Decimal(12, 2)
+
+  /// Copied from the order so the note is self-contained for filing.
+  customerName    String? @map("customer_name")
+  customerGstin   String? @map("customer_gstin")
+  placeOfSupply     String? @map("place_of_supply")
+  placeOfSupplyCode String? @map("place_of_supply_code")
+
+  /// The date the credit note takes effect — this decides WHICH MONTH's return
+  /// it lands in, and it is not necessarily today.
+  issuedAt  DateTime @default(now()) @map("issued_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([financialYear, serial], name: "credit_note_fy_serial")
+  @@index([orderId])
+  @@index([issuedAt])
+  @@map("credit_notes")
+}
+
 model Category {
   id           Int        @id @default(autoincrement())
   name         String     @unique
@@ -368,6 +422,7 @@ model Order {
 
   items    OrderItem[]
   payments Payment[]
+  creditNotes CreditNote[]
 
   @@unique([invoiceFinancialYear, invoiceSerial], name: "invoice_fy_serial_unique")
   @@index([orderStatus])
