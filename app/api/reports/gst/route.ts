@@ -19,6 +19,7 @@ import {
   REPORT_COLUMNS,
   type GstReportRow,
   type GstReportType,
+  type GstCreditNoteRow,
 } from '@/lib/gst-report';
 
 export const dynamic = 'force-dynamic';
@@ -118,8 +119,43 @@ export const GET = withAuth(async (req: NextRequest) => {
       ['Cancelled orders included', report.summary.cancelledOrders],
     ]);
 
+    // Credit notes get their OWN sheet, in CDNR/CDNUR filing detail. GSTR-1
+    // files them in a separate table from sales, and a negative line sitting
+    // among the MTR rows would be double counted by anyone summing the sheet.
+    // Before this the Summary carried only the totals — the CA could see that
+    // ₹770 had been reversed but not against which invoice or for what.
+    const CN_COLUMNS: Array<[keyof GstCreditNoteRow, string]> = [
+      ['creditNoteNumber', 'Credit Note Number'],
+      ['creditNoteDate', 'Credit Note Date'],
+      ['noteType', 'Note Type'],
+      ['originalInvoiceNumber', 'Original Invoice Number'],
+      ['originalInvoiceDate', 'Original Invoice Date'],
+      ['orderNumber', 'Order Number'],
+      ['customerName', 'Customer Name'],
+      ['customerGstin', 'Customer GSTIN'],
+      ['customerType', 'Customer Type'],
+      ['placeOfSupplyName', 'Place of Supply'],
+      ['placeOfSupplyCode', 'State Code'],
+      ['reason', 'Reason'],
+      ['taxableValue', 'Taxable Value'],
+      ['cgst', 'CGST'],
+      ['sgst', 'SGST'],
+      ['igst', 'IGST'],
+      ['totalAmount', 'Total Credited'],
+      ['notes', 'Notes'],
+    ];
+    const cnSheet = XLSX.utils.json_to_sheet(
+      report.creditNotes.map((c) => {
+        const out: Record<string, unknown> = {};
+        for (const [key, label] of CN_COLUMNS) out[label] = c[key];
+        return out;
+      }),
+      { header: CN_COLUMNS.map(([, label]) => label) },
+    );
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, sheet, 'MTR');
+    XLSX.utils.book_append_sheet(wb, cnSheet, 'Credit Notes');
     XLSX.utils.book_append_sheet(wb, summary, 'Summary');
 
     const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });

@@ -63,11 +63,32 @@ interface GstReportSummary {
   reconciliationGap: number;
 }
 
+interface GstCreditNoteRow {
+  creditNoteNumber: string;
+  creditNoteDate: string;
+  originalInvoiceNumber: string;
+  originalInvoiceDate: string;
+  orderNumber: string;
+  customerName: string;
+  customerGstin: string;
+  customerType: string;
+  placeOfSupplyName: string;
+  placeOfSupplyCode: string;
+  reason: string;
+  taxableValue: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  totalAmount: number;
+  notes: string;
+}
+
 interface GstReportResponse {
   filters: { fy: string; month?: number; type: GstReportType };
   rangeStart: string;
   rangeEnd: string;
   rows: GstReportRow[];
+  creditNotes: GstCreditNoteRow[];
   summary: GstReportSummary;
 }
 
@@ -263,11 +284,65 @@ export default function GstReportsPage() {
         <div className="card p-4 border-l-4 border-indigo-500 text-sm bg-indigo-50 text-indigo-900">
           <span className="font-semibold">
             {data.summary.creditNoteCount} credit {data.summary.creditNoteCount === 1 ? 'note' : 'notes'} issued this period
-            {' '}2014 {inr(data.summary.creditNoteTaxable)} taxable, {inr(data.summary.creditNoteTotal)} total.
+            {' '}— {inr(data.summary.creditNoteTaxable)} taxable, {inr(data.summary.creditNoteTotal)} total.
           </span>{' '}
           After them the month files at <span className="font-semibold">{inr(data.summary.netTaxableValue)} taxable</span>{' '}
           and <span className="font-semibold">{inr(data.summary.netGst)} GST</span>. They go in GSTR-1's credit note
           table (CDNR/CDNUR), not netted into the sales rows.
+
+          {/* The detail the CA actually files with: which invoice was reversed,
+              for what, and the rate-wise split. Previously only the totals were
+              shown, so "₹770 was credited" could not be traced to an invoice
+              without opening the database. Also exported as the "Credit Notes"
+              sheet in the .xlsx. */}
+          {!!data.creditNotes?.length && (
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-xs bg-white rounded border border-indigo-200">
+                <thead className="bg-indigo-100 text-indigo-900">
+                  <tr>
+                    <th className="text-left px-2 py-1.5">Credit Note</th>
+                    <th className="text-left px-2 py-1.5">Date</th>
+                    <th className="text-left px-2 py-1.5">Against Invoice</th>
+                    <th className="text-left px-2 py-1.5">Customer</th>
+                    <th className="text-left px-2 py-1.5">Place of Supply</th>
+                    <th className="text-left px-2 py-1.5">Reason</th>
+                    <th className="text-right px-2 py-1.5">Taxable</th>
+                    <th className="text-right px-2 py-1.5">CGST</th>
+                    <th className="text-right px-2 py-1.5">SGST</th>
+                    <th className="text-right px-2 py-1.5">IGST</th>
+                    <th className="text-right px-2 py-1.5">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-indigo-100 text-slate-700">
+                  {data.creditNotes.map((c) => (
+                    <tr key={c.creditNoteNumber}>
+                      <td className="px-2 py-1.5 font-mono">{c.creditNoteNumber}</td>
+                      <td className="px-2 py-1.5">{c.creditNoteDate}</td>
+                      <td className="px-2 py-1.5 font-mono">
+                        {c.originalInvoiceNumber}
+                        <span className="text-slate-400 ml-1">({c.originalInvoiceDate})</span>
+                      </td>
+                      <td className="px-2 py-1.5">
+                        {c.customerName}
+                        <span className="text-slate-400 ml-1">{c.customerType}</span>
+                        {c.customerGstin && <div className="font-mono text-[10px] text-slate-400">{c.customerGstin}</div>}
+                      </td>
+                      <td className="px-2 py-1.5">
+                        {c.placeOfSupplyName}
+                        {c.placeOfSupplyCode && <span className="text-slate-400 ml-1">({c.placeOfSupplyCode})</span>}
+                      </td>
+                      <td className="px-2 py-1.5">{c.reason}</td>
+                      <td className="px-2 py-1.5 text-right">{inr(c.taxableValue)}</td>
+                      <td className="px-2 py-1.5 text-right">{inr(c.cgst)}</td>
+                      <td className="px-2 py-1.5 text-right">{inr(c.sgst)}</td>
+                      <td className="px-2 py-1.5 text-right">{inr(c.igst)}</td>
+                      <td className="px-2 py-1.5 text-right font-semibold">{inr(c.totalAmount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

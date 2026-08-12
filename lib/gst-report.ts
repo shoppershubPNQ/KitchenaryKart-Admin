@@ -18,6 +18,7 @@ import {
 } from './invoice-serial';
 import { detectStateFromAddress, GST_STATES } from './gst-states';
 import { computeOrderSummary } from './order-summary';
+import { formatCreditNoteNumber } from './credit-note';
 
 export type GstReportType = 'b2b' | 'b2c' | 'all';
 
@@ -158,11 +159,41 @@ export interface GstReportSummary {
   reconciliationGap: number;
 }
 
+/**
+ * One credit note, in the shape GSTR-1's CDNR/CDNUR table wants. Kept as its
+ * own row set rather than mixed into `rows`: a credit note is filed in its own
+ * table, and a negative line sitting among the sales rows would be double
+ * counted by anyone summing the sheet.
+ */
+export interface GstCreditNoteRow {
+  creditNoteNumber: string;
+  creditNoteDate: string;
+  /** The invoice being reversed — CDNR is filed against it. */
+  originalInvoiceNumber: string;
+  originalInvoiceDate: string;
+  orderNumber: string;
+  customerName: string;
+  customerGstin: string;
+  customerType: 'B2B' | 'B2C';
+  placeOfSupplyName: string;
+  placeOfSupplyCode: string;
+  noteType: 'Credit Note';
+  reason: string;
+  taxableValue: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  totalAmount: number;
+  notes: string;
+}
+
 export interface GstReportResult {
   filters: GstReportFilters;
   rangeStart: Date;
   rangeEnd: Date;
   rows: GstReportRow[];
+  /** Credit notes ISSUED in this period, in filing detail. */
+  creditNotes: GstCreditNoteRow[];
   summary: GstReportSummary;
 }
 
@@ -237,7 +268,41 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
   const creditNotes = await prisma.creditNote.findMany({
     where: { issuedAt: { gte: start, lt: end } },
     orderBy: { serial: 'asc' },
+    include: { order: { select: { orderNumber: true } } },
   });
+
+  // Filing detail for the CDNR/CDNUR table. The note carries its own copies of
+  // the customer and place-of-supply fields (taken at issue time), so it still
+  // files correctly even if the order is edited afterwards.
+  const creditNoteRows: GstCreditNoteRow[] = creditNotes
+    .filter((c) => {
+      // Honour the same B2B / B2C filter the sales rows use, otherwise a B2C
+      // export would silently carry a B2B reversal.
+      const isB2B = !!c.customerGstin?.trim();
+      if (filters.type === 'b2b' && !isB2B) return false;
+      if (filters.type === 'b2c' && isB2B) return false;
+      return true;
+    })
+    .map((c) => ({
+      creditNoteNumber: formatCreditNoteNumber(c.financialYear, c.serial),
+      creditNoteDate: c.issuedAt.toISOString().slice(0, 10),
+      originalInvoiceNumber: c.invoiceNumber,
+      originalInvoiceDate: c.invoiceDate.toISOString().slice(0, 10),
+      orderNumber: c.order?.orderNumber ?? '',
+      customerName: c.customerName ?? '',
+      customerGstin: c.customerGstin ?? '',
+      customerType: (c.customerGstin?.trim() ? 'B2B' : 'B2C') as 'B2B' | 'B2C',
+      placeOfSupplyName: c.placeOfSupply ?? '',
+      placeOfSupplyCode: c.placeOfSupplyCode ?? '',
+      noteType: 'Credit Note' as const,
+      reason: c.reason,
+      taxableValue: round2(Number(c.taxableValue)),
+      cgst: round2(Number(c.cgst)),
+      sgst: round2(Number(c.sgst)),
+      igst: round2(Number(c.igst)),
+      totalAmount: round2(Number(c.totalAmount)),
+      notes: c.notes ?? '',
+    }));
 
   const rows: GstReportRow[] = [];
 
@@ -491,7 +556,7 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
       - (summary.creditNoteCgst + summary.creditNoteSgst + summary.creditNoteIgst),
   );
 
-  return { filters, rangeStart: start, rangeEnd: end, rows, summary };
+  return { filters, rangeStart: start, rangeEnd: end, rows, creditNotes: creditNoteRows, summary };
 }
 
 function round2(n: number): number {

@@ -7,6 +7,7 @@ import { notifyOrderStatus } from '@/lib/integrations/whatsapp';
 import { sendEmail } from '@/lib/integrations/resend';
 import { buildShippingNotificationEmail } from '@/lib/email-templates/shipping-notification';
 import { revalidateWeb } from '@/lib/revalidateWeb';
+import { cancelRazorpayPaymentLink } from '@/lib/integrations/razorpay';
 
 const patchSchema = z.object({
   orderStatus: z.enum(['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned']).optional(),
@@ -129,6 +130,30 @@ export const PATCH = withAuth(async (req, { params }) => {
     }
 
     const statusChanged = !!newStatus && newStatus !== current.orderStatus;
+
+    // Cancelling an order must also kill any payment link raised for it.
+    // Otherwise the link stays live and a customer can still pay a cancelled
+    // order — money in, nothing to ship, and it reads "paid" afterwards.
+    // Never touched for an order that is already paid: that is a refund, and
+    // a refund is a different operation with its own audit trail.
+    if (
+      newStatus === 'cancelled' &&
+      current.orderStatus !== 'cancelled' &&
+      order.paymentLinkId &&
+      order.paymentStatus !== 'completed'
+    ) {
+      try {
+        const killed = await cancelRazorpayPaymentLink(order.paymentLinkId);
+        console.log(
+          `[order ${order.orderNumber}] cancelled — payment link ${order.paymentLinkId} ${killed ? 'cancelled' : 'could NOT be cancelled'}`,
+        );
+      } catch (err) {
+        // Never fail the cancellation because Razorpay was unreachable; the
+        // order state is the thing that matters and the link can be killed
+        // from the dashboard.
+        console.error('[razorpay] link cancel on order-cancel failed:', err);
+      }
+    }
 
     // WhatsApp status update (existing behaviour).
     if (statusChanged && order.customerPhone) {
