@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { api, inr } from '@/lib/fetch';
+import { api, inr, inrExact } from '@/lib/fetch';
 import { Icon } from '@/components/Icons';
 import { computeProductGst } from '@/lib/product-pricing';
 
@@ -430,10 +430,17 @@ function VariantsPanel({
                       like "KKBT0264-372KKBT0277-232", which match nothing and
                       cannot be searched, scanned or quoted to a customer. */}
                   <td className="px-3 py-2 font-mono text-[11px] text-slate-500">{v.skuSuffix || p.sku}</td>
-                  <td className="px-3 py-2 text-right text-slate-600 tabular-nums">{inr(g.net)}</td>
-                  <td className="px-3 py-2 text-right text-slate-600 tabular-nums">{inr(g.gst)}</td>
+                  {/* Paise shown on purpose: these three columns must visibly
+                      add up. Rounded to whole rupees a ₹66 variant at 5% read
+                      "₹62 + ₹3", which looks like a missing rupee and like the
+                      wrong GST rate — the arithmetic was right all along. */}
+                  <td className="px-3 py-2 text-right text-slate-600 tabular-nums">{inrExact(g.net)}</td>
+                  <td className="px-3 py-2 text-right text-slate-600 tabular-nums">
+                    {inrExact(g.gst)}
+                    <span className="ml-1 text-[10px] text-slate-400">@{g.rate}%</span>
+                  </td>
                   <td className="px-3 py-2 text-right tabular-nums">
-                    <span className="font-medium text-slate-900">{inr(g.inclusive)}</span>
+                    <span className="font-medium text-slate-900">{inrExact(g.inclusive)}</span>
                     {/* Only annotate with the modifier when it is what actually
                         produced the price. With an absolute price set, the
                         modifier is inert and showing it reads as a discount
