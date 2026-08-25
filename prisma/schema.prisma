@@ -123,6 +123,10 @@ model Product {
   material   String?
   color      String?
 
+  /// Ships free regardless of zone/weight (per-product owner override).
+  /// Variants inherit the parent's flag. Column added by raw SQL 2026-08-25.
+  freeShipping Boolean @default(false) @map("free_shipping")
+
   stock        Int     @default(0)
   reorderPoint Int     @default(5) @map("reorder_point")
   hsnCode      String? @map("hsn_code")

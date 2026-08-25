@@ -28,18 +28,38 @@ export async function computeShipping(
   // (sizes of one product differ — a 24" whisk is 360g vs 174g for the 10"),
   // so prefer that and fall back to the parent only when it's blank.
   const [products, variants] = await Promise.all([
-    prisma.product.findMany({ where: { sku: { in: skus } }, select: { sku: true, weight: true } }),
+    prisma.product.findMany({
+      where: { sku: { in: skus } },
+      select: { sku: true, weight: true, freeShipping: true },
+    }),
     prisma.productVariant.findMany({
       where: { skuSuffix: { in: skus } },
-      select: { skuSuffix: true, weight: true, product: { select: { weight: true } } },
+      select: {
+        skuSuffix: true, weight: true,
+        product: { select: { weight: true, freeShipping: true } },
+      },
     }),
   ]);
   const weightBySku = new Map<string, string | null>();
-  for (const p of products) weightBySku.set(p.sku, p.weight);
-  for (const v of variants) if (v.skuSuffix) weightBySku.set(v.skuSuffix, v.weight ?? v.product?.weight ?? null);
+  const freeBySku = new Map<string, boolean>();
+  for (const p of products) {
+    weightBySku.set(p.sku, p.weight);
+    freeBySku.set(p.sku, p.freeShipping);
+  }
+  for (const v of variants) {
+    if (!v.skuSuffix) continue;
+    weightBySku.set(v.skuSuffix, v.weight ?? v.product?.weight ?? null);
+    // A variant inherits its parent's free-shipping flag.
+    freeBySku.set(v.skuSuffix, v.product?.freeShipping ?? false);
+  }
+
+  // Per-product free-shipping override: flagged items contribute NOTHING to
+  // the billable weight. In a mixed cart the other items still pay their own
+  // zone x weight charge — the flag never makes someone ELSE's freight free.
+  const chargeable = items.filter((i) => !freeBySku.get(i.sku));
 
   const totalGrams = orderWeightGrams(
-    items.map((i) => ({ weight: weightBySku.get(i.sku) ?? null, quantity: i.quantity })),
+    chargeable.map((i) => ({ weight: weightBySku.get(i.sku) ?? null, quantity: i.quantity })),
   );
 
   // Resolve the destination state through detectStateFromAddress (handles full
@@ -51,7 +71,11 @@ export async function computeShipping(
     detectStateFromAddress(opts.shippingAddress ?? '');
   const stateName = detected?.name ?? null;
   const zone = zoneForState(stateName);
-  const shippingCost = zoneWeightShipping(zone, totalGrams, opts.orderValueAfterDiscount);
+  // Everything in the cart ships free -> ₹0 outright. Without this, zero
+  // billable grams would fall into the ≤100 g bracket and charge ₹70.
+  const shippingCost = chargeable.length === 0
+    ? 0
+    : zoneWeightShipping(zone, totalGrams, opts.orderValueAfterDiscount);
 
   return { shippingCost, zone, totalGrams, stateName };
 }
