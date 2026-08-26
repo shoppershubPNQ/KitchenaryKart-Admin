@@ -152,6 +152,11 @@ function PublishPanel() {
             {copied === 'url' ? 'Copied' : 'Copy'}
           </button>
         </div>
+        <p className="text-xs text-slate-400">
+          Read-only endpoints: <code>/ping</code>, <code>/manifest</code>, <code>/products</code> and{' '}
+          <code>/stock</code>. Hotelic Essentials pulls <strong>stock only</strong> from <code>/stock</code> —
+          every listing&apos;s quantity by SKU, matched on product and child SKUs; nothing else goes back.
+        </p>
       </div>
 
       <div className="card p-6 space-y-4">
