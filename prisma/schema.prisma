@@ -200,6 +200,10 @@ model ProductVariant {
   /// Null = fall back to the parent product weight. Drives the shipping
   /// quote, so a big size is not charged as if it were the small one.
   weight        String?
+  /// Per-variant free-shipping override. Null = inherit the parent's flag,
+  /// so one size can ship free without freeing its siblings. Column added
+  /// by raw SQL 2026-08-27.
+  freeShipping  Boolean? @map("free_shipping")
 
   /// Per-variant SPECS. Same free-text convention and same null-inherits-parent
   /// rule as `weight` above.

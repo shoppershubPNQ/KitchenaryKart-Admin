@@ -35,7 +35,7 @@ export async function computeShipping(
     prisma.productVariant.findMany({
       where: { skuSuffix: { in: skus } },
       select: {
-        skuSuffix: true, weight: true,
+        skuSuffix: true, weight: true, freeShipping: true,
         product: { select: { weight: true, freeShipping: true } },
       },
     }),
@@ -49,8 +49,9 @@ export async function computeShipping(
   for (const v of variants) {
     if (!v.skuSuffix) continue;
     weightBySku.set(v.skuSuffix, v.weight ?? v.product?.weight ?? null);
-    // A variant inherits its parent's free-shipping flag.
-    freeBySku.set(v.skuSuffix, v.product?.freeShipping ?? false);
+    // A variant's own override wins; null inherits the parent's flag — so one
+    // size can ship free without freeing its siblings.
+    freeBySku.set(v.skuSuffix, v.freeShipping ?? v.product?.freeShipping ?? false);
   }
 
   // Per-product free-shipping override: flagged items contribute NOTHING to
