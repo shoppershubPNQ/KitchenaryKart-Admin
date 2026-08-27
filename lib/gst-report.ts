@@ -224,7 +224,15 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
       invoiceFinancialYear: filters.fy,
     },
     include: {
-      items: { include: { product: true } },
+      // The variant link too: a line sold as a variant reaches its HSN through
+      // the row it bought, which survives a SKU rename where the SKU string
+      // the line snapshotted does not.
+      items: {
+        include: {
+          product: true,
+          variant: { select: { product: { select: { hsnCode: true } } } },
+        },
+      },
       customer: true,
     },
     orderBy: { invoiceSerial: 'asc' },
@@ -346,7 +354,7 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
       order.items.map((it) => ({
         name: it.productName || '',
         sku: it.productSku || '',
-        hsnCode: it.product?.hsnCode ?? null,
+        hsnCode: it.product?.hsnCode ?? it.variant?.product?.hsnCode ?? null,
         lineInclusive: Number(it.lineTotal),
         quantity: it.quantity,
         taxPercent: Number(it.taxPercent),

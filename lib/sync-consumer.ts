@@ -22,7 +22,10 @@ import {
  *
  * SKU is the identity throughout. Names are never used to match: the same item
  * is routinely called different things in the two systems, and matching on a
- * name would silently merge two products or split one in two.
+ * name would silently merge two products or split one in two. The partner's
+ * own id is kept beside the SKU for exactly one purpose: when a SKU is renamed
+ * upstream, the id is how the listing is recognised as the same one, so the
+ * rename lands on our product instead of creating a twin and orphaning it.
  */
 
 /** Full payloads are requested in batches so one call cannot time out. */
@@ -112,6 +115,10 @@ export interface ImportOptions {
   updatePrice?: boolean;
   updateStock?: boolean;
   updateImages?: boolean;
+  /** Name, description, HSN, GST rate, reorder point, specs; a variant's type, value and weight. */
+  updateDetails?: boolean;
+  /** Published / draft / discontinued. */
+  updateStatus?: boolean;
 }
 
 // ---------------------------------------------------------------- classify
@@ -189,6 +196,9 @@ export async function scan(userId?: number | null) {
     ]);
 
     const linkBySku = new Map(existingLinks.map((l) => [l.externalSku, l]));
+    const linkByExternalId = new Map(
+      existingLinks.filter((l) => l.externalId !== null).map((l) => [l.externalId as number, l]),
+    );
     const ourIdBySku = new Map(ourProducts.map((p) => [p.sku, p.id]));
 
     /*
@@ -207,10 +217,24 @@ export async function scan(userId?: number | null) {
 
     let created = 0;
     let updated = 0;
+    const renames: string[] = [];
+    const touched = new Set<number>();
 
     for (const entry of entries) {
       if (!entry?.sku) continue;
-      const link = linkBySku.get(entry.sku);
+      const bySku = linkBySku.get(entry.sku);
+
+      // A SKU nobody here has heard of may still be a listing we know — under
+      // the SKU it used to have. The partner's id says so, provided the old
+      // SKU is genuinely gone from the manifest: if it is still published,
+      // these are two listings and the new one is simply new.
+      const byId =
+        !bySku && entry.external_id != null ? linkByExternalId.get(entry.external_id) : undefined;
+      const renamedFrom =
+        byId && byId.externalSku !== entry.sku && !seen.has(byId.externalSku)
+          ? byId.externalSku
+          : null;
+      const link = bySku ?? (renamedFrom ? byId : undefined);
 
       // Adoption: a product we already hold under this SKU becomes the link's
       // target even though it was never imported through sync.
@@ -229,7 +253,14 @@ export async function scan(userId?: number | null) {
       };
 
       if (link) {
-        await prisma.syncLink.update({ where: { id: link.id }, data });
+        await prisma.syncLink.update({
+          where: { id: link.id },
+          // The link follows the rename now; the product's own SKU changes on
+          // import, once the operator has seen it in the queue.
+          data: renamedFrom ? { ...data, externalSku: entry.sku } : data,
+        });
+        touched.add(link.id);
+        if (renamedFrom) renames.push(`${renamedFrom} → ${entry.sku}`);
         updated++;
       } else {
         await prisma.syncLink.create({
@@ -241,8 +272,8 @@ export async function scan(userId?: number | null) {
 
     // Rows we know about that the manifest no longer lists. Left in place and
     // reported as "missing" — a partner unpublishing is not a mandate to delete
-    // ours.
-    const missing = existingLinks.filter((l) => !seenSkus.includes(l.externalSku)).length;
+    // ours. A renamed link was seen, under its new SKU.
+    const missing = existingLinks.filter((l) => !touched.has(l.id)).length;
 
     const counts = await statusCounts();
     const message =
@@ -250,6 +281,11 @@ export async function scan(userId?: number | null) {
       `${counts.new} not here yet, ${counts.matched} matched by SKU but never synced, ` +
       `${counts.changed} changed upstream, ${counts.in_sync} already in sync.` +
       (missing ? ` ${missing} previously seen listing(s) are no longer published.` : '') +
+      (renames.length
+        ? ` ${renames.length} SKU(s) renamed upstream (${renames.slice(0, 5).join(', ')}${
+            renames.length > 5 ? ', …' : ''
+          }) — import them to rename here too.`
+        : '') +
       (body?.truncated ? ' The partner catalogue was truncated — not every listing was returned.' : '');
 
     await prisma.syncRun.update({
@@ -405,7 +441,7 @@ export async function diff(sku: string) {
   // visibly a derived number rather than something the partner sent.
   add('remote_price', 'Their trade price', null, remote.price.toFixed(2), {
     informational: true,
-    note: 'What Hotelic Essentials sells at, GST excluded.',
+    note: 'What Hotelic Essentials sells at, GST included.',
   });
   add(
     'price',
@@ -474,8 +510,9 @@ export async function runImport(options: ImportOptions, userId?: number | null) 
   });
 
   const rule = await getPricingRule();
-  const stats = { created: 0, updated: 0, skipped: 0, failed: 0, examined: skus.length };
+  const stats = { created: 0, updated: 0, renamed: 0, skipped: 0, failed: 0, examined: skus.length };
   const errors: string[] = [];
+  const renames: string[] = [];
 
   for (let i = 0; i < skus.length; i += IMPORT_BATCH_SIZE) {
     const batch = skus.slice(i, i + IMPORT_BATCH_SIZE);
@@ -505,9 +542,13 @@ export async function runImport(options: ImportOptions, userId?: number | null) 
 
     for (const remote of products) {
       try {
-        const outcome = await importOne(remote, options, rule, userId);
+        const { outcome, renamedFrom } = await importOne(remote, options, rule, userId);
         if (outcome === 'created') stats.created++;
         else stats.updated++;
+        if (renamedFrom) {
+          stats.renamed++;
+          renames.push(`${renamedFrom} → ${remote.sku}`);
+        }
       } catch (e: any) {
         stats.failed++;
         errors.push(`${remote.sku}: ${messageOf(e)}`);
@@ -518,6 +559,11 @@ export async function runImport(options: ImportOptions, userId?: number | null) 
 
   const message =
     `Imported from ${PARTNER_LABEL}: ${stats.created} product(s) created, ${stats.updated} updated` +
+    (stats.renamed
+      ? `, ${stats.renamed} SKU(s) renamed (${renames.slice(0, 5).join(', ')}${
+          renames.length > 5 ? ', …' : ''
+        })`
+      : '') +
     (stats.failed ? `, ${stats.failed} failed` : '') +
     '.';
 
@@ -569,8 +615,8 @@ async function resolveSkus(options: ImportOptions): Promise<string[]> {
 /**
  * The wire payload translated to our columns.
  *
- * Money is re-priced for retail on the way in — 30% markup, then GST added —
- * because the partner prices for the trade. See lib/sync-pricing.ts. Both the
+ * Money is re-priced for retail on the way in — the markup and GST rule in
+ * lib/sync-pricing.ts — because the partner prices for the trade. Both the
  * import and the review diff come through here, so what the operator previews
  * is exactly what gets written.
  */
@@ -603,21 +649,45 @@ function makeProductCode(id: number): string {
   return `PID-${String(id).padStart(5, '0')}`;
 }
 
+/**
+ * The link for a listing: by its SKU, else — when the SKU was renamed
+ * upstream — by the partner's id, so the rename lands on the product we
+ * already hold rather than creating a twin of it.
+ */
+async function findLink(remote: RemoteProduct) {
+  const bySku = await prisma.syncLink.findUnique({
+    where: { sync_link_source_sku: { source: PARTNER_SOURCE, externalSku: remote.sku } },
+  });
+  if (bySku) return bySku;
+  if (remote.external_id == null) return null;
+  return prisma.syncLink.findFirst({
+    where: { source: PARTNER_SOURCE, externalId: remote.external_id, productId: { not: null } },
+    orderBy: { updatedAt: 'desc' },
+  });
+}
+
 async function importOne(
   remote: RemoteProduct,
   options: ImportOptions,
   rule: PricingRule,
   userId?: number | null,
-): Promise<'created' | 'updated'> {
+): Promise<{ outcome: 'created' | 'updated'; renamedFrom: string | null }> {
   const mapped = mapProduct(remote, rule);
   const images = (remote.images ?? [])
     .filter((u) => typeof u === 'string' && /^https?:\/\//i.test(u))
     .slice(0, MAX_IMAGES);
 
-  const existing = await prisma.product.findUnique({ where: { sku: remote.sku } });
+  // Ours, found through the link first — that is what survives a rename —
+  // and by SKU only when no link points at a live product.
+  const link = await findLink(remote);
+  const linked = link?.productId
+    ? await prisma.product.findUnique({ where: { id: link.productId } })
+    : null;
+  const existing = linked ?? (await prisma.product.findUnique({ where: { sku: remote.sku } }));
 
   let productId: number;
   let isNew: boolean;
+  let renamedFrom: string | null = null;
 
   if (!existing) {
     const created = await prisma.product.create({
@@ -637,20 +707,40 @@ async function importOne(
     productId = created.id;
     isNew = true;
   } else {
-    const data: Prisma.ProductUpdateInput = {
-      name: mapped.name,
-      description: mapped.description,
-      taxPercent: mapped.taxPercent,
-      reorderPoint: mapped.reorderPoint,
-      hsnCode: mapped.hsnCode,
-      status: mapped.status,
-      dimensions: mapped.dimensions,
-      power: mapped.power,
-      capacity: mapped.capacity,
-      weight: mapped.weight,
-      material: mapped.material,
-      color: mapped.color,
-    };
+    const data: Prisma.ProductUpdateInput = {};
+
+    // The SKU is the listing's identity and follows the partner whatever else
+    // is held back — a label on a shelf here must read what the invoice from
+    // there reads. Refused, not forced, when the new SKU is already somebody
+    // else's here.
+    if (existing.sku !== remote.sku) {
+      const clash = await prisma.product.findUnique({
+        where: { sku: remote.sku },
+        select: { id: true, name: true },
+      });
+      if (clash && clash.id !== existing.id) {
+        throw new Error(
+          `SKU "${remote.sku}" already belongs to "${clash.name}" here — rename or merge that product first.`,
+        );
+      }
+      data.sku = remote.sku;
+      renamedFrom = existing.sku;
+    }
+
+    if (options.updateDetails !== false) {
+      data.name = mapped.name;
+      data.description = mapped.description;
+      data.taxPercent = mapped.taxPercent;
+      data.reorderPoint = mapped.reorderPoint;
+      data.hsnCode = mapped.hsnCode;
+      data.dimensions = mapped.dimensions;
+      data.power = mapped.power;
+      data.capacity = mapped.capacity;
+      data.weight = mapped.weight;
+      data.material = mapped.material;
+      data.color = mapped.color;
+    }
+    if (options.updateStatus !== false) data.status = mapped.status;
 
     if (options.updatePrice !== false) {
       data.price = mapped.price;
@@ -689,6 +779,17 @@ async function importOne(
 
   await syncVariants(productId, remote, options, rule);
 
+  // A link still filed under the old SKU moves to the new one — or gives way
+  // to the link a scan has already created under it.
+  if (link && link.externalSku !== remote.sku) {
+    const successor = await prisma.syncLink.findUnique({
+      where: { sync_link_source_sku: { source: PARTNER_SOURCE, externalSku: remote.sku } },
+      select: { id: true },
+    });
+    if (successor) await prisma.syncLink.delete({ where: { id: link.id } });
+    else await prisma.syncLink.update({ where: { id: link.id }, data: { externalSku: remote.sku } });
+  }
+
   await prisma.syncLink.upsert({
     where: { sync_link_source_sku: { source: PARTNER_SOURCE, externalSku: remote.sku } },
     create: {
@@ -715,12 +816,14 @@ async function importOne(
     },
   });
 
-  return isNew ? 'created' : 'updated';
+  return { outcome: isNew ? 'created' : 'updated', renamedFrom };
 }
 
 /**
- * Variants are matched on their suffix within the parent, which is how they are
- * keyed here — the partner's globally unique SKU is decomposed on the way in.
+ * Variants are matched on the partner's id when one has been stamped, else on
+ * their suffix within the parent, which is how they are keyed here — the
+ * partner's globally unique SKU is decomposed on the way in. The id is what
+ * lets a child SKU renamed upstream update the row it always was.
  */
 async function syncVariants(
   productId: number,
@@ -744,9 +847,9 @@ async function syncVariants(
       .filter((u) => typeof u === 'string' && /^https?:\/\//i.test(u))
       .slice(0, MAX_IMAGES);
 
-    const match = existing.find(
-      (v) => (v.skuSuffix ?? '').toLowerCase() === suffix.toLowerCase(),
-    );
+    const match =
+      (rv.external_id != null ? existing.find((v) => v.externalId === rv.external_id) : undefined) ??
+      existing.find((v) => (v.skuSuffix ?? '').toLowerCase() === suffix.toLowerCase());
 
     const base = {
       variantType: rv.option_type,
@@ -759,6 +862,7 @@ async function syncVariants(
       await prisma.productVariant.create({
         data: {
           ...base,
+          externalId: rv.external_id ?? null,
           productId,
           price: applyPricingRule(rv.price, rate, rule),
           mrp: rv.mrp != null ? applyPricingRule(rv.mrp, rate, rule) : null,
@@ -770,7 +874,17 @@ async function syncVariants(
       continue;
     }
 
-    const data: Prisma.ProductVariantUpdateInput = { ...base };
+    const data: Prisma.ProductVariantUpdateInput = {
+      externalId: rv.external_id ?? match.externalId ?? null,
+    };
+    // The child SKU is identity, like the parent's: it follows the partner
+    // even when details are held back.
+    if ((match.skuSuffix ?? '') !== suffix) data.skuSuffix = suffix;
+    if (options.updateDetails !== false) {
+      data.variantType = base.variantType;
+      data.variantValue = base.variantValue;
+      data.weight = base.weight;
+    }
     if (options.updatePrice !== false) {
       data.price = applyPricingRule(rv.price, rate, rule);
       data.mrp = rv.mrp != null ? applyPricingRule(rv.mrp, rate, rule) : null;

@@ -298,6 +298,10 @@ function ImportPanel() {
   const [updatePrice, setUpdatePrice] = useState(true);
   const [updateStock, setUpdateStock] = useState(true);
   const [updateImages, setUpdateImages] = useState(true);
+  const [updateDetails, setUpdateDetails] = useState(true);
+  const [updateStatus, setUpdateStatus] = useState(true);
+  /** What an update may replace here — one set, sent by every import button. */
+  const fields = { updatePrice, updateStock, updateImages, updateDetails, updateStatus };
 
   const loadConn = useCallback(async () => {
     try {
@@ -385,7 +389,7 @@ function ImportPanel() {
                   run('import', () =>
                     api('/api/sync/import', {
                       method: 'POST',
-                      body: JSON.stringify({ all: true, updatePrice, updateStock, updateImages }),
+                      body: JSON.stringify({ all: true, ...fields }),
                     }),
                   );
                 }}
@@ -395,10 +399,17 @@ function ImportPanel() {
               </button>
             )}
             <div className="ml-auto flex flex-wrap items-center gap-3 text-xs text-slate-600">
-              <span className="font-medium text-slate-500">On update, also replace:</span>
+              <span className="font-medium text-slate-500">On update, replace:</span>
               <Check label="Price" checked={updatePrice} onChange={setUpdatePrice} />
               <Check label="Stock" checked={updateStock} onChange={setUpdateStock} />
               <Check label="Images" checked={updateImages} onChange={setUpdateImages} />
+              <Check
+                label="Details (name, description, HSN, GST, specs)"
+                checked={updateDetails}
+                onChange={setUpdateDetails}
+              />
+              <Check label="Status" checked={updateStatus} onChange={setUpdateStatus} />
+              <span className="text-slate-400">SKU renames always come across.</span>
             </div>
           </div>
 
@@ -436,7 +447,7 @@ function ImportPanel() {
                     run('import', () =>
                       api('/api/sync/import', {
                         method: 'POST',
-                        body: JSON.stringify({ skus: selected, updatePrice, updateStock, updateImages }),
+                        body: JSON.stringify({ skus: selected, ...fields }),
                       }),
                     )
                   }
@@ -520,7 +531,7 @@ function ImportPanel() {
                               run('import', () =>
                                 api('/api/sync/import', {
                                   method: 'POST',
-                                  body: JSON.stringify({ skus: [r.sku], updatePrice, updateStock, updateImages }),
+                                  body: JSON.stringify({ skus: [r.sku], ...fields }),
                                 }),
                               )
                             }
@@ -570,7 +581,7 @@ function PricingCard() {
   const [rule, setRule] = useState<{ percent: number; gstMode: string } | null>(null);
   const [preview, setPreview] = useState<any>(null);
   const [percent, setPercent] = useState('');
-  const [gstMode, setGstMode] = useState('add');
+  const [gstMode, setGstMode] = useState('none');
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -624,6 +635,11 @@ function PricingCard() {
           Applied to every price and MRP that comes in, including variants. The Compare view shows
           the result before anything is written.
         </p>
+        <p className="mt-1 text-sm text-slate-500">
+          Hotelic Essentials publishes its prices <strong>with GST already included</strong>. For
+          &ldquo;their price plus 30%&rdquo; set <strong>+30</strong> and{' '}
+          <strong>Leave tax alone</strong> — &ldquo;Add GST&rdquo; on top would charge the tax twice.
+        </p>
       </div>
 
       {err && <ErrorBar message={err} />}
@@ -664,9 +680,9 @@ function PricingCard() {
               setDirty(true);
             }}
           >
-            <option value="add">Add GST — their price excludes it, ours should include it</option>
+            <option value="none">Leave tax alone — their price already includes GST (Hotelic Essentials)</option>
+            <option value="add">Add GST — only for a partner whose prices exclude it</option>
             <option value="remove">Remove GST — their price includes it, ours should not</option>
-            <option value="none">Leave tax alone</option>
           </select>
           <p className="mt-1 text-xs text-slate-400">
             Uses each listing&apos;s own rate — 18%, 5%, or 0% for zero-rated goods.

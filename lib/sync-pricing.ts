@@ -14,8 +14,10 @@ import { prisma } from '@/lib/db';
  *   gstMode  'add' when the partner's price EXCLUDES tax and ours should
  *            include it, 'remove' for the reverse, 'none' to leave tax alone.
  *
- * The default is +30% and add: Hotelic Essentials holds trade prices without
- * GST, we sell at retail with GST in.
+ * The default is +30% and NONE: Hotelic Essentials publishes its prices with
+ * GST already included (that is how its catalogue stores them), so "their
+ * price plus 30%" is a straight markup. 'add' on top of that would charge the
+ * tax twice — it is only right for a partner that publishes ex-GST.
  *
  * Order does not matter — both steps are multiplications.
  */
@@ -24,7 +26,7 @@ export const PRICE_PERCENT_KEY = 'sync_import_price_percent';
 export const GST_MODE_KEY = 'sync_import_gst_mode';
 
 export const DEFAULT_PRICE_PERCENT = 30;
-export const DEFAULT_GST_MODE: GstMode = 'add';
+export const DEFAULT_GST_MODE: GstMode = 'none';
 
 /** Applied when the partner states no rate. An explicit 0 is honoured as zero-rated. */
 export const DEFAULT_GST_PERCENT = 18;

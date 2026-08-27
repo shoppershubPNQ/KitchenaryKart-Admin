@@ -4,8 +4,11 @@
  * The only route here that writes to the catalogue. Takes an explicit SKU list,
  * or `all` for everything still pending.
  *
- * The three update flags apply to UPDATES only — a newly created product always
- * takes every field, since there is nothing here to preserve.
+ * The update flags apply to UPDATES only — a newly created product always takes
+ * every field, since there is nothing here to preserve. Price, stock, images,
+ * details (name, description, HSN, GST, specs) and status can each be held
+ * back, so what comes across is chosen rather than everything. A SKU rename
+ * always comes across: it is the listing's identity, not a field.
  */
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
@@ -23,6 +26,8 @@ const schema = z.object({
   updatePrice: z.boolean().optional(),
   updateStock: z.boolean().optional(),
   updateImages: z.boolean().optional(),
+  updateDetails: z.boolean().optional(),
+  updateStatus: z.boolean().optional(),
 });
 
 export const POST = withAuth(async (req: NextRequest, { user }) => {

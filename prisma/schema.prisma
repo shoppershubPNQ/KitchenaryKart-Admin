@@ -182,6 +182,9 @@ model ProductVariant {
   variantType   String? @map("variant_type")
   variantValue  String? @map("variant_value")
   skuSuffix     String? @map("sku_suffix")
+  /// The partner's id for this variant, stamped by the catalogue sync so a
+  /// child SKU renamed upstream updates this row instead of creating a twin.
+  externalId    Int?    @map("external_id")
   priceModifier Decimal @default(0) @map("price_modifier") @db.Decimal(10, 2)
   stock         Int     @default(0)
 
