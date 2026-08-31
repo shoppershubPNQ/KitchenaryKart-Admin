@@ -4,6 +4,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { handleError, ok, paging } from '@/lib/api';
+import { rankItems } from '@/lib/search';
+import { getAdminSearchIndex, invalidateAdminSearchIndex } from '@/lib/product-search-index';
 
 const createSchema = z.object({
   sku: z.string().min(1),
@@ -45,24 +47,56 @@ export const GET = withAuth(async (req) => {
     const where: Prisma.ProductWhereInput = {};
     if (category) where.category = category;
     if (status) where.status = status as any;
+
+    // SMART SEARCH — the same fuzzy ranker the storefront uses (lib/search.ts),
+    // so a query that finds a product on the shop page finds it here too. The
+    // old `contains` ILIKE was exact-substring only: one typo returned nothing,
+    // and a multi-word query missed unless a single column held that exact
+    // string. Ranked in memory over a cached index; pasting a variant sku still
+    // lands on the parent that owns it.
+    let rankedIds: number[] | null = null;
     if (search) {
-      // Match against parent name / parent SKU AND variant SKU suffix
-      // so admins can paste a variant SKU (e.g. KKHE0049-CMM3C) and
-      // land on the parent product row that owns it. Variants stay
-      // managed inline under the parent's edit page — one row per
-      // parent is still the right model for the list view.
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { sku: { contains: search, mode: 'insensitive' } },
-        { variants: { some: { skuSuffix: { contains: search, mode: 'insensitive' } } } },
-      ];
+      const index = await getAdminSearchIndex();
+      // Exact sku substring FIRST — a pasted code either appears in a sku or it
+      // does not, and that certainty must outrank any similarity score.
+      const needle = search.toLowerCase();
+      const exact = index.filter((r) => r.skuBlob.includes(needle)).map((r) => r.id);
+      const fuzzy = rankItems(index, search).map((r) => r.id);
+      rankedIds = [...new Set([...exact, ...fuzzy])];
+      if (rankedIds.length === 0) return ok({ products: [], total: 0, limit, offset });
     }
+
+    // id restrictions can come from BOTH search and lowStock — intersect them
+    // rather than letting the second overwrite the first.
+    let idFilter: number[] | null = rankedIds;
     if (lowStock) {
-      // Use raw comparison — Prisma doesn't support column-to-column compares
-      const ids = await prisma.$queryRaw<{ id: number }[]>`
+      // Raw comparison — Prisma can't compare two columns.
+      const rows = await prisma.$queryRaw<{ id: number }[]>`
         SELECT id FROM products WHERE stock <= reorder_point
       `;
-      where.id = { in: ids.map(x => x.id) };
+      const low = rows.map((x) => x.id);
+      idFilter = idFilter ? idFilter.filter((id) => low.includes(id)) : low;
+      if (idFilter.length === 0) return ok({ products: [], total: 0, limit, offset });
+    }
+    if (idFilter) where.id = { in: idFilter };
+
+    // With a search active the ORDER is the ranking, so the page has to be
+    // sliced from the ranked list — an `orderBy` in SQL would throw the
+    // relevance away and hand back an arbitrary 25.
+    if (rankedIds) {
+      const matching = await prisma.product.findMany({ where, select: { id: true } });
+      const allowed = new Set(matching.map((m) => m.id));
+      const ordered = rankedIds.filter((id) => allowed.has(id));
+      const pageIds = ordered.slice(offset, offset + limit);
+      const rows = pageIds.length
+        ? await prisma.product.findMany({
+            where: { id: { in: pageIds } },
+            include: { _count: { select: { variants: true } } },
+          })
+        : [];
+      const byId = new Map(rows.map((r) => [r.id, r]));
+      const products = pageIds.map((id) => byId.get(id)).filter(Boolean);
+      return ok({ products, total: ordered.length, limit, offset });
     }
 
     const [items, total] = await Promise.all([
@@ -105,6 +139,8 @@ export const POST = withAuth(async (req, { user }) => {
       where: { id: created.id },
       data: { productCode: makeProductCode(created.id) },
     });
+    // A brand-new product must be findable immediately, not after the TTL.
+    invalidateAdminSearchIndex();
     return ok({ product }, { status: 201 });
   } catch (e) {
     return handleError(e);

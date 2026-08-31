@@ -40,6 +40,9 @@ interface Variant {
 
 // Admin runs on :3000 but images are served by the website on :5500.
 const IMG_BASE = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:5500';
+/** Public storefront origin, for "View on site". Falls back to production so
+ *  the link works even where NEXT_PUBLIC_SITE_URL is unset. */
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kitchenarykart.com';
 function imgSrc(url: string | null): string | null {
   if (!url) return null;
   if (/^https?:/i.test(url)) return url;
@@ -60,6 +63,11 @@ export default function ProductsPage() {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [variantsById, setVariantsById] = useState<Record<number, Variant[]>>({});
   const [variantsLoading, setVariantsLoading] = useState<Set<number>>(new Set());
+
+  // Bulk selection. Keyed by product id and kept across pages so a selection
+  // built up over several pages can be actioned in one go.
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const limit = 25;
 
@@ -133,6 +141,50 @@ export default function ProductsPage() {
     }
   }
 
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  }
+  const pageIds = products.map((p) => p.id);
+  const allOnPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+  function toggleSelectPage() {
+    setSelected((prev) => {
+      const n = new Set(prev);
+      if (allOnPageSelected) pageIds.forEach((id) => n.delete(id));
+      else pageIds.forEach((id) => n.add(id));
+      return n;
+    });
+  }
+
+  /** One change applied to every selected product. Confirmed first — this
+   *  reaches the live storefront and can touch hundreds of rows. */
+  async function bulkApply(data: Record<string, unknown>, label: string) {
+    const ids = [...selected];
+    if (!ids.length) return;
+    if (!confirm(`${label} for ${ids.length} product${ids.length > 1 ? 's' : ''}?`)) return;
+    setBulkBusy(true);
+    try {
+      const res = await api<{ updated: number; variantsUpdated: number }>(
+        '/api/products/bulk-update',
+        { method: 'POST', body: JSON.stringify({ ids, data }) },
+      );
+      setSelected(new Set());
+      setVariantsById({});
+      await load();
+      alert(
+        `${res.updated} product${res.updated === 1 ? '' : 's'} updated` +
+        (res.variantsUpdated ? ` · ${res.variantsUpdated} variants` : ''),
+      );
+    } catch (e: any) {
+      alert(e?.message || 'Bulk update failed');
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   const hasFilters = !!(search || category || status);
 
   return (
@@ -187,11 +239,65 @@ export default function ProductsPage() {
       </div>
 
       {/* Table */}
+      {/* Bulk action bar — appears only with a selection. */}
+      {selected.size > 0 && (
+        <div className="card p-3 flex flex-wrap items-center gap-2 border-l-4 border-brand bg-slate-50">
+          <span className="text-sm font-medium text-slate-800">
+            {selected.size} selected
+          </span>
+          <button onClick={() => setSelected(new Set())} className="text-xs text-slate-500 hover:underline mr-2">
+            Clear
+          </button>
+
+          <div className="h-5 w-px bg-slate-300" />
+
+          <button disabled={bulkBusy} onClick={() => bulkApply({ status: 'active' }, 'Set status to ACTIVE')}
+            className="btn-outline text-xs">Set Active</button>
+          <button disabled={bulkBusy} onClick={() => bulkApply({ status: 'draft' }, 'Move to DRAFT')}
+            className="btn-outline text-xs">Move to Draft</button>
+          <button disabled={bulkBusy} onClick={() => bulkApply({ status: 'discontinued' }, 'Mark DISCONTINUED')}
+            className="btn-outline text-xs">Discontinue</button>
+
+          <div className="h-5 w-px bg-slate-300" />
+
+          <button disabled={bulkBusy}
+            onClick={() => {
+              const raw = prompt(`Set stock for ${selected.size} product(s) to:`, '0');
+              if (raw === null) return;
+              const n = parseInt(raw, 10);
+              if (!Number.isFinite(n) || n < 0) { alert('Enter a whole number, 0 or more.'); return; }
+              // Products WITH variants sell from the variant rows, so the count
+              // has to reach those too or the change does nothing on the site.
+              const alsoVariants = confirm(
+                `Also set every VARIANT of these products to ${n}?\n\nOK = yes (needed for products that sell by size)\nCancel = parent rows only`,
+              );
+              bulkApply({ stock: n, applyStockToVariants: alsoVariants }, `Set stock to ${n}`);
+            }}
+            className="btn-outline text-xs">Set Stock…</button>
+
+          <button disabled={bulkBusy} onClick={() => bulkApply({ isBestseller: true }, 'Flag as BEST SELLER')}
+            className="btn-outline text-xs">Mark Bestseller</button>
+          <button disabled={bulkBusy} onClick={() => bulkApply({ isNewArrival: true }, 'Flag as NEW ARRIVAL')}
+            className="btn-outline text-xs">Mark New</button>
+
+          {bulkBusy && <span className="text-xs text-slate-500">applying…</span>}
+        </div>
+      )}
+
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
+                <Th className="w-8">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all on this page"
+                    checked={allOnPageSelected}
+                    onChange={toggleSelectPage}
+                    className="align-middle"
+                  />
+                </Th>
                 <Th className="w-8"></Th>
                 <Th className="w-14"></Th>
                 <Th>Product</Th>
@@ -204,9 +310,9 @@ export default function ProductsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {loading && <tr><td colSpan={9} className="p-10 text-center text-slate-400">Loading…</td></tr>}
+              {loading && <tr><td colSpan={10} className="p-10 text-center text-slate-400">Loading…</td></tr>}
               {!loading && products.length === 0 && (
-                <tr><td colSpan={9} className="p-10 text-center text-slate-400">No products match your filters.</td></tr>
+                <tr><td colSpan={10} className="p-10 text-center text-slate-400">No products match your filters.</td></tr>
               )}
               {!loading && products.map(p => {
                 const vCount = p._count?.variants ?? 0;
@@ -222,6 +328,8 @@ export default function ProductsPage() {
                     onToggleExpand={() => toggleExpand(p)}
                     onToggleFlag={toggleFlag}
                     onRemove={remove}
+                    isSelected={selected.has(p.id)}
+                    onToggleSelect={() => toggleSelect(p.id)}
                   />
                 );
               })}
@@ -244,6 +352,8 @@ function ProductRow({
   onToggleExpand,
   onToggleFlag,
   onRemove,
+  isSelected,
+  onToggleSelect,
 }: {
   product: Product;
   vCount: number;
@@ -253,10 +363,22 @@ function ProductRow({
   onToggleExpand: () => void;
   onToggleFlag: (p: Product, field: 'isBestseller' | 'isNewArrival') => void;
   onRemove: (id: number) => void;
+  isSelected: boolean;
+  onToggleSelect: () => void;
 }) {
   return (
     <>
-      <tr className={`hover:bg-slate-50/70 transition-colors ${isOpen ? 'bg-slate-50/70' : ''}`}>
+      <tr className={`hover:bg-slate-50/70 transition-colors ${isSelected ? 'bg-brand/5' : isOpen ? 'bg-slate-50/70' : ''}`}>
+        {/* Bulk select */}
+        <td className="pl-3 pr-1 py-2.5 align-middle">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={onToggleSelect}
+            aria-label={`Select ${p.name}`}
+            className="align-middle"
+          />
+        </td>
         {/* Expander — always available (opens pricing/GST + variants) */}
         <td className="pl-3 pr-1 py-2.5 align-middle">
           <button
@@ -321,6 +443,31 @@ function ProductRow({
         </td>
         <td className="px-4 py-2.5">
           <div className="flex items-center justify-end gap-1">
+            {/* View on the live storefront. Draft/discontinued products have no
+                public page, so the button is disabled rather than sending the
+                admin to a redirect or a 404. */}
+            {p.status === 'active' ? (
+              <a
+                href={`${SITE_URL}/product/${encodeURIComponent(p.sku)}`}
+                target="_blank"
+                rel="noreferrer"
+                title="View on site"
+                className="w-8 h-8 grid place-items-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-brand"
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><path d="M15 3h6v6" /><path d="M10 14 21 3" />
+                </svg>
+              </a>
+            ) : (
+              <span
+                title={`Not on the site — this product is ${p.status}`}
+                className="w-8 h-8 grid place-items-center rounded-md text-slate-300 cursor-not-allowed"
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><path d="M15 3h6v6" /><path d="M10 14 21 3" />
+                </svg>
+              </span>
+            )}
             <Link
               href={`/dashboard/products/${p.id}`}
               title="Edit"
@@ -346,7 +493,7 @@ function ProductRow({
       {/* Inline details: variants (pricing/GST breakdown lives on the order page) */}
       {isOpen && (
         <tr>
-          <td colSpan={9} className="p-0 border-b border-slate-100">
+          <td colSpan={10} className="p-0 border-b border-slate-100">
             <div className="bg-slate-50/60 px-4 py-4 pl-16">
               <VariantsPanel product={p} variants={variants} loading={variantsLoading} vCount={vCount} />
             </div>
@@ -398,6 +545,10 @@ function VariantsPanel({
         <table className="w-full text-[13px]">
           <thead>
             <tr className="bg-white text-slate-500 border-b border-slate-200">
+              {/* The variant panel never showed an image, so a variant with no
+                  photo of its own was invisible here — you had to open the edit
+                  page to find out. The API already returns imageUrl. */}
+              <th className="px-3 py-2 text-left font-medium w-12">Photo</th>
               <th className="px-3 py-2 text-left font-medium">Option</th>
               <th className="px-3 py-2 text-left font-medium">Variant SKU</th>
               <th className="px-3 py-2 text-right font-medium">Net (ex-GST)</th>
@@ -420,6 +571,9 @@ function VariantsPanel({
               const g = computeProductGst(effective, rate, null);
               return (
                 <tr key={v.id} className="hover:bg-slate-50/60">
+                  <td className="px-3 py-2">
+                    <VariantThumb url={v.imageUrl} alt={v.variantValue || p.name} />
+                  </td>
                   <td className="px-3 py-2">
                     <span className="text-slate-400">{v.variantType || '—'}:</span>{' '}
                     <span className="font-medium text-slate-800">{v.variantValue || '—'}</span>
@@ -452,7 +606,10 @@ function VariantsPanel({
                     )}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    <span className={v.stock <= 0 ? 'pill-red' : 'pill-gray'}>{v.stock}</span>
+                    {/* Editable in place: correcting one size's count used to
+                        mean opening the parent's edit page and saving the whole
+                        product. */}
+                    <VariantStock variant={v} />
                   </td>
                 </tr>
               );
@@ -461,6 +618,81 @@ function VariantsPanel({
         </table>
       </div>
     </div>
+  );
+}
+
+/** Variant photo, or an explicit "no photo" marker — a blank cell reads as
+ *  "not loaded" rather than "this variant has no image". */
+function VariantThumb({ url, alt }: { url: string | null; alt: string }) {
+  const src = imgSrc(url);
+  if (!src) {
+    return (
+      <div
+        title="No photo on this variant — it falls back to the parent's image"
+        className="w-9 h-9 rounded border border-dashed border-slate-300 bg-slate-50 grid place-items-center text-[9px] text-slate-400 leading-none text-center"
+      >
+        no<br />photo
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="w-9 h-9 rounded border border-slate-200 object-cover bg-white"
+      loading="lazy"
+    />
+  );
+}
+
+/** Inline stock editor for one variant. Commits on blur / Enter, reverts on
+ *  Escape, and rolls back if the PATCH fails so the number on screen is never
+ *  a count the database does not hold. */
+function VariantStock({ variant }: { variant: Variant }) {
+  const [value, setValue] = useState(String(variant.stock));
+  const [saved, setSaved] = useState(variant.stock);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(false);
+
+  async function commit() {
+    const n = parseInt(value, 10);
+    if (!Number.isFinite(n) || n < 0) { setValue(String(saved)); return; }
+    if (n === saved) return;
+    setBusy(true);
+    setError(false);
+    try {
+      await api(`/api/variants/${variant.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ stock: n }),
+      });
+      setSaved(n);
+    } catch {
+      setError(true);
+      setValue(String(saved));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5 justify-end">
+      {error && <span className="text-[10px] text-red-600">failed</span>}
+      <input
+        type="number"
+        min={0}
+        value={value}
+        disabled={busy}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          if (e.key === 'Escape') { setValue(String(saved)); (e.target as HTMLInputElement).blur(); }
+        }}
+        className={`w-20 text-right tabular-nums rounded border px-2 py-1 text-[13px] outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-50 ${
+          saved <= 0 ? 'border-red-300 bg-red-50 text-red-700' : 'border-slate-200 bg-white'
+        }`}
+      />
+    </span>
   );
 }
 

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { fail, handleError, ok } from '@/lib/api';
 import { revalidateWeb } from '@/lib/revalidateWeb';
+import { invalidateAdminSearchIndex } from '@/lib/product-search-index';
 
 const updateSchema = z.object({
   name: z.string().optional(),
@@ -52,6 +53,8 @@ export const PUT = withAuth(async (req, { params }) => {
       where: { id },
       data: { ...rest, ...(images ? { images: images as any } : {}) },
     });
+    // A rename / status change must be searchable at once, not after the TTL.
+    invalidateAdminSearchIndex();
     await revalidateWeb('products');
     return ok({ product });
   } catch (e) {
@@ -71,6 +74,8 @@ export const PATCH = withAuth(async (req, { params }) => {
       where: { id },
       data: { ...rest, ...(images ? { images: images as any } : {}) },
     });
+    // A rename / status change must be searchable at once, not after the TTL.
+    invalidateAdminSearchIndex();
     await revalidateWeb('products');
     return ok({ product });
   } catch (e) {
@@ -82,6 +87,7 @@ export const DELETE = withAuth(async (_req, { params }) => {
   try {
     const id = parseInt(params.id);
     await prisma.product.delete({ where: { id } });
+    invalidateAdminSearchIndex();
     await revalidateWeb('products');
     return ok({ deleted: true });
   } catch (e) {
