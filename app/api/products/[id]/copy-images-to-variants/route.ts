@@ -38,9 +38,25 @@ export const POST = withAuth(async (req, { params }) => {
     if (!product) return fail('Product not found', 404);
     if (!product.variants.length) return fail('This product has no variants', 400);
 
-    const gallery = Array.isArray(product.images) ? (product.images as string[]) : [];
-    const primary = product.imageUrl ?? gallery[0] ?? null;
-    if (!primary) return fail('This product has no image to copy', 400);
+    // Prefer the parent's own gallery; otherwise borrow from the first SIBLING
+    // variant that has one. Sizes of one product are the same object — a
+    // variant added later (a new size folded in by a merge) should not sit
+    // imageless next to siblings that already have photos.
+    let gallery = Array.isArray(product.images) ? (product.images as string[]) : [];
+    let primary = product.imageUrl ?? gallery[0] ?? null;
+    let source: 'parent' | 'sibling' = 'parent';
+    if (!primary) {
+      const donor = product.variants.find(
+        (v) => v.imageUrl || (Array.isArray(v.images) && (v.images as string[]).length > 0),
+      );
+      if (donor) {
+        const dGallery = Array.isArray(donor.images) ? (donor.images as string[]) : [];
+        primary = donor.imageUrl ?? dGallery[0] ?? null;
+        gallery = dGallery;
+        source = 'sibling';
+      }
+    }
+    if (!primary) return fail('Neither this product nor any of its variants has an image', 400);
 
     const targets = overwrite
       ? product.variants
@@ -68,6 +84,7 @@ export const POST = withAuth(async (req, { params }) => {
       skipped: product.variants.length - targets.length,
       imageUrl: primary,
       galleryCount: gallery.length,
+      source,
     });
   } catch (e) {
     return handleError(e);
