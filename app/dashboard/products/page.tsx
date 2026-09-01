@@ -185,6 +185,70 @@ export default function ProductsPage() {
     }
   }
 
+  /** Fold one selected listing into the other. Offered only for exactly two
+   *  selections, because a merge needs an unambiguous source and target. */
+  async function mergeSelected() {
+    const ids = [...selected];
+    if (ids.length !== 2) return;
+    const a = products.find((p) => p.id === ids[0]);
+    const b = products.find((p) => p.id === ids[1]);
+    if (!a || !b) { alert('Both products must be on this page to merge.'); return; }
+
+    const keepA = confirm(
+      `Which listing do you want to KEEP?\n\n` +
+      `OK    = keep "${a.name}" (${a.sku})\n` +
+      `Cancel = keep "${b.name}" (${b.sku})`,
+    );
+    const target = keepA ? a : b;
+    const source = keepA ? b : a;
+
+    const asVariantValue = prompt(
+      `"${source.name}" (${source.sku}) will be folded into "${target.name}".\n\n` +
+      `Its VARIANTS move across automatically.\n\n` +
+      `To also keep the source product itself as a size/option on the target, ` +
+      `type that option's name (e.g. "34cm", "Gold").\n` +
+      `Leave BLANK to move only its variants.`,
+      '',
+    );
+    if (asVariantValue === null) return;
+
+    const sourceAsVariant = asVariantValue.trim()
+      ? { variantType: 'Size', variantValue: asVariantValue.trim() }
+      : null;
+
+    if (!confirm(
+      `Merge confirmation\n\n` +
+      `KEEP:   ${target.name} (${target.sku})\n` +
+      `FOLD IN: ${source.name} (${source.sku})\n` +
+      (sourceAsVariant ? `        …added as option "${sourceAsVariant.variantValue}"\n` : '') +
+      `\nThe folded listing is DISCONTINUED, not deleted — order history stays intact.\nProceed?`,
+    )) return;
+
+    setBulkBusy(true);
+    try {
+      const r = await api<{ variantsMoved: number; sourceAddedAsVariant: boolean; warnings: string[] }>(
+        '/api/products/merge',
+        {
+          method: 'POST',
+          body: JSON.stringify({ sourceId: source.id, targetId: target.id, moveVariants: true, sourceAsVariant }),
+        },
+      );
+      setSelected(new Set());
+      setVariantsById({});
+      await load();
+      alert(
+        `Merged into ${target.sku}.\n` +
+        `${r.variantsMoved} variant${r.variantsMoved === 1 ? '' : 's'} moved` +
+        (r.sourceAddedAsVariant ? ' · source added as an option' : '') +
+        (r.warnings?.length ? `\n\n⚠ ${r.warnings.join('\n⚠ ')}` : ''),
+      );
+    } catch (e: any) {
+      alert(e?.message || 'Merge failed');
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   const hasFilters = !!(search || category || status);
 
   return (
@@ -279,6 +343,21 @@ export default function ProductsPage() {
             className="btn-outline text-xs">Mark Bestseller</button>
           <button disabled={bulkBusy} onClick={() => bulkApply({ isNewArrival: true }, 'Flag as NEW ARRIVAL')}
             className="btn-outline text-xs">Mark New</button>
+
+          <div className="h-5 w-px bg-slate-300" />
+
+          {/* Merge needs an unambiguous source and target, so it is offered
+              only for a selection of exactly two. */}
+          <button
+            disabled={bulkBusy || selected.size !== 2}
+            onClick={mergeSelected}
+            title={selected.size === 2
+              ? 'Fold one of these listings into the other'
+              : 'Select exactly 2 products to merge'}
+            className="btn-outline text-xs disabled:opacity-40"
+          >
+            Merge 2 listings…
+          </button>
 
           {bulkBusy && <span className="text-xs text-slate-500">applying…</span>}
         </div>
@@ -537,9 +616,12 @@ function VariantsPanel({
         <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-600">
           Variants <span className="text-slate-400">({variants.length})</span>
         </h4>
-        <Link href={`/dashboard/products/${p.id}`} className="text-xs font-medium text-brand hover:underline">
-          Manage →
-        </Link>
+        <div className="flex items-center gap-3">
+          <CopyImagesButton product={p} />
+          <Link href={`/dashboard/products/${p.id}`} className="text-xs font-medium text-brand hover:underline">
+            Manage →
+          </Link>
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-[13px]">
@@ -618,6 +700,48 @@ function VariantsPanel({
         </table>
       </div>
     </div>
+  );
+}
+
+/** Pushes the parent's gallery onto its variants. Variants that already carry
+ *  their own photo are skipped by default — a size-specific shot is better
+ *  than the parent's and must not be overwritten. */
+function CopyImagesButton({ product }: { product: Product }) {
+  const [busy, setBusy] = useState(false);
+  if (!product.imageUrl) return null;
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      title="Copy this product's photo onto its variants that have none"
+      onClick={async () => {
+        if (!confirm(
+          'Copy the parent photo onto every variant that has none?\n\n' +
+          'Variants with their own photo are left alone.',
+        )) return;
+        setBusy(true);
+        try {
+          const r = await api<{ updated: number; skipped: number; message?: string }>(
+            `/api/products/${product.id}/copy-images-to-variants`,
+            { method: 'POST', body: JSON.stringify({ overwrite: false }) },
+          );
+          alert(
+            r.updated
+              ? `${r.updated} variant${r.updated === 1 ? '' : 's'} updated` +
+                (r.skipped ? ` · ${r.skipped} already had a photo` : '') +
+                '\n\nReopen the row to see the thumbnails.'
+              : (r.message || 'Nothing to update'),
+          );
+        } catch (e: any) {
+          alert(e?.message || 'Could not copy images');
+        } finally {
+          setBusy(false);
+        }
+      }}
+      className="text-xs font-medium text-slate-500 hover:text-brand hover:underline disabled:opacity-50"
+    >
+      {busy ? 'Copying…' : 'Copy parent photo → variants'}
+    </button>
   );
 }
 
