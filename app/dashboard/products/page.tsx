@@ -617,7 +617,7 @@ function VariantsPanel({
           Variants <span className="text-slate-400">({variants.length})</span>
         </h4>
         <div className="flex items-center gap-3">
-          <CopyImagesButton product={p} />
+          <CopyImagesButton product={p} variants={variants} />
           <Link href={`/dashboard/products/${p.id}`} className="text-xs font-medium text-brand hover:underline">
             Manage →
           </Link>
@@ -706,42 +706,79 @@ function VariantsPanel({
 /** Pushes the parent's gallery onto its variants. Variants that already carry
  *  their own photo are skipped by default — a size-specific shot is better
  *  than the parent's and must not be overwritten. */
-function CopyImagesButton({ product }: { product: Product }) {
+function CopyImagesButton({ product, variants }: { product: Product; variants: Variant[] | undefined }) {
   const [busy, setBusy] = useState(false);
-  if (!product.imageUrl) return null;
+
+  // The source can be the parent OR any sibling that has a photo — the API
+  // falls back to a sibling when the parent's own slot is empty. Gating on
+  // the parent alone used to HIDE this button in exactly the case it was
+  // needed: a size folded in by a merge, sitting imageless next to siblings
+  // that already had pictures.
+  const siblingHasImage = (variants ?? []).some((v) => !!v.imageUrl);
+  const canFill = !!product.imageUrl || siblingHasImage;
+  const missing = (variants ?? []).filter((v) => !v.imageUrl).length;
+  if (!canFill) return null;
+
+  async function run(overwrite: boolean) {
+    setBusy(true);
+    try {
+      const r = await api<{ updated: number; skipped: number; source?: string; message?: string }>(
+        `/api/products/${product.id}/copy-images-to-variants`,
+        { method: 'POST', body: JSON.stringify({ overwrite }) },
+      );
+      alert(
+        r.updated
+          ? `${r.updated} variant${r.updated === 1 ? '' : 's'} updated from the ${r.source ?? 'parent'}` +
+            (r.skipped ? ` · ${r.skipped} left alone` : '') +
+            '\n\nReopen the row to see the thumbnails.'
+          : (r.message || 'Nothing to update'),
+      );
+    } catch (e: any) {
+      alert(e?.message || 'Could not copy images');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <button
-      type="button"
-      disabled={busy}
-      title="Copy this product's photo onto its variants that have none"
-      onClick={async () => {
-        if (!confirm(
-          'Copy the parent photo onto every variant that has none?\n\n' +
-          'Variants with their own photo are left alone.',
-        )) return;
-        setBusy(true);
-        try {
-          const r = await api<{ updated: number; skipped: number; message?: string }>(
-            `/api/products/${product.id}/copy-images-to-variants`,
-            { method: 'POST', body: JSON.stringify({ overwrite: false }) },
-          );
-          alert(
-            r.updated
-              ? `${r.updated} variant${r.updated === 1 ? '' : 's'} updated` +
-                (r.skipped ? ` · ${r.skipped} already had a photo` : '') +
-                '\n\nReopen the row to see the thumbnails.'
-              : (r.message || 'Nothing to update'),
-          );
-        } catch (e: any) {
-          alert(e?.message || 'Could not copy images');
-        } finally {
-          setBusy(false);
-        }
-      }}
-      className="text-xs font-medium text-slate-500 hover:text-brand hover:underline disabled:opacity-50"
-    >
-      {busy ? 'Copying…' : 'Copy parent photo → variants'}
-    </button>
+    <span className="flex items-center gap-2">
+      <button
+        type="button"
+        disabled={busy || missing === 0}
+        title={missing
+          ? `Give the ${missing} variant(s) with no photo the ${product.imageUrl ? "parent's" : "first sibling's"} image`
+          : 'Every variant already has a photo'}
+        onClick={() => {
+          if (!confirm(
+            `Fill the ${missing} variant(s) that have NO photo?\n\n` +
+            `Source: ${product.imageUrl ? 'the parent product' : 'the first sibling variant that has one'}\n` +
+            `Variants with their own photo are left alone.`,
+          )) return;
+          run(false);
+        }}
+        className="text-xs font-medium text-slate-500 hover:text-brand hover:underline disabled:opacity-40"
+      >
+        {busy ? 'Copying…' : `Fill missing photos${missing ? ` (${missing})` : ''}`}
+      </button>
+      <span className="text-slate-300">·</span>
+      {/* Destructive: replaces size-specific shots with one shared image. */}
+      <button
+        type="button"
+        disabled={busy}
+        title="Overwrite EVERY variant with the same image, including ones that have their own"
+        onClick={() => {
+          if (!confirm(
+            'Give EVERY variant the same image?\n\n' +
+            '⚠ This OVERWRITES variants that have their own size- or colour-specific photo, ' +
+            'and that cannot be undone from here.\n\nContinue?',
+          )) return;
+          run(true);
+        }}
+        className="text-xs font-medium text-slate-400 hover:text-amber-600 hover:underline disabled:opacity-40"
+      >
+        Apply to all
+      </button>
+    </span>
   );
 }
 
