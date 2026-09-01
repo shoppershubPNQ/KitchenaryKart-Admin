@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { handleError, ok, paging } from '@/lib/api';
 import { rankItems } from '@/lib/search';
-import { getAdminSearchIndex, invalidateAdminSearchIndex } from '@/lib/product-search-index';
+import { getAdminSearchIndex, invalidateAdminSearchIndex, codeKey } from '@/lib/product-search-index';
 
 const createSchema = z.object({
   sku: z.string().min(1),
@@ -61,8 +61,20 @@ export const GET = withAuth(async (req) => {
       // does not, and that certainty must outrank any similarity score.
       const needle = search.toLowerCase();
       const exact = index.filter((r) => r.skuBlob.includes(needle)).map((r) => r.id);
+
+      // Then MODEL CODES held in the keywords ("HS-1TS" for the 1AMS oven).
+      // Only for code-shaped queries — matched on the punctuation-stripped key
+      // so "HS-1TS", "HS 1TS" and "HS1TS" all hit. Guarded by the digit test so
+      // an ordinary word ("hotel", "commercial") cannot exact-match every
+      // product through its boilerplate keywords.
+      const key = codeKey(search);
+      const codeLike = key.length >= 4 && /[0-9]/.test(key) && /[a-z]/.test(key);
+      const byAlias = codeLike
+        ? index.filter((r) => r.aliasBlob.split(' ').includes(key)).map((r) => r.id)
+        : [];
+
       const fuzzy = rankItems(index, search).map((r) => r.id);
-      rankedIds = [...new Set([...exact, ...fuzzy])];
+      rankedIds = [...new Set([...exact, ...byAlias, ...fuzzy])];
       if (rankedIds.length === 0) return ok({ products: [], total: 0, limit, offset });
     }
 

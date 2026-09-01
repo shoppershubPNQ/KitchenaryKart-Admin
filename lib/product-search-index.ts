@@ -36,6 +36,20 @@ export interface AdminSearchRow extends Searchable {
    * that match must not be left to a similarity score.
    */
   skuBlob: string;
+  /**
+   * Lowercased keywords with punctuation stripped, for exact matching on
+   * MODEL CODES that are not skus. Suppliers refer to the same oven as
+   * "1AMS" or "HS-1TS", and a customer or an admin may type either — with or
+   * without the hyphen. Punctuation is removed so all three spellings of one
+   * code collapse to the same string.
+   */
+  aliasBlob: string;
+}
+
+/** Strip everything but letters and digits — "HS-1TS", "HS 1TS" and "HS1TS"
+ *  all become "hs1ts". */
+export function codeKey(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 const TTL_MS = 60_000;
@@ -73,6 +87,10 @@ export async function getAdminSearchIndex(): Promise<AdminSearchRow[]> {
     status: p.status,
     skuBlob: [p.sku, ...p.variants.map((v) => v.skuSuffix ?? '')]
       .filter(Boolean).join(' ').toLowerCase(),
+    // Each keyword reduced to its code key, space separated, so an exact
+    // lookup can hit "hs1ts" however the admin spelled it.
+    aliasBlob: (p.metaKeywords ?? '')
+      .split(',').map((k) => codeKey(k)).filter(Boolean).join(' '),
   }));
 
   cache = { at: Date.now(), rows };
