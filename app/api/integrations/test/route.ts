@@ -7,6 +7,7 @@
  * row so the Integrations page can say "connected" honestly.
  */
 import { z } from 'zod';
+import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { fail, handleError, ok } from '@/lib/api';
 import { setVerified, providerEnabled } from '@/lib/integration-credentials';
@@ -15,12 +16,35 @@ import { testDelhivery } from '@/lib/integrations/delhivery';
 
 const schema = z.object({ provider: z.enum(['shiprocket', 'delhivery']) });
 
+/**
+ * Couriers lock an account after a few failed logins. Once one says so, keep
+ * the button from making it worse — retrying is exactly what extends the
+ * lockout, and the operator cannot tell that from the outside.
+ */
+const LOCKOUT_WORDS = /blocked|too many|locked|rate limit|throttl/i;
+const LOCKOUT_COOLDOWN_MS = 30 * 60 * 1000;
+
 export const POST = withAuth(async (req) => {
   try {
     const { provider } = schema.parse(await req.json());
 
     if (!(await providerEnabled(provider))) {
       return fail('Save the credentials first, and make sure the integration is switched on.', 400);
+    }
+
+    const row = await prisma.integrationCredential.findUnique({ where: { provider } });
+    if (row?.lastError && LOCKOUT_WORDS.test(row.lastError)) {
+      const since = Date.now() - row.updatedAt.getTime();
+      if (since < LOCKOUT_COOLDOWN_MS) {
+        const mins = Math.ceil((LOCKOUT_COOLDOWN_MS - since) / 60000);
+        return ok({
+          ok: false,
+          provider,
+          detail:
+            `${row.lastError} Retrying now would extend the lock, so this is paused for about ${mins} more minute${mins === 1 ? '' : 's'}. ` +
+            `Check the password by signing in to the courier's own panel first — saving new credentials clears this wait.`,
+        });
+      }
     }
 
     try {

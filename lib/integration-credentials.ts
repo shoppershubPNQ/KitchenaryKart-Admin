@@ -63,7 +63,7 @@ export async function saveCreds(
     },
     // A new secret would silently break a webhook already registered with the
     // courier, so it is never regenerated on update.
-    update: { encrypted, isActive, lastError: null, cachedToken: null, tokenExpiresAt: null },
+    update: { encrypted, isActive, lastError: null, lastVerifiedAt: null, cachedToken: null, tokenExpiresAt: null },
   });
 }
 

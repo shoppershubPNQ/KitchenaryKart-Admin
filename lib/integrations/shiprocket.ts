@@ -92,12 +92,20 @@ async function call<T>(path: string, init: RequestInit = {}, retryOn401 = true):
   return (text ? JSON.parse(text) : {}) as T;
 }
 
-/** Real authenticated call for the Test-connection button. Logging in alone
- *  proves the password but not that the account is usable. */
+/**
+ * Real authenticated call for the Test-connection button.
+ *
+ * Uses a CACHED token when one is still valid. It originally forced a fresh
+ * login every time so a stale cache could not fake a pass — but that made
+ * every click a login attempt, and Shiprocket locks an account after a few
+ * failures ("User blocked due to too many failed login attempts"). A valid
+ * cached token is proof enough that the account works; a wrong password never
+ * produces one in the first place.
+ */
 export async function testShiprocket(): Promise<{ ok: true; detail: string }> {
   const creds = await getCreds<ShiprocketCreds>('shiprocket');
   if (!creds) throw new ShiprocketError('Shiprocket is not configured');
-  await login(creds); // always fresh, so a stale cache cannot fake a pass
+  if (!(await getCachedToken('shiprocket'))) await login(creds);
   const r = await call<any>('/settings/company/pickup');
   const list = r?.data?.shipping_address ?? [];
   const names = list.map((a: any) => a.pickup_location).filter(Boolean);
