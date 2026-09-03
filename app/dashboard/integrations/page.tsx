@@ -97,7 +97,10 @@ function ProviderCard({
   row, onSaved, disabled,
 }: { row: Integration; onSaved: () => void; disabled: boolean }) {
   const [fields, setFields] = useState<Record<string, string>>(row.fields);
-  const [isActive, setIsActive] = useState(row.isActive);
+  // A provider being set up for the first time starts ENABLED. Someone typing
+  // credentials plainly intends to use them, and defaulting this off meant a
+  // first save looked successful and then refused to connect.
+  const [isActive, setIsActive] = useState(row.configured ? row.isActive : true);
   const [useStaging, setUseStaging] = useState(row.fields.useStaging === 'true');
   const [busy, setBusy] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -105,7 +108,7 @@ function ProviderCard({
 
   useEffect(() => {
     setFields(row.fields);
-    setIsActive(row.isActive);
+    setIsActive(row.configured ? row.isActive : true);
     setUseStaging(row.fields.useStaging === 'true');
   }, [row]);
 
@@ -219,7 +222,9 @@ function ProviderCard({
         <button onClick={save} disabled={busy || disabled} className="btn-primary text-sm">
           {busy ? 'Saving…' : 'Save'}
         </button>
-        <button onClick={test} disabled={testing || !row.configured} className="btn-outline text-sm">
+        <button onClick={test} disabled={testing || !row.configured || !row.isActive}
+          title={!row.configured ? "Save the credentials first" : !row.isActive ? "Tick Enabled and Save first" : "Make a real call to the courier"}
+          className="btn-outline text-sm disabled:opacity-40">
           {testing ? 'Testing…' : 'Test connection'}
         </button>
       </div>
@@ -251,8 +256,14 @@ function ProviderCard({
           <p className="text-[11px] text-slate-500">
             Add this in the {name} panel so shipment status flows back automatically.
             {row.provider === 'shiprocket'
-              ? ' Send the secret as the x-api-key header.'
-              : ' Give Delhivery this URL and ask them to send the secret as the x-webhook-secret header.'}
+              ? ' Paste the secret as the Token. Any Auth Token Type works — Authorization and x-api-key are both accepted.'
+              : ' Give Delhivery this URL and ask them to send the secret in an Authorization or x-api-key header.'}
+          </p>
+          {/* Shiprocket refuses a URL containing its own name, so the path
+              deliberately ends in the provider word only on our side. */}
+          <p className="text-[11px] text-amber-700">
+            Keep this secret private — it is the only thing that proves an incoming status update
+            really came from {name}.
           </p>
           <div className="grid grid-cols-1 gap-2">
             <CopyRow label="URL" value={row.webhookUrl} />

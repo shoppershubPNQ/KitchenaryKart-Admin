@@ -57,7 +57,12 @@ export const GET = withAuth(async () => {
         fields,
         lastVerifiedAt: row?.lastVerifiedAt ?? null,
         lastError: row?.lastError ?? null,
-        webhookUrl: `${adminBase()}/api/public/webhooks/${provider}`,
+        // ONE neutral endpoint for both couriers, identified by the secret
+        // they present rather than by the path. Shiprocket refuses a webhook
+        // URL containing "shiprocket", "sr" or "kr", so the provider name
+        // cannot appear here — and putting the secret in the path would leak
+        // it into every access log along the way.
+        webhookUrl: `${adminBase()}/api/public/webhooks/courier`,
         webhookSecret: row?.webhookSecret ?? null,
         tokenExpiresAt: row?.tokenExpiresAt ?? null,
       };
