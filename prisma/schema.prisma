@@ -89,6 +89,7 @@ model AdminUser {
   movementsCreated InventoryMovement[]
   syncKeysCreated  SyncApiKey[]        @relation("SyncKeyCreatedBy")
   syncRuns         SyncRun[]           @relation("SyncRunBy")
+  shipmentsCreated Shipment[]          @relation("ShipmentCreatedBy")
 
   @@map("admin_users")
 }
@@ -434,6 +435,7 @@ model Order {
   items    OrderItem[]
   payments Payment[]
   creditNotes CreditNote[]
+  shipments   Shipment[]
 
   @@unique([invoiceFinancialYear, invoiceSerial], name: "invoice_fy_serial_unique")
   @@index([orderStatus])
@@ -981,4 +983,167 @@ model SyncRun {
 
   @@index([source, startedAt])
   @@map("sync_runs")
+}
+
+/// Which courier a shipment was booked with. Deliberately an enum (unlike
+/// Order.carrierName, which stays free text so a courier booked outside this
+/// system can still be recorded by hand).
+enum ShipmentProvider {
+  shiprocket
+  delhivery
+}
+
+/// Our own view of where a shipment is, independent of each courier's wording.
+/// Courier scan strings are mapped onto this in lib/shipping-providers.ts.
+enum ShipmentStatus {
+  draft
+  created
+  awb_assigned
+  pickup_scheduled
+  in_transit
+  out_for_delivery
+  delivered
+  rto
+  cancelled
+  failed
+}
+
+/// One booking with one courier for one order.
+///
+/// Sits BETWEEN Order and the courier. The Order keeps its existing
+/// carrierName / trackingNumber / trackingUrl fields — the storefront /track
+/// page and the shipping email read those — and everything courier-specific
+/// lives here. An order can have more than one row (a failed booking, then a
+/// successful one; or an RTO followed by a re-ship), so this is a list.
+model Shipment {
+  id      Int   @id @default(autoincrement())
+  orderId Int   @map("order_id")
+  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  provider ShipmentProvider
+  status   ShipmentStatus   @default(draft)
+
+  /// The courier's own identifiers. `awb` is the tracking number the customer
+  /// sees; unique because two shipments cannot share one waybill.
+  awb            String? @unique
+  courierName    String? @map("courier_name")
+  courierOrderId String? @map("courier_order_id")
+  /// Shiprocket returns a shipment_id distinct from its order id; Delhivery
+  /// does not, and leaves this null.
+  shipmentRef    String? @map("shipment_ref")
+
+  labelUrl    String? @map("label_url")
+  manifestUrl String? @map("manifest_url")
+
+  /// The package as DECLARED to the courier. Owner's decision: these open
+  /// blank and are filled per shipment — Product.dimensions is free text that
+  /// sometimes holds a stone size rather than a carton, so it cannot be
+  /// trusted here. Centimetres and grams.
+  lengthCm    Decimal? @map("length_cm") @db.Decimal(8, 2)
+  breadthCm   Decimal? @map("breadth_cm") @db.Decimal(8, 2)
+  heightCm    Decimal? @map("height_cm") @db.Decimal(8, 2)
+  weightGrams Int?     @map("weight_grams")
+
+  /// The destination as CONFIRMED by the operator. Order.shippingAddress is a
+  /// single free-text blob; couriers need these as discrete values. Captured
+  /// here rather than written back, so the order's address snapshot — which
+  /// the invoice reads — is never mutated after the fact.
+  toName    String? @map("to_name")
+  toPhone   String? @map("to_phone")
+  toAddress String? @map("to_address")
+  toCity    String? @map("to_city")
+  toState   String? @map("to_state")
+  toPincode String? @map("to_pincode")
+
+  /// Value declared to the courier (insurance / RTO basis), and what the
+  /// courier actually charged us. `chargedAmount` is the real cost of this
+  /// shipment and is what should feed Order.internalShippingCost.
+  declaredValue Decimal? @map("declared_value") @db.Decimal(12, 2)
+  chargedAmount Decimal? @map("charged_amount") @db.Decimal(12, 2)
+
+  pickupScheduledAt DateTime? @map("pickup_scheduled_at")
+  cancelledAt       DateTime? @map("cancelled_at")
+
+  /// Exactly what we sent and what came back. Kept because courier support
+  /// asks for it, and because a failed booking is only debuggable from the
+  /// payload that caused it.
+  rawRequest  Json? @map("raw_request")
+  rawResponse Json? @map("raw_response")
+
+  /// Why a booking failed, surfaced to the admin rather than a generic 500.
+  lastError String? @map("last_error")
+
+  createdById Int?       @map("created_by")
+  createdBy   AdminUser? @relation("ShipmentCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  events ShipmentEvent[]
+
+  @@index([orderId])
+  @@index([status])
+  @@index([provider, createdAt])
+  @@map("shipments")
+}
+
+/// One courier scan. Append-only history behind a shipment.
+///
+/// The unique constraint is what makes a replayed webhook harmless: couriers
+/// retry, and an unacknowledged push can arrive several times.
+model ShipmentEvent {
+  id         Int      @id @default(autoincrement())
+  shipmentId Int      @map("shipment_id")
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  /// The courier's own status string, stored verbatim.
+  status       String
+  /// Our mapping of it, null when the string is one we do not recognise —
+  /// an unknown scan is recorded but must never move the order.
+  mappedStatus ShipmentStatus? @map("mapped_status")
+  statusDetail String?         @map("status_detail")
+  location     String?
+
+  occurredAt DateTime @map("occurred_at")
+  raw        Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([shipmentId, status, occurredAt], name: "shipment_scan_unique")
+  @@index([shipmentId, occurredAt])
+  @@map("shipment_events")
+}
+
+/// Encrypted credentials for one courier account.
+///
+/// Deliberately NOT the `Setting` model: that is plain key/value with no
+/// secret flag, and the settings page renders every row as a visible input.
+/// `encrypted` holds an AES-256-GCM blob (lib/crypto.ts); the key lives in
+/// INTEGRATION_ENC_KEY on Vercel and never in this database.
+model IntegrationCredential {
+  id       Int              @id @default(autoincrement())
+  provider ShipmentProvider @unique
+
+  encrypted String?
+  isActive  Boolean @default(false) @map("is_active")
+
+  /// Shared secret we hand to the courier's webhook config. Neither Shiprocket
+  /// nor Delhivery signs its payload, so this header value is the whole of the
+  /// authentication on an incoming scan.
+  webhookSecret String? @map("webhook_secret")
+
+  /// Result of the last real authenticated call, so the page can say
+  /// "connected" honestly rather than just "saved".
+  lastVerifiedAt DateTime? @map("last_verified_at")
+  lastError      String?   @map("last_error")
+
+  /// Cached Shiprocket JWT — valid 240 h, and a cold lambda would otherwise
+  /// re-login on every request.
+  cachedToken     String?   @map("cached_token")
+  tokenExpiresAt  DateTime? @map("token_expires_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("integration_credentials")
 }
