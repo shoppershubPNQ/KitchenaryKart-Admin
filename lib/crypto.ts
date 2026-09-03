@@ -11,26 +11,51 @@
  * than yielding garbage. Stored as "v1.<iv>.<tag>.<ciphertext>", all base64url,
  * with the version prefix so the scheme can change later without guessing.
  *
- * THE KEY LIVES IN THE ENVIRONMENT, NEVER IN THE DATABASE (INTEGRATION_ENC_KEY,
- * 32 bytes as base64 or 64 hex chars). Without it nothing decrypts, which is
- * the point: a stolen dump is inert. Generate one with:
- *   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+ * THE KEY LIVES IN THE ENVIRONMENT, NEVER IN THE DATABASE. Keeping it beside
+ * the ciphertext it opens would make the encryption decorative — the same as
+ * leaving the safe key inside the safe.
+ *
+ * The owner should not have to add a Vercel variable to use the Integrations
+ * page, so the key is DERIVED from `JWT_SECRET`, which every deployment
+ * already has (lib/auth.ts signs sessions with it). HKDF with a fixed salt and
+ * info string turns that secret into a separate 32-byte key, so the two uses
+ * never share key material even though they share a source.
+ *
+ * `INTEGRATION_ENC_KEY` still wins when set — worth doing eventually, because
+ * rotating JWT_SECRET (which only logs everyone out today) would otherwise
+ * also make stored credentials unreadable. The Integrations page handles that
+ * case explicitly rather than silently: it says "cannot decrypt — re-enter".
  */
 import crypto from 'node:crypto';
 
 const VERSION = 'v1';
 const ALGO = 'aes-256-gcm';
+const HKDF_SALT = 'kk-integration-credentials-v1';
+const HKDF_INFO = 'aes-256-gcm-credential-key';
 
-/** Null (never throws) when the key is absent or malformed, so callers can
- *  report "not configured" instead of crashing a page. */
+/** Null (never throws) when no usable secret exists, so callers can report
+ *  "not configured" instead of crashing a page. */
 function getKey(): Buffer | null {
-  const raw = process.env.INTEGRATION_ENC_KEY;
-  if (!raw) return null;
+  // 1. An explicit dedicated key, if the owner ever sets one.
+  const explicit = process.env.INTEGRATION_ENC_KEY?.trim();
+  if (explicit) {
+    try {
+      const buf = /^[0-9a-f]{64}$/i.test(explicit)
+        ? Buffer.from(explicit, 'hex')
+        : Buffer.from(explicit, 'base64');
+      if (buf.length === 32) return buf;
+    } catch {
+      /* fall through to the derived key rather than failing outright */
+    }
+  }
+
+  // 2. Otherwise derive one from the session secret this app already has.
+  const jwt = process.env.JWT_SECRET?.trim();
+  // The seeded development placeholder is not a secret; refusing it stops a
+  // local machine from writing credentials that production could not read.
+  if (!jwt || jwt === 'dev-secret-change-me') return null;
   try {
-    const buf = /^[0-9a-f]{64}$/i.test(raw.trim())
-      ? Buffer.from(raw.trim(), 'hex')
-      : Buffer.from(raw.trim(), 'base64');
-    return buf.length === 32 ? buf : null;
+    return Buffer.from(crypto.hkdfSync('sha256', Buffer.from(jwt), HKDF_SALT, HKDF_INFO, 32));
   } catch {
     return null;
   }

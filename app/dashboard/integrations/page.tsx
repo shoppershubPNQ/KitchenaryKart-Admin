@@ -66,22 +66,20 @@ export default function IntegrationsPage() {
         </p>
       </div>
 
-      {/* Without the key nothing can be saved, so say that instead of showing
-          inputs that would fail on submit. */}
+      {/* Only shows when the deployment has no usable secret at all. Normally
+          the key is derived from JWT_SECRET, so there is nothing to set up. */}
       {!encAvailable && (
         <div className="card p-4 border-l-4 border-red-500 bg-red-50 text-sm text-red-900">
-          <div className="font-semibold">Encryption key missing</div>
+          <div className="font-semibold">Cannot encrypt credentials on this deployment</div>
           <p className="mt-1">
-            <code className="font-mono text-xs">INTEGRATION_ENC_KEY</code> is not set on this
-            deployment, so credentials cannot be stored. Add it in Vercel → Settings → Environment
-            Variables and redeploy. Generate one with:
+            Courier keys are encrypted before they are stored, and the encryption key is derived
+            from this app&apos;s <code className="font-mono text-xs">JWT_SECRET</code> — which is
+            missing here, or still the development placeholder.
           </p>
-          <pre className="mt-2 bg-white/70 rounded p-2 text-[11px] font-mono overflow-x-auto">
-            node -e &quot;console.log(require(&apos;crypto&apos;).randomBytes(32).toString(&apos;base64&apos;))&quot;
-          </pre>
           <p className="mt-2 text-[12px]">
-            Keep it in Vercel only — never in the database, or a database dump becomes a
-            credential dump.
+            It is set in production, so this normally only appears when running locally. The key
+            itself is never written to the database: keeping it beside the data it opens would
+            make the encryption pointless.
           </p>
         </div>
       )}
