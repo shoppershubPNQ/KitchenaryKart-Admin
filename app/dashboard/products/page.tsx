@@ -4,7 +4,17 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, inr, inrExact } from '@/lib/fetch';
 import { Icon } from '@/components/Icons';
+import { DuplicateProductButton } from '@/components/DuplicateProductButton';
 import { computeProductGst } from '@/lib/product-pricing';
+
+/** The pictures filter — the three lists the photographer works from. */
+type ImagesFilter = '' | 'none' | 'no_cover' | 'variants';
+const IMAGES_FILTERS: { value: ImagesFilter; label: string }[] = [
+  { value: '', label: 'Any pictures' },
+  { value: 'none', label: 'No picture anywhere' },
+  { value: 'no_cover', label: 'No cover picture (product’s own)' },
+  { value: 'variants', label: 'A variant without a picture' },
+];
 
 interface Product {
   id: number;
@@ -56,6 +66,7 @@ export default function ProductsPage() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [status, setStatus] = useState('');
+  const [images, setImages] = useState<ImagesFilter>('');
   const [page, setPage] = useState(0);
   const [categories, setCategories] = useState<string[]>([]);
 
@@ -78,6 +89,7 @@ export default function ProductsPage() {
       if (search) params.set('search', search);
       if (category) params.set('category', category);
       if (status) params.set('status', status);
+      if (images) params.set('images', images);
       const data = await api<{ products: Product[]; total: number }>('/api/products?' + params);
       setProducts(data.products);
       setTotal(data.total);
@@ -86,7 +98,7 @@ export default function ProductsPage() {
     }
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [page, category, status]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [page, category, status, images]);
 
   useEffect(() => {
     api<{ categories: { name: string }[] }>('/api/categories').then(d => setCategories(d.categories.map(c => c.name)));
@@ -249,7 +261,7 @@ export default function ProductsPage() {
     }
   }
 
-  const hasFilters = !!(search || category || status);
+  const hasFilters = !!(search || category || status || images);
 
   return (
     <div className="space-y-5">
@@ -292,15 +304,30 @@ export default function ProductsPage() {
           <option value="draft">Draft</option>
           <option value="discontinued">Discontinued</option>
         </select>
+        <select
+          className={`input max-w-[260px] ${images ? 'border-amber-400 bg-amber-50' : ''}`}
+          value={images}
+          onChange={e => { setImages(e.target.value as ImagesFilter); setPage(0); }}
+          title="Pictures: what is missing. A variant without its own picture shows the parent's on the site."
+        >
+          {IMAGES_FILTERS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+        </select>
         {hasFilters && (
           <button
             className="text-sm text-slate-500 hover:text-brand"
-            onClick={() => { setSearch(''); setCategory(''); setStatus(''); setPage(0); }}
+            onClick={() => { setSearch(''); setCategory(''); setStatus(''); setImages(''); setPage(0); }}
           >
             Clear
           </button>
         )}
       </div>
+      {images && (
+        <p className="text-xs text-slate-500 -mt-2">
+          {images === 'none' && 'Products with not one picture anywhere — no cover, and no variant with its own.'}
+          {images === 'no_cover' && 'Products whose own gallery is empty, whatever their variants carry. Open a row to fill variants from a sibling, or the product page to upload.'}
+          {images === 'variants' && 'Products with at least one variant that has no picture of its own. Open the row: “Fill missing photos” copies the parent’s or a sibling’s.'}
+        </p>
+      )}
 
       {/* Table */}
       {/* Bulk action bar — appears only with a selection. */}
@@ -556,6 +583,7 @@ function ProductRow({
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z" />
               </svg>
             </Link>
+            <DuplicateProductButton productId={p.id} sku={p.sku} name={p.name} variantCount={vCount} />
             <button
               onClick={() => onRemove(p.id)}
               title="Delete"

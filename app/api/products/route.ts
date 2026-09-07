@@ -43,6 +43,7 @@ export const GET = withAuth(async (req) => {
     const status = url.searchParams.get('status') || undefined;
     const search = url.searchParams.get('search')?.trim();
     const lowStock = url.searchParams.get('lowStock') === '1';
+    const images = url.searchParams.get('images') || undefined;
 
     const where: Prisma.ProductWhereInput = {};
     if (category) where.category = category;
@@ -88,6 +89,44 @@ export const GET = withAuth(async (req) => {
       `;
       const low = rows.map((x) => x.id);
       idFilter = idFilter ? idFilter.filter((id) => low.includes(id)) : low;
+      if (idFilter.length === 0) return ok({ products: [], total: 0, limit, offset });
+    }
+
+    // PICTURES — the three questions the photographer's list needs answered,
+    // which the JSON gallery column keeps Prisma from asking:
+    //   no_cover   the product's OWN gallery is empty, whatever its variants carry
+    //   variants   at least one variant has no picture of its own (it falls
+    //              back to the parent's on the site, so this is the size that
+    //              is shown with the wrong photo)
+    //   none       not one picture anywhere — cover or variant
+    if (images === 'no_cover' || images === 'variants' || images === 'none') {
+      const rows =
+        images === 'no_cover'
+          ? await prisma.$queryRaw<{ id: number }[]>`
+              SELECT id FROM products p
+              WHERE (p.image_url IS NULL OR p.image_url = '')
+                AND (p.images IS NULL OR jsonb_typeof(p.images) <> 'array' OR jsonb_array_length(p.images) = 0)
+            `
+          : images === 'variants'
+            ? await prisma.$queryRaw<{ id: number }[]>`
+              SELECT DISTINCT p.id FROM products p
+              JOIN product_variants v ON v.product_id = p.id
+              WHERE (v.image_url IS NULL OR v.image_url = '')
+                AND (v.images IS NULL OR jsonb_typeof(v.images) <> 'array' OR jsonb_array_length(v.images) = 0)
+            `
+            : await prisma.$queryRaw<{ id: number }[]>`
+              SELECT id FROM products p
+              WHERE (p.image_url IS NULL OR p.image_url = '')
+                AND (p.images IS NULL OR jsonb_typeof(p.images) <> 'array' OR jsonb_array_length(p.images) = 0)
+                AND NOT EXISTS (
+                  SELECT 1 FROM product_variants v
+                  WHERE v.product_id = p.id
+                    AND ((v.image_url IS NOT NULL AND v.image_url <> '')
+                      OR (v.images IS NOT NULL AND jsonb_typeof(v.images) = 'array' AND jsonb_array_length(v.images) > 0))
+                )
+            `;
+      const bare = rows.map((x) => x.id);
+      idFilter = idFilter ? idFilter.filter((id) => bare.includes(id)) : bare;
       if (idFilter.length === 0) return ok({ products: [], total: 0, limit, offset });
     }
     if (idFilter) where.id = { in: idFilter };

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
+import { DuplicateProductButton } from '@/components/DuplicateProductButton';
 import { ProductForm } from '@/components/ProductForm';
 import { ProductImages } from '@/components/ProductImages';
 import { ProductVariants } from '@/components/ProductVariants';
@@ -7,7 +8,7 @@ import { ProductVariants } from '@/components/ProductVariants';
 export default async function EditProductPage({ params }: { params: { id: string } }) {
   const id = parseInt(params.id);
   if (Number.isNaN(id)) notFound();
-  const p = await prisma.product.findUnique({ where: { id } });
+  const p = await prisma.product.findUnique({ where: { id }, include: { _count: { select: { variants: true } } } });
   if (!p) notFound();
 
   return (
@@ -17,12 +18,15 @@ export default async function EditProductPage({ params }: { params: { id: string
     // fields were simply off-screen. The images and the detail form stay capped
     // at a readable width; only the table is allowed to use the whole page.
     <div className="space-y-4">
-      <div>
-        <div className="text-xs font-mono text-slate-500">
-          {p.sku}
-          {p.productCode && <span className="text-slate-400"> · {p.productCode}</span>}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-mono text-slate-500">
+            {p.sku}
+            {p.productCode && <span className="text-slate-400"> · {p.productCode}</span>}
+          </div>
+          <h1 className="text-2xl font-semibold text-slate-900">{p.name}</h1>
         </div>
-        <h1 className="text-2xl font-semibold text-slate-900">{p.name}</h1>
+        <DuplicateProductButton productId={p.id} sku={p.sku} name={p.name} variantCount={p._count.variants} variant="button" />
       </div>
 
       <div className="max-w-5xl space-y-4">
