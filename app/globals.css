@@ -51,6 +51,79 @@ html, body {
   .pill-red { @apply pill bg-red-100 text-red-800; }
   .pill-blue { @apply pill bg-blue-100 text-blue-800; }
   .pill-gray { @apply pill bg-slate-100 text-slate-700; }
+
+  /* ------------------------------------------------------------- tabs */
+  /* Underline tabs along the top of a page. */
+  .tab-line {
+    @apply -mb-px border-b-2 border-transparent px-4 py-2 text-sm font-medium text-slate-500 transition-colors hover:text-slate-800;
+  }
+  .tab-line-active {
+    @apply border-brand text-brand;
+  }
+  /* Filled tabs inside a card, each with a count. */
+  .tab-pill {
+    @apply rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100;
+  }
+  .tab-pill-active {
+    @apply bg-brand text-white hover:bg-brand;
+  }
+
+  /* ---------------------------------------------------------- notices */
+  .notice {
+    @apply rounded-lg border px-4 py-3 text-sm;
+  }
+  .notice-red {
+    @apply notice border-red-200 bg-red-50 text-red-700;
+  }
+  .notice-green {
+    @apply notice border-emerald-200 bg-emerald-50 text-emerald-800;
+  }
+  .notice-amber {
+    @apply notice border-amber-300 bg-amber-50 text-amber-900;
+  }
+  .notice-muted {
+    @apply notice border-slate-200 bg-slate-50 text-slate-700;
+  }
+
+  /* ------------------------------------------------------- mini table */
+  .table-mini {
+    @apply w-full text-sm;
+  }
+  .table-mini thead {
+    @apply bg-slate-50 text-xs uppercase text-slate-500;
+  }
+  .table-mini th {
+    @apply px-3 py-2 text-left font-medium;
+  }
+  .table-mini td {
+    @apply px-3 py-2 align-top;
+  }
+  .table-mini tbody tr + tr {
+    @apply border-t border-slate-100;
+  }
+  .table-mini .mono {
+    @apply font-mono text-xs;
+  }
+  .row-warn {
+    @apply bg-amber-50;
+  }
+
+  /* ---------------------------------------------------- small pieces */
+  .link {
+    @apply text-brand hover:underline;
+  }
+  .link-danger {
+    @apply text-xs text-red-600 hover:underline;
+  }
+  .thumb-lg {
+    @apply h-20 w-20 shrink-0 rounded border border-slate-200 object-cover;
+  }
+  .thumb-sm {
+    @apply h-10 w-10 shrink-0 rounded border border-slate-200 object-cover;
+  }
+  .kicker {
+    @apply text-xs font-medium uppercase tracking-wide text-slate-400;
+  }
 }
 
 .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }

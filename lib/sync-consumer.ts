@@ -466,7 +466,12 @@ export async function diff(sku: string) {
   add('color', 'Colour', product?.color, mapped.color);
   add('capacity', 'Capacity', product?.capacity, mapped.capacity);
   add('material', 'Material', product?.material, mapped.material);
-  add('images', 'Images', galleryOf(product).length || null, remote.images.length);
+  // Counts alone hide a replaced picture; the URLs are compared as an ordered
+  // list, and both galleries travel so the Compare modal can show them.
+  const hereImages = galleryOf(product);
+  add('images', 'Images', hereImages.length || null, remote.images.length);
+  fields[fields.length - 1].differs =
+    product !== null && hereImages.join('\n') !== remote.images.join('\n');
   add('variants', 'Variants', product?.variants.length ?? null, remote.variants.length);
 
   return {
@@ -474,6 +479,7 @@ export async function diff(sku: string) {
     status: classify(link),
     exists_here: product !== null,
     origin: remote.origin ?? null,
+    images_here: hereImages,
     remote: {
       name: remote.name,
       category_path: remote.category_path,
