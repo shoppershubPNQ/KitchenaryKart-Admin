@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { api, inr, dateShort } from '@/lib/fetch';
+import { Icon } from '@/components/Icons';
 
 interface Order {
   id: number;
@@ -34,6 +35,12 @@ function OrdersList() {
   const [status, setStatus] = useState(params.get('status') || '');
   const [search, setSearch] = useState('');
   const [reconciling, setReconciling] = useState(false);
+  // The list fetched one page and showed it with no way to reach the next one,
+  // so only the newest orders were ever visible — everything older looked as
+  // though it had been deleted. Paged like the products list.
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const limit = 25;
 
   // Reconcile pending orders against Razorpay: a UPI payment can be captured
   // by Razorpay while the customer's browser never returned to confirm it,
@@ -64,21 +71,33 @@ function OrdersList() {
   async function load() {
     setLoading(true);
     try {
-      const q = new URLSearchParams();
+      const q = new URLSearchParams({ limit: String(limit), offset: String(page * limit) });
       if (status) q.set('status', status);
       if (search) q.set('search', search);
-      const data = await api<{ orders: Order[] }>('/api/orders?' + q);
+      const data = await api<{ orders: Order[]; total: number }>('/api/orders?' + q);
       setOrders(data.orders);
+      setTotal(data.total);
     } finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [status]);
-  useEffect(() => { const t = setTimeout(load, 250); return () => clearTimeout(t); /* eslint-disable-next-line */ }, [search]);
+  // Debounced so typing a search does not fire a request per keystroke. Page
+  // changes go through the same effect; the filters reset `page` at the input
+  // itself, so a narrowed search can never leave you on an empty later page.
+  useEffect(() => {
+    const t = setTimeout(load, search ? 250 : 0);
+    return () => clearTimeout(t);
+    /* eslint-disable-next-line */
+  }, [page, status, search]);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-slate-900">Orders</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Orders</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {total.toLocaleString('en-IN')} {search || status ? 'matching' : 'total'} order{total === 1 ? '' : 's'}
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -94,8 +113,8 @@ function OrdersList() {
       </div>
 
       <div className="card p-4 flex flex-wrap gap-3">
-        <input className="input max-w-xs" placeholder="Search # / name / email" value={search} onChange={e => setSearch(e.target.value)} />
-        <select className="input max-w-xs" value={status} onChange={e => setStatus(e.target.value)}>
+        <input className="input max-w-xs" placeholder="Search # / name / email" value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} />
+        <select className="input max-w-xs" value={status} onChange={e => { setStatus(e.target.value); setPage(0); }}>
           <option value="">All statuses</option>
           <option value="pending">Pending</option>
           <option value="processing">Processing</option>
@@ -136,6 +155,26 @@ function OrdersList() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <Pagination page={page} total={total} limit={limit} onPage={setPage} />
+    </div>
+  );
+}
+
+function Pagination({ page, total, limit, onPage }: { page: number; total: number; limit: number; onPage: (p: number) => void }) {
+  const pages = Math.ceil(total / limit);
+  if (pages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <div className="text-slate-500">Page {page + 1} of {pages}</div>
+      <div className="flex gap-2">
+        <button className="btn-outline gap-1" disabled={page === 0} onClick={() => onPage(page - 1)}>
+          <Icon name="chevron" className="w-4 h-4 rotate-180" /> Prev
+        </button>
+        <button className="btn-outline gap-1" disabled={page + 1 >= pages} onClick={() => onPage(page + 1)}>
+          Next <Icon name="chevron" className="w-4 h-4" />
+        </button>
       </div>
     </div>
   );
