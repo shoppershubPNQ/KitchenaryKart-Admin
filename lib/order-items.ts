@@ -36,6 +36,15 @@ export interface ResolveOptions {
    * sharing this helper.
    */
   qualifyVariantNames?: boolean;
+  /**
+   * Refuse anything that is not on sale. The storefront checkout sets this: a
+   * draft's product page was reachable by URL, and without this gate a
+   * customer could order a draft — at Rs0 where its price was not filled in
+   * yet. A sku filtered out here resolves as unknown, exactly like a typo.
+   * Manual orders leave it off: an admin may take a phone order for an item
+   * that is not listed.
+   */
+  activeOnly?: boolean;
 }
 
 export async function resolveOrderItems(
@@ -47,11 +56,14 @@ export async function resolveOrderItems(
 
   const [products, variants] = await Promise.all([
     prisma.product.findMany({
-      where: { sku: { in: unique } },
+      where: { sku: { in: unique }, ...(opts.activeOnly ? { status: 'active' as const } : {}) },
       select: { id: true, sku: true, name: true, price: true, taxPercent: true, stock: true },
     }),
     prisma.productVariant.findMany({
-      where: { skuSuffix: { in: unique } },
+      where: {
+        skuSuffix: { in: unique },
+        ...(opts.activeOnly ? { product: { status: 'active' as const } } : {}),
+      },
       select: {
         id: true,
         skuSuffix: true,

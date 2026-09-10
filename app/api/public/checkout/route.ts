@@ -57,7 +57,8 @@ export async function POST(req: NextRequest) {
     // and a website order price the same item identically. Variant names are
     // NOT qualified here, keeping stored order-item names exactly as this route
     // has always written them.
-    const resolved = await resolveOrderItems(skus);
+    // activeOnly: a customer can never buy a draft, even with its URL.
+    const resolved = await resolveOrderItems(skus, { activeOnly: true });
 
     // Every cart sku MUST resolve to a real product/variant — otherwise the
     // server would have no authoritative price. Reject unknown skus rather
