@@ -51,14 +51,18 @@ function OrdersList() {
     if (reconciling) return;
     setReconciling(true);
     try {
-      const r = await api<{ reconciledCount: number; checked: number; stillPending: string[] }>(
+      const r = await api<{ reconciledCount: number; checked: number; stillPending: string[]; doublePaid?: string[] }>(
         '/api/orders/reconcile',
         { method: 'POST' }
       );
+      const dp = r.doublePaid ?? [];
       alert(
         `Checked ${r.checked} pending order(s).\n` +
           `Marked paid: ${r.reconciledCount}.\n` +
-          `Still pending (unpaid/failed): ${r.stillPending.length}.`
+          `Still pending (unpaid/failed): ${r.stillPending.length}.` +
+          (dp.length
+            ? `\n\n⚠ Paid TWICE (website checkout AND payment link) — refund one: ${dp.join(', ')}`
+            : '')
       );
       await load();
     } catch (e) {

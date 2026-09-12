@@ -3,6 +3,44 @@ import { sendEmail } from '@/lib/integrations/resend';
 import { buildOrderConfirmationEmail } from '@/lib/email-templates/order-confirmation';
 import { buildAdminNewOrderEmail } from '@/lib/email-templates/admin-new-order';
 import { ensureInvoiceNumber } from '@/lib/invoice-serial';
+import { fetchRazorpayOrderPayments, fetchRazorpayPaymentLink } from '@/lib/integrations/razorpay';
+
+export interface CapturedPayment {
+  paymentId: string;
+  amountPaise: number | null;
+  source: 'reconcile' | 'payment-link';
+}
+
+/**
+ * Ask Razorpay whether an order has been paid, through EITHER route money can
+ * arrive: the website checkout (razorpayOrderId) or a hosted payment link the
+ * shop raised (paymentLinkId — it makes its own Razorpay order, so there is no
+ * shared id). An order can hold both: a customer abandons checkout, then the
+ * shop sends a link. Checking only one would call a link-paid order "unpaid".
+ *
+ * `doublePaid` is true when BOTH took money — one of them needs a refund.
+ * Throws on any Razorpay error: an unreachable API must never read as unpaid.
+ */
+export async function checkOrderPayment(o: {
+  razorpayOrderId: string | null;
+  paymentLinkId: string | null;
+}): Promise<{ captured: CapturedPayment | null; doublePaid: boolean }> {
+  let checkout: CapturedPayment | null = null;
+  if (o.razorpayOrderId) {
+    const payments = await fetchRazorpayOrderPayments(o.razorpayOrderId);
+    const c = payments.find((p) => p.status === 'captured');
+    if (c) checkout = { paymentId: c.id, amountPaise: c.amount ?? null, source: 'reconcile' };
+  }
+
+  let link: CapturedPayment | null = null;
+  if (o.paymentLinkId) {
+    const l = await fetchRazorpayPaymentLink(o.paymentLinkId);
+    const p = l.payments?.find((x) => x.status === 'captured');
+    if (l.status === 'paid' && p) link = { paymentId: p.payment_id, amountPaise: p.amount ?? null, source: 'payment-link' };
+  }
+
+  return { captured: checkout ?? link, doublePaid: Boolean(checkout && link) };
+}
 
 /**
  * Mark an order paid and run every side-effect exactly once, from ONE place.

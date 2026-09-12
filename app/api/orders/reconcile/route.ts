@@ -1,8 +1,7 @@
 import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { handleError, ok } from '@/lib/api';
-import { fetchRazorpayOrderPayments, fetchRazorpayPaymentLink } from '@/lib/integrations/razorpay';
-import { finalizePaidOrder } from '@/lib/order-payment';
+import { checkOrderPayment, finalizePaidOrder } from '@/lib/order-payment';
 
 /**
  * Reconcile pending orders against Razorpay (admin-only, idempotent).
@@ -36,36 +35,22 @@ export const POST = withAuth(async () => {
 
     const reconciled: Array<{ orderNumber: string; paymentId: string }> = [];
     const stillPending: string[] = [];
+    const doublePaid: string[] = [];
     const errors: Array<{ orderNumber: string; error: string }> = [];
 
     for (const o of pending) {
       try {
-        // Payment-link orders first — they have no razorpayOrderId to query.
-        if (!o.razorpayOrderId && o.paymentLinkId) {
-          const link = await fetchRazorpayPaymentLink(o.paymentLinkId);
-          const paid = link.payments?.find((p) => p.status === 'captured');
-          if (link.status === 'paid' && paid) {
-            await finalizePaidOrder(o.id, {
-              razorpayPaymentId: paid.payment_id,
-              amountPaise: paid.amount ?? null,
-              source: 'payment-link',
-            });
-            reconciled.push({ orderNumber: o.orderNumber, paymentId: paid.payment_id });
-          } else {
-            stillPending.push(o.orderNumber);
-          }
-          continue;
-        }
-
-        const payments = await fetchRazorpayOrderPayments(o.razorpayOrderId!);
-        const captured = payments.find((p) => p.status === 'captured');
+        // Both sources are checked for every order — an order can hold a
+        // checkout id AND a link, and either one may be the one that was paid.
+        const { captured, doublePaid: both } = await checkOrderPayment(o);
         if (captured) {
           await finalizePaidOrder(o.id, {
-            razorpayPaymentId: captured.id,
-            amountPaise: captured.amount ?? null,
-            source: 'reconcile',
+            razorpayPaymentId: captured.paymentId,
+            amountPaise: captured.amountPaise,
+            source: captured.source,
           });
-          reconciled.push({ orderNumber: o.orderNumber, paymentId: captured.id });
+          reconciled.push({ orderNumber: o.orderNumber, paymentId: captured.paymentId });
+          if (both) doublePaid.push(o.orderNumber);
         } else {
           stillPending.push(o.orderNumber);
         }
@@ -74,7 +59,7 @@ export const POST = withAuth(async () => {
       }
     }
 
-    return ok({ checked: pending.length, reconciledCount: reconciled.length, reconciled, stillPending, errors });
+    return ok({ checked: pending.length, reconciledCount: reconciled.length, reconciled, stillPending, doublePaid, errors });
   } catch (e) {
     return handleError(e);
   }
