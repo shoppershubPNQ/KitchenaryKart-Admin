@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/notify-restock",
       "schedule": "30 * * * *"
+    },
+    {
+      "path": "/api/cron/abandoned-checkout-alerts",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

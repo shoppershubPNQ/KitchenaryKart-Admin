@@ -3,6 +3,7 @@ import { sendEmail } from '@/lib/integrations/resend';
 import { buildOrderConfirmationEmail } from '@/lib/email-templates/order-confirmation';
 import { buildAdminNewOrderEmail } from '@/lib/email-templates/admin-new-order';
 import { ensureInvoiceNumber } from '@/lib/invoice-serial';
+import { adminBaseUrl, adminRecipients } from '@/lib/admin-notify';
 import { fetchRazorpayOrderPayments, fetchRazorpayPaymentLink } from '@/lib/integrations/razorpay';
 
 export interface CapturedPayment {
@@ -167,20 +168,9 @@ export async function finalizePaidOrder(
   }
 
   // Internal new-order alert to the business inboxes. Awaited; never throws.
-  // admin@kitchenarykart.com is only the admin LOGIN, not a real mailbox, so
-  // it must NOT be used here.
-  const adminRecipients = [
-    ...new Set(
-      [
-        ...(process.env.ADMIN_NOTIFY_EMAIL || '').split(',').map((s) => s.trim()),
-        'shoppershub.ind@gmail.com',
-        'support@kitchenarykart.com',
-      ].filter(Boolean)
-    ),
-  ];
-  if (adminRecipients.length > 0) {
-    const adminBase =
-      process.env.ADMIN_BASE_URL || 'https://kitchenary-kart-admin-nujh.vercel.app';
+  const recipients = adminRecipients();
+  if (recipients.length > 0) {
+    const adminBase = adminBaseUrl();
     const adminMail = buildAdminNewOrderEmail({
       orderNumber: order.orderNumber,
       customerName: order.customerName,
@@ -199,7 +189,7 @@ export async function finalizePaidOrder(
       adminOrderUrl: `${adminBase}/dashboard/orders/${order.id}`,
     });
     await sendEmail({
-      to: adminRecipients,
+      to: recipients,
       subject: adminMail.subject,
       html: adminMail.html,
       text: adminMail.text,

@@ -422,6 +422,12 @@ model Order {
   /// rate (contacted → paid).
   contactedAt DateTime? @map("contacted_at")
 
+  /// Set by the abandoned-checkout alert cron once this unpaid checkout has
+  /// been dealt with — the team was emailed, or it was skipped because the
+  /// buyer paid (this or a later order). Stops one cart being alerted twice.
+  /// Column added by raw SQL 2026-09-12 (scripts/add-abandoned-alert-column.ts).
+  abandonedAlertAt DateTime? @map("abandoned_alert_at")
+
   /// Coupon code applied at checkout (uppercase). The actual ₹ value
   /// deducted lives in discountAmount above. NULL when no coupon used.
   couponCode String? @map("coupon_code")
