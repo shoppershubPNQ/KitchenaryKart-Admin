@@ -543,16 +543,30 @@ model Inquiry {
   @@map("inquiries")
 }
 
+/// First-party visitor analytics, written by the storefront (web/lib/track.ts
+/// -> web /api/track), read by the Analytics dashboard. The visitor / session /
+/// path / sku / order / duration columns were added by raw SQL on 2026-09-12
+/// (scripts/add-analytics-columns.ts). Keep in sync with web/prisma/schema.prisma.
 model AnalyticsEvent {
-  id        BigInt   @id @default(autoincrement())
-  eventType String   @map("event_type")
-  userId    String?  @map("user_id")
-  productId Int?     @map("product_id")
-  metadata  Json?
-  createdAt DateTime @default(now()) @map("created_at")
+  id          BigInt   @id @default(autoincrement())
+  eventType   String   @map("event_type")
+  userId      String?  @map("user_id")
+  productId   Int?     @map("product_id")
+  visitorId   String?  @map("visitor_id") @db.VarChar(40)
+  sessionId   String?  @map("session_id") @db.VarChar(40)
+  path        String?
+  sku         String?
+  orderNumber String?  @map("order_number")
+  durationMs  Int?     @map("duration_ms")
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
 
   @@index([eventType])
   @@index([createdAt])
+  @@index([sessionId])
+  @@index([visitorId])
+  @@index([orderNumber])
+  @@index([eventType, createdAt])
   @@map("analytics_events")
 }
 
