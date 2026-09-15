@@ -13,8 +13,14 @@ export const GET = withAuth(async () => {
         SUM(oi.quantity)::bigint AS units_sold,
         SUM(oi.line_total)::float AS total_revenue,
         COUNT(DISTINCT oi.order_id)::bigint AS orders_count
-      FROM products p
-      LEFT JOIN order_items oi ON p.id = oi.product_id
+      FROM order_items oi
+      -- Paid, not-cancelled orders only (same rule as the dashboard's
+      -- PAID_WHERE). Counting every order put two cancelled ₹1.96L test
+      -- orders at the top of this list.
+      JOIN orders o ON o.id = oi.order_id
+        AND o.payment_status = 'completed'
+        AND o.order_status <> 'cancelled'
+      JOIN products p ON p.id = oi.product_id
       GROUP BY p.id
       ORDER BY total_revenue DESC NULLS LAST
       LIMIT 20

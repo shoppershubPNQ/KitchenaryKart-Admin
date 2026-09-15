@@ -18,6 +18,12 @@ export const GET = withAuth(async (req) => {
         COUNT(*)::bigint AS orders
       FROM orders
       WHERE created_at >= NOW() - INTERVAL '${intervalDays} days'
+        -- Same rule as PAID_WHERE on the dashboard: only money actually
+        -- received. Without it cancelled and never-paid checkouts were
+        -- charted as sales (two cancelled ₹1.96L test orders made the
+        -- 28 Jul spike; ₹6.4L of the last 60 days was never paid).
+        AND payment_status = 'completed'
+        AND order_status <> 'cancelled'
       GROUP BY DATE_TRUNC('${trunc}', created_at)
       ORDER BY date
     `;
