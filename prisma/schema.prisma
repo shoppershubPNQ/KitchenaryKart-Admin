@@ -217,6 +217,12 @@ model ProductVariant {
   power      String?
   dimensions String?
 
+  /// Per-variant description. Sizes of one product have different features
+  /// (the 400g grinder is 1880W and 3.8kg, the 2500g one 3200W and 10.7kg), so
+  /// one text cannot describe them all. Null = show the parent's description.
+  /// Column added by raw SQL 2026-09-15 (scripts/add-variant-description-column.ts).
+  description String?
+
 
   /// Order lines that bought this specific variant (for stock decrement).
   orderItems OrderItem[]

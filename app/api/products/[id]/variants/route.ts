@@ -25,6 +25,8 @@ const createSchema = z.object({
   capacity: z.string().trim().max(80).nullable().optional(),
   power: z.string().trim().max(80).nullable().optional(),
   dimensions: z.string().trim().max(120).nullable().optional(),
+  /** Per-variant description; null / empty = show the parent's. */
+  description: z.string().trim().max(8000).nullable().optional(),
   stock: z.number().int().nonnegative().optional(),
 });
 
@@ -61,6 +63,7 @@ export const POST = withAuth(async (req, { params }) => {
         capacity: body.capacity ?? null,
         power: body.power ?? null,
         dimensions: body.dimensions ?? null,
+        description: body.description || null,
         stock: body.stock ?? 0,
       },
     });

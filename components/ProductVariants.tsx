@@ -9,7 +9,7 @@
  * Size: Small, Size: Medium, Color: Red, etc. Each row is one (type, value)
  * pair with its own SKU suffix, price modifier, and stock.
  */
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/fetch';
 
 interface Variant {
@@ -31,6 +31,9 @@ interface Variant {
   capacity: string | null;
   power: string | null;
   dimensions: string | null;
+  /** Per-variant description. Sizes have different features; null → the
+   *  product's own description is shown on this size's page. */
+  description?: string | null;
   imageUrl: string | null;
   images?: string[] | null;
 }
@@ -284,7 +287,8 @@ export function ProductVariants({ productId }: { productId: number }) {
               <tr><td colSpan={10} className="p-4 text-center text-slate-400">No variants yet.</td></tr>
             )}
             {variants.map((v) => (
-              <tr key={v.id} className="hover:bg-slate-50">
+              <Fragment key={v.id}>
+              <tr className="hover:bg-slate-50">
                 <td className="px-2 py-1.5">
                   <VariantImageCell
                     variant={v}
@@ -394,6 +398,25 @@ export function ProductVariants({ productId }: { productId: number }) {
                   </button>
                 </td>
               </tr>
+              {/* Each size has its own features, so it can have its own
+                  description. Blank = the product's description is shown. */}
+              <tr className="border-t-0">
+                <td></td>
+                <td colSpan={10} className="px-2 pb-3 pt-0">
+                  <textarea
+                    className="input input-sm w-full text-sm"
+                    rows={3}
+                    placeholder="Description for this size — leave blank to show the product's description"
+                    defaultValue={v.description ?? ''}
+                    onBlur={(e) => {
+                      const raw = e.target.value.trim();
+                      const next = raw === '' ? null : raw;
+                      if (next !== (v.description ?? null)) update(v, 'description', next);
+                    }}
+                  />
+                </td>
+              </tr>
+              </Fragment>
             ))}
           </tbody>
         </table>

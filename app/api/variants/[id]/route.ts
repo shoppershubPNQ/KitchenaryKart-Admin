@@ -21,6 +21,14 @@ const updateSchema = z.object({
   capacity: z.string().trim().max(80).nullable().optional(),
   power: z.string().trim().max(80).nullable().optional(),
   dimensions: z.string().trim().max(120).nullable().optional(),
+  /** Per-variant description; null / empty = show the parent's. */
+  description: z
+    .string()
+    .trim()
+    .max(8000)
+    .nullable()
+    .optional()
+    .transform((v) => (v === '' ? null : v)),
   stock: z.number().int().nonnegative().optional(),
   /** Per-variant image. The upload endpoint at /api/variants/[id]/image
    *  returns the Cloudinary URL; pass null here to clear it. */
