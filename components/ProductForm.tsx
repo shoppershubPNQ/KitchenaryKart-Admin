@@ -40,6 +40,20 @@ export function ProductForm({ initial, isNew }: { initial: ProductDraft; isNew: 
     setForm(prev => ({ ...prev, [k]: v }));
   }
 
+  // Prices are stored GST-INCLUSIVE (what the customer pays). The excl.-GST
+  // figure and the GST amount are derived for the admin's convenience, and
+  // typing an excl.-GST price fills the inclusive one. Nothing new is saved.
+  const gstRate = Number(form.taxPercent ?? 18) || 0;
+  const priceIncl = Number(form.price) || 0;
+  const priceExcl = priceIncl / (1 + gstRate / 100);
+  const gstAmount = priceIncl - priceExcl;
+  // While the admin types in the excl.-GST box, show their text as typed
+  // rather than the re-derived figure, so the cursor does not jump.
+  const [exclDraft, setExclDraft] = useState<string | null>(null);
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const rupees = (n: number) =>
+    '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
@@ -118,8 +132,30 @@ export function ProductForm({ initial, isNew }: { initial: ProductDraft; isNew: 
       <fieldset className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <legend className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-2 col-span-full">Pricing & stock</legend>
         <div>
-          <label className="label">Price (₹)</label>
+          <label className="label">Price incl. GST (₹)</label>
           <input type="number" step="0.01" className="input" value={form.price} onChange={e => update('price', parseFloat(e.target.value))} required />
+          <p className="mt-1 text-[11px] text-slate-500">
+            {priceIncl > 0
+              ? <>Excl. GST {rupees(priceExcl)} + GST {gstRate}% {rupees(gstAmount)} = <strong>{rupees(priceIncl)}</strong></>
+              : 'What the customer pays, GST included.'}
+          </p>
+        </div>
+        <div>
+          <label className="label">Price excl. GST (₹)</label>
+          <input
+            type="number"
+            step="0.01"
+            className="input"
+            value={exclDraft ?? (priceIncl > 0 ? round2(priceExcl) : '')}
+            placeholder="Type to fill the GST price"
+            onChange={e => {
+              setExclDraft(e.target.value);
+              const ex = parseFloat(e.target.value);
+              if (Number.isFinite(ex)) update('price', round2(ex * (1 + gstRate / 100)));
+            }}
+            onBlur={() => setExclDraft(null)}
+          />
+          <p className="mt-1 text-[11px] text-slate-400">Type here and the incl.-GST price fills itself.</p>
         </div>
         <div>
           <label className="label">Cost — Hotelic Essentials (₹)</label>
