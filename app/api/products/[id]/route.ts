@@ -23,6 +23,11 @@ const updateSchema = z.object({
   stock: z.number().int().nonnegative().optional(),
   reorderPoint: z.number().int().nonnegative().optional(),
   hsnCode: z.string().nullable().optional(),
+  // Hand-written search-result title and snippet. Null = the storefront
+  // generates them from the name and description (see web/lib/seo-title.ts).
+  metaTitle: z.string().nullable().optional(),
+  metaDescription: z.string().nullable().optional(),
+  metaKeywords: z.string().nullable().optional(),
   status: z.enum(['active', 'draft', 'discontinued']).optional(),
   imageUrl: z.string().url().nullable().optional(),
   images: z.array(z.string().url()).optional(),

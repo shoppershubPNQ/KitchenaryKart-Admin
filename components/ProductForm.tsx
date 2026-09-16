@@ -25,9 +25,37 @@ export interface ProductDraft {
   stock?: number;
   reorderPoint?: number;
   hsnCode?: string | null;
+  /** Hand-written Google result title. Blank = generated from the name. */
+  metaTitle?: string | null;
+  /** Hand-written Google snippet. Blank = generated from the description. */
+  metaDescription?: string | null;
   status?: 'active' | 'draft' | 'discontinued';
   isBestseller?: boolean;
   isNewArrival?: boolean;
+}
+
+/** Length hint under a meta field. Google truncates a title around 60
+ *  characters and a snippet around 160 — past that the tail is simply not
+ *  shown, so the count is a real limit, not a style preference. */
+function CharCount({ value, limit }: { value: string; limit: number }) {
+  const n = value.trim().length;
+  if (n === 0) {
+    return <p className="mt-1 text-[11px] text-slate-400">Blank — the site generates this one.</p>;
+  }
+  const tone = n > limit ? 'text-red-600' : n > limit * 0.9 ? 'text-amber-600' : 'text-emerald-600';
+  return (
+    <p className={`mt-1 text-[11px] ${tone}`}>
+      {n} / {limit} characters{n > limit ? ' — Google will cut the end off' : ''}
+    </p>
+  );
+}
+
+/** Trim to a word boundary, for the preview box only. */
+function clampPreview(text: string, limit: number): string {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  if (clean.length <= limit) return clean;
+  const cut = clean.lastIndexOf(' ', limit);
+  return clean.slice(0, cut > 0 ? cut : limit).trimEnd() + '…';
 }
 
 export function ProductForm({ initial, isNew }: { initial: ProductDraft; isNew: boolean }) {
@@ -216,6 +244,60 @@ export function ProductForm({ initial, isNew }: { initial: ProductDraft; isNew: 
         <div>
           <label className="label">Weight</label>
           <input className="input" value={form.weight || ''} onChange={e => update('weight', e.target.value)} />
+        </div>
+      </fieldset>
+
+      <fieldset className="space-y-4">
+        <legend className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-2">
+          Search engine listing
+        </legend>
+        <p className="-mt-1 text-[11px] leading-relaxed text-slate-500">
+          Leave these blank and the site writes them itself from the product name and description —
+          that is what every product does today. Fill them in for the handful of products that
+          actually bring search traffic; writing them for everything is not worth the effort.
+          The title is what people click in Google. The description does not affect ranking
+          (Google often rewrites it), it only affects whether the result gets clicked.
+        </p>
+
+        <div>
+          <label className="label">Meta title</label>
+          <input
+            className="input"
+            value={form.metaTitle || ''}
+            onChange={(e) => update('metaTitle', e.target.value)}
+            placeholder={form.name ? `${form.name.slice(0, 45)} | Kitchenary Kart` : 'Auto-generated from the product name'}
+          />
+          <CharCount value={form.metaTitle || ''} limit={60} />
+        </div>
+
+        <div>
+          <label className="label">Meta description</label>
+          <textarea
+            className="input"
+            rows={3}
+            value={form.metaDescription || ''}
+            onChange={(e) => update('metaDescription', e.target.value)}
+            placeholder="Auto-generated from the product description"
+          />
+          <CharCount value={form.metaDescription || ''} limit={160} />
+        </div>
+
+        {/* What the result is shaped like in Google. Only the lengths and
+            truncation are real — Google decides the final wording itself. */}
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+            Roughly how Google would show it
+          </div>
+          <div className="text-xs text-slate-600">
+            kitchenarykart.com › product › {form.sku || 'SKU'}
+          </div>
+          <div className="mt-0.5 truncate text-[18px] leading-snug text-[#1a0dab]">
+            {form.metaTitle?.trim() || (form.name ? `${form.name} | Kitchenary Kart` : 'Product title')}
+          </div>
+          <div className="mt-0.5 text-[13px] leading-snug text-slate-700">
+            {clampPreview(form.metaDescription?.trim() || form.description?.trim() || '', 160) ||
+              'The description shown here comes from the product description when this is blank.'}
+          </div>
         </div>
       </fieldset>
 

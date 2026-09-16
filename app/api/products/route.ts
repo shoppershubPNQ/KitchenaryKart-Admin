@@ -28,6 +28,11 @@ const createSchema = z.object({
   stock: z.number().int().nonnegative().optional(),
   reorderPoint: z.number().int().nonnegative().optional(),
   hsnCode: z.string().optional(),
+  // Hand-written search-result title and snippet. Blank = the storefront
+  // generates them from the name and description (see web/lib/seo-title.ts).
+  metaTitle: z.string().optional(),
+  metaDescription: z.string().optional(),
+  metaKeywords: z.string().optional(),
   status: z.enum(['active', 'draft', 'discontinued']).optional(),
   imageUrl: z.string().url().optional(),
   images: z.array(z.string().url()).optional(),
