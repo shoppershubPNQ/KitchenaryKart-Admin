@@ -434,6 +434,13 @@ model Order {
   /// Column added by raw SQL 2026-09-12 (scripts/add-abandoned-alert-column.ts).
   abandonedAlertAt DateTime? @map("abandoned_alert_at")
 
+  /// Set by the review-request cron once this delivered order's buyer has been
+  /// asked for a review, so nobody is emailed twice. Only real buyers can post
+  /// a review, so this is how ratings grow now that the storefront shows real
+  /// ratings only.
+  /// Column added by raw SQL 2026-09-16 (scripts/add-review-email-column.ts).
+  reviewEmailAt DateTime? @map("review_email_at")
+
   /// Coupon code applied at checkout (uppercase). The actual ₹ value
   /// deducted lives in discountAmount above. NULL when no coupon used.
   couponCode String? @map("coupon_code")
