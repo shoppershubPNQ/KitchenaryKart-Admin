@@ -14,6 +14,7 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { api, inr } from '@/lib/fetch';
 import { SalesChart } from '@/components/SalesChart';
+import { Overview } from '@/components/analytics/Overview';
 
 type Tab = 'overview' | 'visitors' | 'products' | 'sales';
 const TABS: Array<{ v: Tab; label: string }> = [
@@ -22,11 +23,14 @@ const TABS: Array<{ v: Tab; label: string }> = [
   { v: 'products', label: 'Products' },
   { v: 'sales', label: 'Sales' },
 ];
+// 28 days is GA4's default month; 365 is there because sales history goes back
+// far further than visitor tracking does.
 const RANGES = [
   { v: 1, label: 'Today' },
   { v: 7, label: '7 days' },
-  { v: 30, label: '30 days' },
+  { v: 28, label: '28 days' },
   { v: 90, label: '90 days' },
+  { v: 365, label: '12 months' },
 ];
 const FILTERS = [
   { v: 'all', label: 'All visits' },
@@ -176,16 +180,6 @@ function useTraffic(days: number) {
   return { data, error };
 }
 
-function Kpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="card p-4">
-      <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="text-2xl font-semibold text-slate-900 mt-1">{value}</div>
-      {hint && <div className="text-xs text-slate-500 mt-1">{hint}</div>}
-    </div>
-  );
-}
-
 function NoTrackingYet({ since }: { since: string | null }) {
   if (since) {
     return <p className="text-xs text-slate-500">Visitor tracking since {ist(since)}.</p>;
@@ -193,139 +187,6 @@ function NoTrackingYet({ since }: { since: string | null }) {
   return (
     <div className="card p-4 text-sm text-amber-800 bg-amber-50 border-amber-200">
       No visitor data yet. Tracking starts once the storefront update is live; visits appear here within a minute.
-    </div>
-  );
-}
-
-function Overview({ days }: { days: number }) {
-  const { data, error } = useTraffic(days);
-  if (error) return <div className="card p-6 text-red-700">{error}</div>;
-  if (!data) return <div className="card p-8 text-center text-slate-400">Loading…</div>;
-  const t = data.totals;
-  const mobile = data.devices.find((d) => d.device === 'mobile')?.n ?? 0;
-  const deviceTotal = data.devices.reduce((s, d) => s + d.n, 0);
-  const top = data.funnel[0]?.n || 0;
-
-  return (
-    <div className="space-y-6">
-      <NoTrackingYet since={data.trackingSince} />
-
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <Kpi label="Visitors" value={t.visitors.toLocaleString('en-IN')} hint="unique people" />
-        <Kpi label="Visits" value={t.sessions.toLocaleString('en-IN')} hint="a visit ends after 30 min idle" />
-        <Kpi label="Page views" value={t.pageviews.toLocaleString('en-IN')} />
-        <Kpi label="Avg time on site" value={fmtDur(t.avgActiveMs)} hint="time the page was on screen" />
-        <Kpi label="Pages per visit" value={t.pagesPerSession ? t.pagesPerSession.toFixed(1) : '—'} />
-        <Kpi label="Left after 1 page" value={t.sessions ? `${Math.round(t.bounceRate * 100)}%` : '—'} hint={deviceTotal ? `${pct(mobile, deviceTotal)} on mobile` : undefined} />
-      </div>
-
-      <section className="card p-5">
-        <h2 className="font-semibold mb-1">Checkout funnel</h2>
-        <p className="text-xs text-slate-500 mb-4">Visits that reached each step. The red number is how many dropped off since the step before.</p>
-        <div className="space-y-2.5">
-          {data.funnel.map((s, i) => {
-            const prev = i > 0 ? data.funnel[i - 1].n : s.n;
-            const drop = i > 0 ? prev - s.n : 0;
-            return (
-              <div key={s.key} className="grid grid-cols-[180px_1fr_150px] items-center gap-3 text-sm">
-                <div className="text-slate-700">{s.label}</div>
-                <div className="h-7 bg-slate-100 rounded overflow-hidden">
-                  <div className="h-full bg-red-700/80 rounded" style={{ width: top ? `${Math.max(2, (s.n / top) * 100)}%` : '0%' }} />
-                </div>
-                <div className="text-right tabular-nums">
-                  <span className="font-semibold">{s.n.toLocaleString('en-IN')}</span>
-                  <span className="text-slate-500"> · {pct(s.n, top)}</span>
-                  {drop > 0 && <span className="text-red-600 ml-2">−{drop}</span>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        <section className="card">
-          <div className="px-4 py-3 border-b border-slate-200 font-semibold">Where visitors came from</div>
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
-              <tr><th className="px-4 py-2 text-left">Source</th><th className="px-4 py-2 text-right">Visits</th><th className="px-4 py-2 text-right">Added to cart</th><th className="px-4 py-2 text-right">Bought</th></tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {data.sources.map((s) => (
-                <tr key={s.source}>
-                  <td className="px-4 py-2">{s.source}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{s.sessions}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{s.carts}</td>
-                  <td className="px-4 py-2 text-right tabular-nums font-medium">{s.buyers}</td>
-                </tr>
-              ))}
-              {data.sources.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-slate-400">No visits yet.</td></tr>}
-            </tbody>
-          </table>
-        </section>
-
-        <section className="card">
-          <div className="px-4 py-3 border-b border-slate-200 font-semibold">Cities</div>
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
-              <tr><th className="px-4 py-2 text-left">City</th><th className="px-4 py-2 text-right">Visits</th></tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {data.cities.map((c, i) => (
-                <tr key={i}>
-                  <td className="px-4 py-2">{[c.city, c.region, c.country].filter(Boolean).join(', ') || 'Unknown'}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{c.n}</td>
-                </tr>
-              ))}
-              {data.cities.length === 0 && <tr><td colSpan={2} className="p-6 text-center text-slate-400">No visits yet.</td></tr>}
-            </tbody>
-          </table>
-        </section>
-      </div>
-
-      <section className="card">
-        <div className="px-4 py-3 border-b border-slate-200 font-semibold">Most viewed pages</div>
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
-            <tr><th className="px-4 py-2 text-left">Page</th><th className="px-4 py-2 text-right">Views</th><th className="px-4 py-2 text-right">Visitors</th><th className="px-4 py-2 text-right">Avg time on page</th></tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {data.pages.map((p) => (
-              <tr key={p.path}>
-                <td className="px-4 py-2"><a href={STORE + p.path} target="_blank" rel="noreferrer" className="text-slate-800 hover:text-red-700 break-all">{p.path}</a></td>
-                <td className="px-4 py-2 text-right tabular-nums">{p.views}</td>
-                <td className="px-4 py-2 text-right tabular-nums">{p.visitors}</td>
-                <td className="px-4 py-2 text-right tabular-nums">{fmtDur(p.avgMs)}</td>
-              </tr>
-            ))}
-            {data.pages.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-slate-400">No page views yet.</td></tr>}
-          </tbody>
-        </table>
-      </section>
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        <section className="card">
-          <div className="px-4 py-3 border-b border-slate-200 font-semibold">What people searched for</div>
-          <table className="w-full text-sm">
-            <tbody className="divide-y divide-slate-100">
-              {data.searches.map((s) => (
-                <tr key={s.q}><td className="px-4 py-2">{s.q}</td><td className="px-4 py-2 text-right tabular-nums">{s.n}</td></tr>
-              ))}
-              {data.searches.length === 0 && <tr><td className="p-6 text-center text-slate-400">No searches yet.</td></tr>}
-            </tbody>
-          </table>
-        </section>
-        <section className="card p-5">
-          <h2 className="font-semibold mb-3">Key actions</h2>
-          <dl className="grid grid-cols-2 gap-y-2 text-sm">
-            <dt className="text-slate-600">WhatsApp taps</dt><dd className="text-right font-medium">{data.actions.whatsapp_click ?? 0}</dd>
-            <dt className="text-slate-600">Call taps</dt><dd className="text-right font-medium">{data.actions.call_click ?? 0}</dd>
-            <dt className="text-slate-600">Payments failed</dt><dd className="text-right font-medium text-red-700">{data.actions.payment_failed ?? 0}</dd>
-            <dt className="text-slate-600">Payment window closed</dt><dd className="text-right font-medium">{data.actions.payment_dismissed ?? 0}</dd>
-            <dt className="text-slate-600">Removed from cart</dt><dd className="text-right font-medium">{data.actions.remove_from_cart ?? 0}</dd>
-          </dl>
-        </section>
-      </div>
     </div>
   );
 }
