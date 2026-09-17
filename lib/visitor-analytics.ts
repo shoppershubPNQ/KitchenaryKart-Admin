@@ -161,10 +161,12 @@ type SessionAggRow = {
   active_ms: bigint | number | null;
 };
 
-export async function getSessions(days: number, filter: string, hideStaff: boolean) {
+export async function getSessions(days: number, filter: string, hideStaff: boolean, maxRows?: number) {
   const since = new Date(Date.now() - days * 86_400_000);
   const having = HAVING[filter] ?? Prisma.empty;
-  const limit = filter === 'known' ? 1000 : 150;
+  // The dashboard table shows the latest 150; the Excel export passes a far
+  // larger cap so the file holds every visit in the range.
+  const limit = maxRows ?? (filter === 'known' ? 1000 : 150);
 
   const rows = await prisma.$queryRaw<SessionAggRow[]>`
     WITH pv AS (

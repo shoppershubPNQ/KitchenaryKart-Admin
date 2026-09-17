@@ -132,19 +132,37 @@ export default function AnalyticsPage() {
     <div className="space-y-6 max-w-7xl">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-slate-900">Analytics</h1>
-        {tab !== 'sales' && (
-          <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
-            {RANGES.map((r) => (
-              <button
-                key={r.v}
-                onClick={() => setDays(r.v)}
-                className={`px-3 py-1.5 text-sm rounded-md ${days === r.v ? 'bg-white shadow text-slate-900 font-medium' : 'text-slate-600'}`}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {tab !== 'sales' && (
+            <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+              {RANGES.map((r) => (
+                <button
+                  key={r.v}
+                  onClick={() => setDays(r.v)}
+                  className={`px-3 py-1.5 text-sm rounded-md ${days === r.v ? 'bg-white shadow text-slate-900 font-medium' : 'text-slate-600'}`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Everything on this dashboard for the chosen range as one Excel
+              workbook, for the owner's own analysis (lib/analytics-export.ts).
+              Staff test visits are left out, same as the default view. */}
+          <a
+            href={`/api/analytics/export?days=${days}`}
+            className="btn-outline gap-1.5 text-sm"
+            download
+            title={`Summary, daily, every visit, paid orders, products and breakdowns — last ${RANGES.find((r) => r.v === days)?.label ?? `${days} days`}`}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Export to Excel
+          </a>
+        </div>
       </div>
 
       <div className="flex gap-6 border-b border-slate-200">

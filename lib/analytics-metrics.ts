@@ -11,12 +11,12 @@
  *    carried is a paid, non-cancelled order in the DB — the same PAID rule the
  *    rest of the admin uses. Revenue is summed from orders for the same reason.
  *
- * 2. STAFF TEST VISITS ARE EXCLUDED BY DEFAULT. On 15 Sep 2026 every single
- *    checkout in the data was the owner testing: 11 payment windows opened, 11
- *    closed, nothing paid. Counted as real that reads "everyone abandons
- *    payment". A visitor is staff if any order they placed is internal — by
- *    email/name (the shared isInternalCustomer rule) OR by phone matching an
- *    internal order, which catches tests placed under a customer's name.
+ * 2. STAFF TEST VISITS ARE EXCLUDED BY DEFAULT. On 15 Sep 2026 most checkouts
+ *    in the data were the owner testing, and counted as real that reads
+ *    "everyone abandons payment". A visitor is staff if any order they placed
+ *    is internal by email or name — the shared isInternalCustomer rule, so the
+ *    dashboard, the Visits list and the Excel export all agree. NOT by phone:
+ *    staff order on a customer's behalf using that customer's number.
  *
  * 3. DAYS ARE IST DAYS. created_at is UTC; an Indian shop's "yesterday" ends at
  *    midnight IST, so every bucket converts before truncating. Without this the
@@ -53,9 +53,6 @@ const PAID = Prisma.sql`o.payment_status = 'completed' AND o.order_status <> 'ca
 /** created_at as an IST wall-clock timestamp (the column is UTC). */
 const istTime = (col: Prisma.Sql) => Prisma.sql`(${col} AT TIME ZONE 'UTC' AT TIME ZONE ${IST})`;
 
-/** Digits-only last 10 of a phone, so +91 / spaces / 0-prefix all compare equal. */
-const last10 = (col: string) => Prisma.raw(`RIGHT(regexp_replace(COALESCE(${col}, ''), '[^0-9]', '', 'g'), 10)`);
-
 /**
  * An order placed by us rather than a customer. Mirrors isInternalCustomer:
  * a hotelicessentials.com address, or the word "test" as a whole word. The
@@ -69,9 +66,16 @@ const INTERNAL_ORDER = (alias: string) => Prisma.raw(
 );
 
 /**
- * Visitors to treat as staff: anyone whose tracked order is internal, plus
- * anyone whose tracked order shares a PHONE with an internal order — the
- * owner's test checkouts go out under real company names but the same number.
+ * Visitors to treat as staff: anyone whose tracked order is internal by email
+ * or name — the same isInternalCustomer rule the Visits list, the abandoned-
+ * checkout alerts and the Orders export all use.
+ *
+ * There used to be a second arm matching by PHONE ("shares a number with an
+ * internal order"). It was wrong and is gone: staff place orders on a real
+ * customer's behalf from the office email but with THAT customer's phone, so
+ * the phone rule marked the customer as staff. It hid Amit Singh — a real
+ * buyer who spent 43 minutes on a chafing dish on 17 Sep — and it made the
+ * dashboard's visit count disagree with the Visits list (141 vs 146).
  *
  * Resolved ONCE per request and passed to the queries as a list of ids.
  */
@@ -81,11 +85,7 @@ async function staffVisitorIds(): Promise<string[]> {
     FROM analytics_events e
     JOIN orders o ON o.order_number = e.order_number
     WHERE e.visitor_id IS NOT NULL
-      AND (${INTERNAL_ORDER('o')}
-           OR (LENGTH(${last10('o.customer_phone')}) = 10
-               AND ${last10('o.customer_phone')} IN (
-                 SELECT ${last10('o2.customer_phone')} FROM orders o2
-                 WHERE ${INTERNAL_ORDER('o2')} AND o2.customer_phone IS NOT NULL)))`);
+      AND ${INTERNAL_ORDER('o')}`);
   return rows.map((r) => r.visitor_id);
 }
 
