@@ -61,17 +61,27 @@ export async function checkOrderPayment(o: {
 export async function finalizePaidOrder(
   orderId: number,
   opts: {
-    razorpayPaymentId: string;
+    /** Required for every Razorpay source; unused when `offline` is set. */
+    razorpayPaymentId?: string;
     razorpaySignature?: string | null;
     /** Captured amount in paise (from Razorpay). Null for the legacy checkout
      * path, which didn't send it — keeps the payment row at 0 as before. */
     amountPaise?: number | null;
-    source: 'checkout' | 'webhook' | 'reconcile' | 'payment-link';
+    source: 'checkout' | 'webhook' | 'reconcile' | 'payment-link' | 'offline';
+    /**
+     * Money received OUTSIDE Razorpay — bank transfer, UPI straight to our
+     * account, cash, cheque — recorded by an admin. Goes through this same
+     * function on purpose, so the invoice serial, coupon redemption and emails
+     * cannot be skipped the way flipping the Payment status dropdown skips them.
+     */
+    offline?: { method: string; reference: string | null; note: string };
+    /** Customer confirmation + team alert. Default true. */
+    sendEmails?: boolean;
   }
 ): Promise<{ order: { id: number; paymentStatus: string }; alreadyProcessed: boolean } | null> {
   const existing = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { id: true, paymentStatus: true },
+    select: { id: true, paymentStatus: true, internalNotes: true },
   });
   if (!existing) return null;
   if (existing.paymentStatus === 'completed') {
@@ -84,15 +94,25 @@ export async function finalizePaidOrder(
       paymentStatus: 'completed',
       // Paid orders move straight into the fulfilment queue.
       orderStatus: 'processing',
-      paymentMethod: 'razorpay',
-      paymentReference: opts.razorpayPaymentId,
+      paymentMethod: opts.offline ? opts.offline.method : 'razorpay',
+      paymentReference: opts.offline ? opts.offline.reference : opts.razorpayPaymentId ?? null,
+      // Who recorded an offline payment, how, and with what reference — the
+      // only audit trail there is, since no gateway saw this money.
+      ...(opts.offline
+        ? {
+            internalNotes: existing.internalNotes
+              ? `${existing.internalNotes}\n${opts.offline.note}`
+              : opts.offline.note,
+          }
+        : {}),
       payments: {
         create: {
           amount: opts.amountPaise != null ? opts.amountPaise / 100 : 0,
-          paymentMethod: 'razorpay',
+          paymentMethod: opts.offline ? opts.offline.method : 'razorpay',
+          paymentReference: opts.offline ? opts.offline.reference : null,
           status: 'completed',
-          razorpayPaymentId: opts.razorpayPaymentId,
-          razorpaySignature: opts.razorpaySignature ?? null,
+          razorpayPaymentId: opts.offline ? null : opts.razorpayPaymentId ?? null,
+          razorpaySignature: opts.offline ? null : opts.razorpaySignature ?? null,
         },
       },
     },
@@ -146,7 +166,7 @@ export async function finalizePaidOrder(
 
   // Order-confirmation email. Awaited — Vercel serverless cancels in-flight
   // fire-and-forget requests after the response returns. sendEmail never throws.
-  if (order.customerEmail) {
+  if (opts.sendEmails !== false && order.customerEmail) {
     const { subject, html, text } = buildOrderConfirmationEmail({
       orderNumber: order.orderNumber,
       customerName: order.customerName,
@@ -168,7 +188,7 @@ export async function finalizePaidOrder(
   }
 
   // Internal new-order alert to the business inboxes. Awaited; never throws.
-  const recipients = adminRecipients();
+  const recipients = opts.sendEmails === false ? [] : adminRecipients();
   if (recipients.length > 0) {
     const adminBase = adminBaseUrl();
     const adminMail = buildAdminNewOrderEmail({

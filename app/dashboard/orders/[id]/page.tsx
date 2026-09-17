@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, inr, dateShort } from '@/lib/fetch';
 import { computeOrderSummary } from '@/lib/order-summary';
+import { MarkPaidOffline } from '@/components/MarkPaidOffline';
 
 interface OrderItem {
   id: number;
@@ -105,6 +106,11 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
             <option value="refunded">Refunded</option>
           </select>
           {order.paymentMethod && <div className="text-xs text-slate-500 mt-2">via {order.paymentMethod}</div>}
+          {order.paymentStatus !== 'completed' && (
+            <div className="text-[11px] text-slate-400 mt-2">
+              Only changes the label. Money received by bank/UPI/cash? Use &ldquo;Record payment&rdquo; below.
+            </div>
+          )}
         </div>
         <div className="card p-4">
           <div className="label">Customer</div>
@@ -119,6 +125,16 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
           )}
         </div>
       </div>
+
+      {order.paymentStatus !== 'completed' && (
+        <MarkPaidOffline
+          orderId={order.id}
+          orderNumber={order.orderNumber}
+          total={Number(order.totalAmount ?? 0)}
+          customerEmail={order.customerEmail}
+          onDone={load}
+        />
+      )}
 
       <div className="card overflow-x-auto">
         <div className="px-4 py-3 border-b border-slate-200 font-semibold">Items</div>
