@@ -3,16 +3,33 @@
  *  never the parent (the other sizes' pages would claim its specs).
  *  Backs up the variant first; dry run unless --apply; busts the live
  *  storefront product cache after applying.
- *  Usage: npx tsx --env-file=.env scripts/set-variant-description.ts <VARIANT_SKU> <text-file> [--apply] */
+ *  Usage: npx tsx --env-file=.env scripts/set-variant-description.ts <VARIANT_SKU> <text-file> [--keep-lines] [--apply]
+ *
+ *  By default all whitespace collapses to single spaces — right for one pasted
+ *  paragraph. --keep-lines keeps line and paragraph breaks instead: the PDP
+ *  renders the description with whitespace-pre-line, so headings ("Key
+ *  Features") and "•" bullets only survive as structure if the newlines do.
+ *  Collapsing them turned a formatted description into one run-on line. */
 import * as fs from 'fs';
 import { prisma } from '../lib/db';
 
 const [SKU, FILE] = process.argv.slice(2);
 const APPLY = process.argv.includes('--apply');
+const KEEP_LINES = process.argv.includes('--keep-lines');
 
 (async () => {
-  if (!SKU || !FILE) { console.log('usage: <VARIANT_SKU> <text-file> [--apply]'); return; }
-  const text = fs.readFileSync(FILE, 'utf8').replace(/\s+/g, ' ').trim();
+  if (!SKU || !FILE) { console.log('usage: <VARIANT_SKU> <text-file> [--keep-lines] [--apply]'); return; }
+  const raw = fs.readFileSync(FILE, 'utf8');
+  const text = KEEP_LINES
+    ? raw
+        .replace(/\r\n?/g, '\n')
+        .split('\n')
+        .map((line) => line.replace(/[ \t]+/g, ' ').trim())
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n') // at most one blank line between blocks
+        .trim()
+    : raw.replace(/\s+/g, ' ').trim();
+  if (KEEP_LINES) console.log(`keeping line breaks: ${text.split('\n').length} lines`);
   const v = await prisma.productVariant.findFirst({
     where: { skuSuffix: SKU },
     select: { id: true, skuSuffix: true, variantValue: true, capacity: true, power: true, description: true, product: { select: { sku: true, name: true } } },
