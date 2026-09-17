@@ -6,6 +6,10 @@
  * contain the SKU), so this is the one honest way to grow ratings — the
  * storefront no longer shows any invented rating.
  */
+import {
+  BRAND, button, emailShell, esc, paragraph, spacer, textBody, textFooter,
+} from './layout';
+
 export interface ReviewRequestInput {
   orderNumber: string;
   customerName: string | null;
@@ -14,55 +18,73 @@ export interface ReviewRequestInput {
   storeUrl: string;
 }
 
-const esc = (s: unknown) =>
-  String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
-
 export function buildReviewRequestEmail(o: ReviewRequestInput) {
-  const first = (o.customerName || '').trim().split(/\s+/)[0] || 'there';
+  const first = (o.customerName || '').trim().split(/\s+/)[0] || null;
   const one = o.items[0];
   const subject =
     o.items.length === 1
-      ? `How is your ${one.name.slice(0, 60)}? — KitchenaryKart`
-      : `How was your order ${o.orderNumber}? — KitchenaryKart`;
+      ? `How is your ${one.name.slice(0, 60)}? — Kitchenary Kart`
+      : `How was your order ${o.orderNumber}? — Kitchenary Kart`;
 
-  const rows = o.items
-    .map(
-      (it) => `
-      <tr>
-        <td style="padding:8px 0;font-size:14px;color:#222;">${esc(it.name)}</td>
-        <td style="padding:8px 0;text-align:right;">
-          <a href="${o.storeUrl}/product/${encodeURIComponent(it.sku)}"
-             style="display:inline-block;background:#A01818;color:#fff;text-decoration:none;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:bold;">Write a review</a>
-        </td>
-      </tr>`,
-    )
-    .join('');
+  const productUrl = (sku: string) => `${o.storeUrl}/product/${encodeURIComponent(sku)}`;
 
-  const html = `
-  <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#222;">
-    <h2 style="color:#A01818;margin:0 0 6px;">How is it working out?</h2>
-    <p style="margin:0 0 16px;color:#555;">Hi ${esc(first)}, your order <strong>${esc(o.orderNumber)}</strong> was delivered a few days ago.
-      If you have a minute, a short review helps other restaurant and cafe owners decide.</p>
+  // One product: a single wide button. Several: a row per product, each with
+  // its own link, so the buyer does not have to work out which is which.
+  const picker =
+    o.items.length === 1
+      ? button('Write a review', productUrl(one.sku))
+      : `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+          ${o.items
+            .map(
+              (it) => `
+            <tr>
+              <td style="padding:12px 0;border-bottom:1px solid ${BRAND.lineSoft};">
+                <div style="color:${BRAND.ink};font-size:14px;font-weight:600;line-height:1.45;margin-bottom:8px;">${esc(it.name)}</div>
+                <a href="${productUrl(it.sku)}" style="color:${BRAND.red};font-size:14px;font-weight:600;text-decoration:underline;">Write a review &rarr;</a>
+              </td>
+            </tr>`,
+            )
+            .join('')}
+        </table>`;
 
-    <table style="width:100%;border-collapse:collapse;border-top:1px solid #eee;">${rows}</table>
+  const body = [
+    paragraph(
+      `${first ? `Hi ${esc(first)}, your` : 'Your'} order <strong>${esc(o.orderNumber)}</strong> was delivered a few days ago. ` +
+        `If you have a minute, a short review helps other restaurant and cafe owners decide.`,
+    ),
+    spacer(10),
+    picker,
+    spacer(22),
+    paragraph(
+      'Sign in with the same phone number or email you used for this order — only verified buyers can review, which is what keeps the ratings on our site honest.',
+      { muted: true, size: 13 },
+    ),
+  ].join('');
 
-    <p style="color:#888;font-size:13px;margin-top:18px;">
-      Sign in with the same phone number or email you used for this order — only verified buyers can review,
-      which is what keeps the ratings on our site honest.
-    </p>
-    <p style="color:#888;font-size:13px;">Something not right with the product? Reply to this email or WhatsApp
-      +91 98903 52455 and we'll sort it out first.</p>
-  </div>`;
+  const html = emailShell({
+    subject,
+    preheader:
+      o.items.length === 1
+        ? `A minute on the ${one.name.slice(0, 60)} would help other buyers.`
+        : 'A short review helps other restaurant and cafe owners decide.',
+    eyebrow: 'Delivered',
+    heading: 'How is it working out?',
+    body,
+    footerNote:
+      "Something not right with the product? Reply to this email before leaving a review and we will sort it out first.",
+  });
 
-  const text = [
-    `Hi ${first}, your order ${o.orderNumber} was delivered a few days ago.`,
-    'If you have a minute, a short review helps other restaurant and cafe owners decide.',
+  const text = textBody([
+    first ? `Hi ${first},` : 'Hi,',
     '',
-    ...o.items.map((it) => `${it.name}: ${o.storeUrl}/product/${encodeURIComponent(it.sku)}`),
+    `Your order ${o.orderNumber} was delivered a few days ago. If you have a minute, a short review helps other restaurant and cafe owners decide.`,
+    '',
+    ...o.items.map((it) => `${it.name}: ${productUrl(it.sku)}`),
     '',
     'Sign in with the same phone number or email you used for the order — only verified buyers can review.',
-    "Something not right? Reply to this email or WhatsApp +91 98903 52455 and we'll sort it out first.",
-  ].join('\n');
+    '',
+    'Something not right? Reply to this email before leaving a review and we will sort it out first.',
+  ]) + textFooter();
 
   return { subject, html, text };
 }
