@@ -50,11 +50,13 @@ function parse(file: string): Section[] {
 
     if (tags.includes('Heading1')) {
       flush();
-      const b = /^\d+\.?\s+(.+?)\s+—\s+([A-Z]{2,}[A-Z0-9]*\d+-[A-Z0-9-]+)$/.exec(text); // layout B
-      const a = /^\d+\.?\s+(.+)$/.exec(text); // layout A (SKU on its own line)
+      const b = /^\d+\.?\s+(.+?)\s+—\s+([A-Z]{2,}[A-Z0-9]*\d+-[A-Z0-9.-]+)$/.exec(text); // layout B
+      // Layout A: any heading may start a product (numbered or not — the
+      // cotton candy doc has no numbers). It only counts once a "SKU:" line
+      // follows; "SEO Keywords", "Research notes"… never get one and drop out.
       if (b) cur = { file, sku: b[2], title: b[1], body: [], inDesc: false, pendingLabel: '' };
-      else if (a) cur = { file, sku: '', title: a[1], body: [], inDesc: false, pendingLabel: '' };
-      continue; // "SEO Keywords", "Research notes"… end the last product
+      else cur = { file, sku: '', title: text.replace(/^\d+\.?\s+/, ''), body: [], inDesc: false, pendingLabel: '' };
+      continue;
     }
     if (!cur) continue;
     if (text.startsWith('SKU:')) { cur.sku = text.slice(4).trim(); continue; }
