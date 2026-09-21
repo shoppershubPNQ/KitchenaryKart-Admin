@@ -97,6 +97,7 @@ const delhiverySchema = z.object({
     apiToken: z.string().min(1),
     clientName: z.string().min(1),
     pickupLocation: z.string().trim().optional(),
+    pickupPincode: z.string().trim().regex(/^\d{6}$/, 'Pickup pincode must be 6 digits').optional().or(z.literal('')),
     useStaging: z.boolean().optional(),
   }),
 });

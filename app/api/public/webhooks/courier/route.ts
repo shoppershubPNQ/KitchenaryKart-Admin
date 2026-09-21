@@ -19,7 +19,8 @@ import { prisma } from '@/lib/db';
 import { fail, ok } from '@/lib/api';
 import { safeEqual } from '@/lib/crypto';
 import { applyOrderStatus } from '@/lib/order-status';
-import { mapCourierStatus, orderStatusFor, trackingUrlFor } from '@/lib/shipping-providers';
+import { mapCourierStatus, mapDelhiveryStatus, delhiveryTime, orderStatusFor, trackingUrlFor, isForwardMove } from '@/lib/shipping-providers';
+import { applyCourierUpdate } from '@/lib/shipments';
 import type { ShipmentProvider, ShipmentStatus } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
@@ -48,7 +49,7 @@ async function identify(secret: string): Promise<ShipmentProvider | null> {
 }
 
 /** Dig the AWB and status out of either courier's payload shape. */
-function readPayload(body: any): { awb: string | null; status: string | null; detail: string | null; location: string | null; at: Date } {
+function readPayload(body: any): { awb: string | null; status: string | null; statusType: string | null; detail: string | null; location: string | null; at: Date } {
   // Delhivery: { Shipment: { AWB, Status: { Status, StatusDateTime, ... } } }
   const s = body?.Shipment;
   if (s) {
@@ -56,9 +57,12 @@ function readPayload(body: any): { awb: string | null; status: string | null; de
     return {
       awb: s.AWB ? String(s.AWB) : null,
       status: st.Status ? String(st.Status) : null,
+      // UD forward / RT returning / DL delivered — the words alone are ambiguous.
+      statusType: st.StatusType ? String(st.StatusType) : null,
       detail: st.Instructions ? String(st.Instructions) : null,
       location: st.StatusLocation ? String(st.StatusLocation) : null,
-      at: st.StatusDateTime ? new Date(st.StatusDateTime) : new Date(),
+      // No zone in Delhivery timestamps: they are IST.
+      at: delhiveryTime(st.StatusDateTime) ?? new Date(),
     };
   }
   // Shiprocket: flat, { awb, current_status, ... }
@@ -67,6 +71,7 @@ function readPayload(body: any): { awb: string | null; status: string | null; de
   return {
     awb: awb ? String(awb) : null,
     status: status ? String(status) : null,
+    statusType: null,
     detail: body?.activity ?? body?.current_status_desc ?? null,
     location: body?.location ?? null,
     at: body?.current_timestamp || body?.scan_date ? new Date(body.current_timestamp ?? body.scan_date) : new Date(),
@@ -90,7 +95,7 @@ export async function POST(req: NextRequest) {
     return ok({ ignored: true, reason: 'unparseable' });
   }
 
-  const { awb, status, detail, location, at } = readPayload(body);
+  const { awb, status, statusType, detail, location, at } = readPayload(body);
   if (!awb || !status) {
     console.warn('[courier-webhook]', provider, 'payload had no awb/status');
     return ok({ ignored: true, reason: 'no awb or status' });
@@ -105,6 +110,18 @@ export async function POST(req: NextRequest) {
   if (!shipment) {
     console.warn('[courier-webhook]', provider, 'unknown AWB', awb);
     return ok({ unmatched: true, awb });
+  }
+
+  // Delhivery goes through the same code as the hourly poll and the Refresh
+  // button, so a scan means the same thing however it arrived.
+  if (provider === 'delhivery') {
+    const fresh = await prisma.shipment.findUniqueOrThrow({ where: { id: shipment.id } });
+    const mappedD = mapDelhiveryStatus(status, statusType);
+    const r = await applyCourierUpdate(fresh, {
+      mapped: mappedD,
+      events: [{ status, mapped: mappedD, detail, location, occurredAt: Number.isNaN(at.getTime()) ? new Date() : at, raw: body }],
+    }, 'webhook');
+    return ok({ recorded: r.recorded > 0, awb, mapped: mappedD, orderChanged: r.orderChanged });
   }
 
   const mapped: ShipmentStatus | null = mapCourierStatus(status);
@@ -144,7 +161,9 @@ export async function POST(req: NextRequest) {
   // human, not a scan.
   const nextOrderStatus = orderStatusFor(mapped);
   let orderChanged = false;
-  if (nextOrderStatus && shipment.order.orderStatus !== nextOrderStatus) {
+  // Forward only: a late scan must never pull a delivered order back to
+  // shipped (that would re-run delivery side effects on the next scan).
+  if (nextOrderStatus && isForwardMove(shipment.order.orderStatus, nextOrderStatus)) {
     const res = await applyOrderStatus(shipment.orderId, nextOrderStatus, {
       source: 'webhook',
       // Mirror the AWB onto the order the first time, so /track and the

@@ -68,6 +68,16 @@ export interface CreateShipmentInput {
   /** Courier chosen from a quote; omitted lets the courier pick. */
   courierId?: string | null;
   pickupLocation?: string | null;
+  /** Our GSTIN. Delhivery marks seller GST + HSN mandatory on manifestation. */
+  sellerGstin?: string | null;
+  /** Buyer's GSTIN on a B2B order. */
+  consigneeGstin?: string | null;
+  /** E-way bill number — required by law, and by Delhivery, above ₹50,000. */
+  ewaybill?: string | null;
+  /** Glass fronts, sneeze guards, display counters. */
+  fragile?: boolean;
+  /** Our tax invoice number, when the order has one. */
+  invoiceNumber?: string | null;
 }
 
 export interface CreateShipmentResult {
@@ -159,6 +169,67 @@ export function mapCourierStatus(raw: string | null | undefined): ShipmentStatus
   if (!raw) return null;
   const key = raw.toLowerCase().replace(/[^a-z]/g, '');
   return STATUS_MAP[key] ?? null;
+}
+
+/**
+ * Delhivery status → ours, using the STATUS TYPE as well as the words.
+ *
+ * Delhivery reuses the same status words for a parcel coming BACK to us: a
+ * return in progress is "In Transit" / "Pending" / "Dispatched" with type
+ * "RT", and a completed return is "RTO" with type "DL". Read on the words
+ * alone, a returning parcel would show as out for delivery. Per their
+ * forward-flow table (delhivery-express-api-doc, "Prepaid and COD
+ * shipments"): UD = forward, DL = delivered, RT = returning.
+ */
+export function mapDelhiveryStatus(
+  status: string | null | undefined,
+  statusType?: string | null,
+  reverseInTransit?: boolean | null,
+): ShipmentStatus | null {
+  const type = (statusType ?? '').toUpperCase().trim();
+  const words = (status ?? '').toLowerCase().replace(/[^a-z]/g, '');
+  if (type === 'RT' || type === 'RTO' || reverseInTransit === true || words.startsWith('rto')) return 'rto';
+  // "Delivered" only counts as delivered on a DL scan — never inferred.
+  if (words === 'delivered') return type === 'DL' || type === '' ? 'delivered' : null;
+  if (words === 'notpicked') return 'pickup_scheduled';
+  return mapCourierStatus(status);
+}
+
+/**
+ * Delhivery timestamps carry no zone ("2019-01-09T17:10:42.767") and are IST.
+ * `new Date()` on that string would read it as the server's local time — UTC
+ * on Vercel — and file every scan 5½ hours late. Anything that already names
+ * a zone is left to Date.
+ */
+export function delhiveryTime(raw: string | null | undefined): Date | null {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(s);
+  const d = new Date(hasZone ? s : `${s.replace(' ', 'T')}+05:30`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Order statuses in the order a shipment moves them. A courier scan may only
+ * move an order FORWARD: scans arrive late and out of order (a webhook retry,
+ * a poll catching up), and letting "In Transit" pull a delivered order back to
+ * shipped would re-run the delivered side effects on the next scan — stock
+ * decremented twice, a second email. Humans in the admin dropdown are not
+ * bound by this; only courier-driven changes are.
+ */
+const ORDER_RANK: Partial<Record<OrderStatus, number>> = {
+  pending: 0,
+  processing: 1,
+  shipped: 2,
+  delivered: 3,
+};
+
+export function isForwardMove(current: OrderStatus, next: OrderStatus): boolean {
+  const a = ORDER_RANK[current];
+  const b = ORDER_RANK[next];
+  // cancelled / returned are terminal decisions made by a person.
+  if (a === undefined || b === undefined) return false;
+  return b > a;
 }
 
 /**

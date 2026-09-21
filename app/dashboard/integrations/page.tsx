@@ -22,20 +22,21 @@ const LABELS: Record<string, string> = {
   apiToken: 'API token',
   clientName: 'Client name',
   pickupLocation: 'Pickup location name',
+  pickupPincode: 'Pickup pincode',
   channelId: 'Channel ID (optional)',
 };
 
 /** Which fields each courier needs, in the order they should be entered. */
 const FIELDS: Record<string, string[]> = {
   shiprocket: ['email', 'password', 'pickupLocation', 'channelId'],
-  delhivery: ['apiToken', 'clientName', 'pickupLocation'],
+  delhivery: ['apiToken', 'clientName', 'pickupLocation', 'pickupPincode'],
 };
 
 const HELP: Record<string, string> = {
   shiprocket:
     'Your Shiprocket panel login. The pickup location must match one already registered in Shiprocket — the API rejects an unknown name.',
   delhivery:
-    'The API token from Delhivery One (Settings → API). Client name is the registered client, and the pickup location must already exist in your Delhivery account.',
+    'The API token from Delhivery One (Settings → API). Client name is the registered client, and the pickup location must already exist in your Delhivery account (Settings → Pickup Locations) — type its name exactly. Pickup pincode is the pincode of that warehouse, used for rates and delivery times.',
 };
 
 export default function IntegrationsPage() {
@@ -191,7 +192,7 @@ function ProviderCard({
               type={key === 'password' || key === 'apiToken' ? 'text' : 'text'}
               value={fields[key] ?? ''}
               disabled={disabled}
-              placeholder={key === 'pickupLocation' ? 'Exactly as registered with the courier' : ''}
+              placeholder={key === 'pickupLocation' ? 'Exactly as registered with the courier' : key === 'pickupPincode' ? 'e.g. 411048' : ''}
               onChange={(e) => setFields((f) => ({ ...f, [key]: e.target.value }))}
             />
             {/* The mask is what the API returns; retyping is only needed to

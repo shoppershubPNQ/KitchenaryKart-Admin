@@ -19,6 +19,9 @@ export interface DelhiveryCreds {
   apiToken: string;
   clientName: string;
   pickupLocation?: string;
+  /** Pincode of that pickup warehouse — the origin for rate and delivery-time
+   *  lookups. Falls back to the company address pincode when blank. */
+  pickupPincode?: string;
   /** Staging is a genuinely different host, so it is a stored choice rather
    *  than an env flag — the owner may want to rehearse before going live. */
   useStaging?: boolean;
