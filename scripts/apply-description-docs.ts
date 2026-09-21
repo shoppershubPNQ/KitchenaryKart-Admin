@@ -32,7 +32,7 @@ const FILES = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 // Mirrors web/components/ProductDescription.tsx, to report labels that would
 // not render bold.
 const LABEL = /^([A-Z0-9][A-Za-z0-9 &/'’.-]{1,30}):\s+(.+)$/;
-const BULLET_LABEL = /^([A-Z0-9][A-Za-z0-9 &/'’.-]{1,40}):\s+(.+)$/;
+const BULLET_LABEL = /^([A-Z0-9][A-Za-z0-9 &/'’.,×–-]{1,59}):\s+(.+)$/;
 
 type Section = { file: string; sku: string; title: string; body: string[] };
 
@@ -59,7 +59,14 @@ function parse(file: string): Section[] {
       continue;
     }
     if (!cur) continue;
-    if (text.startsWith('SKU:')) { cur.sku = text.slice(4).trim(); continue; }
+    // The SKU line can share a table cell with SEO Title / Meta (deep fryer
+    // doc: "SKU: KKHE0085-FY8L21 / Source product listing / SEO Title: …"),
+    // so take the SKU token itself, not the rest of the line.
+    if (text.startsWith('SKU:')) {
+      const m = /KK-[A-Z]+-\d+|[A-Z]{2,}[A-Z0-9]*\d+-[A-Z0-9.]*[A-Z0-9]/.exec(text.slice(4));
+      cur.sku = (m ? m[0] : text.slice(4)).trim();
+      continue;
+    }
     if (tags.includes('Heading2')) {
       if (text === 'Product Description') { cur.inDesc = true; continue; }
       if (!cur.inDesc) continue;

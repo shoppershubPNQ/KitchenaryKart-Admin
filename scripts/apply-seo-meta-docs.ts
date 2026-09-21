@@ -19,17 +19,29 @@ const FILE = process.argv.slice(2).find((a) => !a.startsWith('--'));
   const items: Array<{ sku: string; title?: string; desc?: string }> = [];
   for (const raw of readFileSync(FILE, 'utf8').split(/\r?\n/)) {
     const t = raw.replace(/^\[[^\]]*\]\s?/, '').trim();
-    if (t.startsWith('SKU:')) items.push({ sku: t.slice(4).trim() });
+    if (t.startsWith('SKU:')) {
+      // The SKU can share a table cell with SEO Title and Meta (deep fryer
+      // doc): "SKU: X / Source product listing / SEO Title: T | KitchenaryKart
+      // / Meta Description: M | / Supplied product photograph."
+      const sku = /KK-[A-Z]+-\d+|[A-Z]{2,}[A-Z0-9]*\d+-[A-Z0-9.]*[A-Z0-9]/.exec(t.slice(4))?.[0] ?? t.slice(4).trim();
+      const item: { sku: string; title?: string; desc?: string } = { sku };
+      const title = /SEO Title:\s*(.+?\|\s*KitchenaryKart)/.exec(t)?.[1];
+      const desc = /Meta Description:\s*(.+?)\s*(?:\|\s*\/|\|\s*$|$)/.exec(t)?.[1];
+      if (title) item.title = title.trim();
+      if (desc) item.desc = desc.trim();
+      items.push(item);
+    }
     else if (t.startsWith('SEO Title:') && items.length) items[items.length - 1].title = t.slice(10).trim();
     else if (t.startsWith('Meta Description:') && items.length) items[items.length - 1].desc = t.slice(17).trim();
   }
 
   const changes: Array<{ sku: string; field: 'metaTitle' | 'metaDescription'; from: string | null; to: string }> = [];
   const skipped: string[] = [];
+  const tooLong: string[] = [];
   for (const it of items) {
     if (!it.title || !it.desc) throw new Error(`${it.sku}: missing title or meta description`);
-    if (it.title.length > 60) throw new Error(`${it.sku}: title ${it.title.length} chars`);
-    if (it.desc.length > 160) throw new Error(`${it.sku}: meta description ${it.desc.length} chars`);
+    if (it.title.length > 60) { tooLong.push(`${it.sku}: title ${it.title.length} — ${it.title}`); continue; }
+    if (it.desc.length > 160) { tooLong.push(`${it.sku}: meta ${it.desc.length} — ${it.desc}`); continue; }
     const p = await prisma.product.findUnique({ where: { sku: it.sku }, select: { metaTitle: true, metaDescription: true } });
     if (!p) { skipped.push(`${it.sku} — variant-only url, meta applies to parent url only`); continue; }
     if (p.metaTitle !== it.title) changes.push({ sku: it.sku, field: 'metaTitle', from: p.metaTitle, to: it.title });
@@ -39,6 +51,11 @@ const FILE = process.argv.slice(2).find((a) => !a.startsWith('--'));
   console.log(`${items.length} items · ${changes.length} field changes · ${skipped.length} skipped`);
   for (const c of changes) console.log(`${c.sku.padEnd(20)} ${c.field.padEnd(15)} (${c.to.length}) ${c.to}`);
   if (skipped.length) console.log(`\nskipped:\n  ${skipped.join('\n  ')}`);
+  if (tooLong.length) {
+    console.log(`\nTOO LONG — nothing written:\n  ${tooLong.join('\n  ')}`);
+    await prisma.$disconnect();
+    process.exit(1);
+  }
 
   if (APPLY && changes.length) {
     const file = `backup-seo-meta-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
