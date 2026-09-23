@@ -5,6 +5,8 @@ import {
   applyPricingRule,
   effectiveGstPercent,
   getPricingRule,
+  chainNote,
+  priceChain,
   pricingNote,
   type PricingRule,
 } from '@/lib/sync-pricing';
@@ -367,6 +369,12 @@ export interface PartnerPrice {
   price: number | null;
   /** The same figure with GST backed out, at the product's own rate. */
   price_ex_gst: number | null;
+  /** ex-GST x markup, before GST goes back on — step 2 of the chain. */
+  marked_ex_gst: number | null;
+  /** What the MRP would be: the selling price doubled. */
+  chain_mrp: number | null;
+  /** The whole chain in one line, for a tooltip. */
+  chain_note: string | null;
   /** That price after our markup and GST rule: what we would list it at. */
   landed_price: number | null;
   stock: number | null;
@@ -420,12 +428,15 @@ export async function partnerPricesFor(
       exact && exact.remotePrice !== null ? exact : (suffixed ?? exact);
     if (!link || link.remotePrice === null) continue;
     const price = Number(link.remotePrice);
-    const rate = effectiveGstPercent(gstBySku?.get(sku));
+    const chain = priceChain(price, gstBySku?.get(sku), rule);
     out.set(sku, {
       sku: link.externalSku,
       price,
-      price_ex_gst: Math.round((price / (1 + rate / 100)) * 100) / 100,
-      landed_price: applyPricingRule(price, null, rule),
+      price_ex_gst: chain.exGst,
+      marked_ex_gst: chain.marked,
+      chain_mrp: chain.mrp,
+      chain_note: chainNote(chain),
+      landed_price: chain.price,
       stock: link.remoteStock,
       drifted: false, // filled in by the caller, which knows our price
       scanned_at: link.lastScannedAt,
@@ -810,14 +821,19 @@ async function resolveSkus(options: ImportOptions): Promise<string[]> {
  * is exactly what gets written.
  */
 function mapProduct(remote: RemoteProduct, rule: PricingRule) {
+  // HE ex-GST x markup x GST, then MRP. See lib/sync-pricing.ts — the same
+  // figure the old two-step produced, written as the steps the owner reads.
+  const chain = priceChain(remote.price, remote.tax_percent, rule);
   return {
     name: remote.name,
     description: remote.description,
     // No category/subcategory/leafCategory: the two catalogues are shelved
     // differently on purpose. A new import lands unfiled for the operator to
     // place; an update leaves our shelving exactly where it is.
-    price: applyPricingRule(remote.price, remote.tax_percent, rule),
-    mrp: remote.mrp != null ? applyPricingRule(remote.mrp, remote.tax_percent, rule) : null,
+    price: chain.price,
+    // Derived, not carried across: the partner publishes 0 for some listings,
+    // which used to land here as an MRP of 0.
+    mrp: chain.mrp,
     taxPercent: effectiveGstPercent(remote.tax_percent),
     discountPercent: Number.isFinite(remote.discount_percent) ? remote.discount_percent : 0,
     stock: remote.stock,

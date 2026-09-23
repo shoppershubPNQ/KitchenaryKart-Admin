@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api, inr } from '@/lib/fetch';
+import { api, inr, inrExact } from '@/lib/fetch';
 import { ErrorBar, NoteBar } from './bits';
 
 /**
@@ -126,7 +126,30 @@ export default function PricingCard() {
             A listing at <span className="font-semibold">{inr(preview.sample)}</span> with {preview.tax_percent}% GST is
             stored as <span className="font-semibold text-brand">{inr(preview.result)}</span>.
           </p>
-          <p className="mt-0.5 text-xs text-slate-500">{preview.note}</p>
+          {/* The same sum as four steps. Their price already includes GST, so
+              it comes out first, the markup goes on the trade figure, and GST
+              goes back on — which is why "add GST" would charge it twice. */}
+          {preview.chain && (
+            <ol className="mt-2 space-y-0.5 text-xs text-slate-600">
+              <li>
+                1. Their price less {preview.chain.gst_percent}% GST ={' '}
+                <span className="font-medium">{inrExact(preview.chain.ex_gst)}</span>
+              </li>
+              <li>
+                2. plus {preview.chain.markup_percent}% ={' '}
+                <span className="font-medium">{inrExact(preview.chain.marked)}</span>
+              </li>
+              <li>
+                3. plus {preview.chain.gst_percent}% GST ={' '}
+                <span className="font-medium text-brand">{inrExact(preview.chain.price)}</span> — the selling price
+              </li>
+              <li>
+                4. MRP = twice that ={' '}
+                <span className="font-medium">{inrExact(preview.chain.mrp)}</span>
+              </li>
+            </ol>
+          )}
+          <p className="mt-1.5 text-xs text-slate-500">{preview.note}</p>
           {dirty && <p className="mt-1.5 text-xs font-medium text-amber-700">Unsaved — the example still shows the saved rule.</p>}
         </div>
       )}

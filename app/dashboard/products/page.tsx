@@ -39,6 +39,9 @@ interface Product {
     sku: string;
     price: number | null;
     price_ex_gst: number | null;
+    marked_ex_gst: number | null;
+    chain_mrp: number | null;
+    chain_note: string | null;
     landed_price: number | null;
     stock: number | null;
     drifted: boolean;
@@ -551,19 +554,16 @@ function ProductRow({
             moved without ours following. */}
         <td className="px-4 py-2.5 text-right">
           {p.partner ? (
-            <>
-              <div className="text-slate-600" title="Hotelic Essentials price, GST removed">
-                {inrExact(p.partner.price_ex_gst)}
-              </div>
-              <div className="text-[11px] text-slate-400" title="As they publish it, GST included">
-                {inr(p.partner.price)} inc
-              </div>
+            <span title={p.partner.chain_note ?? undefined}>
+              <div className="text-slate-600">{inrExact(p.partner.price_ex_gst)}</div>
+              <div className="text-[11px] text-slate-400">{inr(p.partner.price)} inc</div>
+              {/* The chain, only where it disagrees with what we charge. */}
               {p.partner.drifted && p.partner.landed_price != null && (
-                <div className="text-[11px] text-amber-600" title="Their price plus the current markup — what ours would be">
-                  should be {inr(p.partner.landed_price)}
+                <div className="text-[11px] text-amber-600">
+                  → {inr(p.partner.marked_ex_gst)} → {inr(p.partner.landed_price)}
                 </div>
               )}
-            </>
+            </span>
           ) : (
             <span className="text-slate-300">—</span>
           )}
