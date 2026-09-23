@@ -6,6 +6,34 @@ import { withAuth } from '@/lib/auth';
 import { handleError, ok, paging } from '@/lib/api';
 import { rankItems } from '@/lib/search';
 import { getAdminSearchIndex, invalidateAdminSearchIndex, codeKey } from '@/lib/product-search-index';
+import { partnerPricesFor } from '@/lib/sync-consumer';
+
+/**
+ * Hang what Hotelic Essentials charges off each row, so the list can show
+ * their price beside ours. Read from the last scan's snapshot — no call to
+ * them — and `drifted` marks a row whose price here is no longer what their
+ * price plus the markup would give, which is how a stale price shows itself.
+ */
+async function withPartnerPrice<T extends { sku: string; price: unknown; taxPercent?: unknown }>(
+  products: T[],
+) {
+  if (products.length === 0) return products;
+  const gstBySku = new Map(
+    products.map((p) => [p.sku, p.taxPercent == null ? 18 : Number(p.taxPercent)]),
+  );
+  const prices = await partnerPricesFor(
+    products.map((p) => p.sku),
+    gstBySku,
+  );
+  return products.map((p) => {
+    const partner = prices.get(p.sku);
+    if (!partner) return { ...p, partner: null };
+    const ours = Number(p.price);
+    const drifted =
+      partner.landed_price !== null && Math.abs(ours - partner.landed_price) > 1;
+    return { ...p, partner: { ...partner, drifted } };
+  });
+}
 
 const createSchema = z.object({
   sku: z.string().min(1),
@@ -151,8 +179,15 @@ export const GET = withAuth(async (req) => {
           })
         : [];
       const byId = new Map(rows.map((r) => [r.id, r]));
-      const products = pageIds.map((id) => byId.get(id)).filter(Boolean);
-      return ok({ products, total: ordered.length, limit, offset });
+      const products = pageIds
+        .map((id) => byId.get(id))
+        .filter((p): p is NonNullable<typeof p> => Boolean(p));
+      return ok({
+        products: await withPartnerPrice(products),
+        total: ordered.length,
+        limit,
+        offset,
+      });
     }
 
     const [items, total] = await Promise.all([
@@ -166,7 +201,7 @@ export const GET = withAuth(async (req) => {
       prisma.product.count({ where }),
     ]);
 
-    return ok({ products: items, total, limit, offset });
+    return ok({ products: await withPartnerPrice(items), total, limit, offset });
   } catch (e) {
     return handleError(e);
   }

@@ -354,6 +354,86 @@ export async function scan(userId?: number | null) {
   }
 }
 
+// --------------------------------------------------------- partner pricing
+
+export interface PartnerPrice {
+  /** The partner's SKU this came from — not always ours; see below. */
+  sku: string;
+  /**
+   * What the partner charges the trade, in rupees, GST INCLUDED — that is how
+   * Hotelic Essentials publishes every price, and the whole import is built on
+   * it (see lib/sync-pricing.ts: adding GST on top would charge it twice).
+   */
+  price: number | null;
+  /** The same figure with GST backed out, at the product's own rate. */
+  price_ex_gst: number | null;
+  /** That price after our markup and GST rule: what we would list it at. */
+  landed_price: number | null;
+  stock: number | null;
+  /** True when ours is more than a rupee away from the landed figure. */
+  drifted: boolean;
+  scanned_at: Date | null;
+}
+
+/**
+ * What Hotelic Essentials charges for each of these products, from the last
+ * scan's snapshot — no request to them, so this cannot slow a page down or
+ * empty it when they are offline.
+ *
+ * A product is matched to their listing by SKU, and also by SKU + "-P":
+ * they have been re-issuing SKUs with that suffix, and on 23 Sep 2026 that
+ * accounted for 334 of the 434 listings this side had never seen. Without the
+ * second form, two thirds of the catalogue would show no partner price at all.
+ * An exact match always wins over the suffixed one.
+ */
+export async function partnerPricesFor(
+  skus: string[],
+  /** GST rate per SKU, for backing the tax out. Missing rates fall to 18%. */
+  gstBySku?: Map<string, number>,
+): Promise<Map<string, PartnerPrice>> {
+  const wanted = skus.filter(Boolean);
+  if (wanted.length === 0) return new Map();
+
+  const candidates = [...new Set(wanted.flatMap((s) => [s, `${s}-P`]))];
+  const [links, rule] = await Promise.all([
+    prisma.syncLink.findMany({
+      where: { source: PARTNER_SOURCE, externalSku: { in: candidates } },
+      select: { externalSku: true, remotePrice: true, remoteStock: true, lastScannedAt: true },
+    }),
+    getPricingRule(),
+  ]);
+
+  const bySku = new Map(links.map((l) => [l.externalSku, l]));
+  const out = new Map<string, PartnerPrice>();
+
+  for (const sku of wanted) {
+    /*
+     * The exact SKU wins, but only if it still carries a price. When a
+     * listing is re-issued as "SKU-P" the old link stays behind with a null
+     * price — it was not in the manifest the last scan read — so preferring
+     * the exact match blindly reports "they don't publish this" for a product
+     * they very much do. Whichever link has a price is the live one.
+     */
+    const exact = bySku.get(sku);
+    const suffixed = bySku.get(`${sku}-P`);
+    const link =
+      exact && exact.remotePrice !== null ? exact : (suffixed ?? exact);
+    if (!link || link.remotePrice === null) continue;
+    const price = Number(link.remotePrice);
+    const rate = effectiveGstPercent(gstBySku?.get(sku));
+    out.set(sku, {
+      sku: link.externalSku,
+      price,
+      price_ex_gst: Math.round((price / (1 + rate / 100)) * 100) / 100,
+      landed_price: applyPricingRule(price, null, rule),
+      stock: link.remoteStock,
+      drifted: false, // filled in by the caller, which knows our price
+      scanned_at: link.lastScannedAt,
+    });
+  }
+  return out;
+}
+
 // ------------------------------------------------------------------ review
 
 export async function review(options: {

@@ -33,6 +33,16 @@ interface Product {
   isBestseller: boolean;
   isNewArrival: boolean;
   _count?: { variants: number };
+  /** What Hotelic Essentials charges, from the last sync scan. Null when they
+   *  do not publish this SKU (or it has never been scanned). */
+  partner?: {
+    sku: string;
+    price: number | null;
+    price_ex_gst: number | null;
+    landed_price: number | null;
+    stock: number | null;
+    drifted: boolean;
+  } | null;
 }
 
 interface Variant {
@@ -409,6 +419,7 @@ export default function ProductsPage() {
                 <Th>Product</Th>
                 <Th>Category</Th>
                 <Th align="right">Price</Th>
+                <Th align="right">HE price (ex-GST)</Th>
                 <Th align="right">Stock</Th>
                 <Th>Status</Th>
                 <Th>Merchandising</Th>
@@ -416,9 +427,9 @@ export default function ProductsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {loading && <tr><td colSpan={10} className="p-10 text-center text-slate-400">Loading…</td></tr>}
+              {loading && <tr><td colSpan={11} className="p-10 text-center text-slate-400">Loading…</td></tr>}
               {!loading && products.length === 0 && (
-                <tr><td colSpan={10} className="p-10 text-center text-slate-400">No products match your filters.</td></tr>
+                <tr><td colSpan={11} className="p-10 text-center text-slate-400">No products match your filters.</td></tr>
               )}
               {!loading && products.map(p => {
                 const vCount = p._count?.variants ?? 0;
@@ -533,6 +544,30 @@ function ProductRow({
             <div className="text-[11px] text-slate-400 line-through">{inr(p.mrp)}</div>
           )}
         </td>
+        {/* What Hotelic Essentials charges, from the last sync scan. Shown
+            EX-GST, because their published figure includes it. The faint line
+            is that same published figure; the amber one appears only when our
+            price is no longer theirs plus the markup — a price of theirs that
+            moved without ours following. */}
+        <td className="px-4 py-2.5 text-right">
+          {p.partner ? (
+            <>
+              <div className="text-slate-600" title="Hotelic Essentials price, GST removed">
+                {inrExact(p.partner.price_ex_gst)}
+              </div>
+              <div className="text-[11px] text-slate-400" title="As they publish it, GST included">
+                {inr(p.partner.price)} inc
+              </div>
+              {p.partner.drifted && p.partner.landed_price != null && (
+                <div className="text-[11px] text-amber-600" title="Their price plus the current markup — what ours would be">
+                  should be {inr(p.partner.landed_price)}
+                </div>
+              )}
+            </>
+          ) : (
+            <span className="text-slate-300">—</span>
+          )}
+        </td>
         <td className="px-4 py-2.5 text-right">
           <span className={p.stock <= p.reorderPoint ? 'pill-red' : 'pill-green'}>{p.stock}</span>
         </td>
@@ -600,7 +635,7 @@ function ProductRow({
       {/* Inline details: variants (pricing/GST breakdown lives on the order page) */}
       {isOpen && (
         <tr>
-          <td colSpan={10} className="p-0 border-b border-slate-100">
+          <td colSpan={11} className="p-0 border-b border-slate-100">
             <div className="bg-slate-50/60 px-4 py-4 pl-16">
               <VariantsPanel product={p} variants={variants} loading={variantsLoading} vCount={vCount} />
             </div>
