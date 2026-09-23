@@ -1,0 +1,81 @@
+{
+  "title": "Popcorn Machine Category, HSN and GST",
+  "header": "POPCORN MACHINE",
+  "intro": "Seven live products in the KitchenaryKart Popcorn Machine category — four electric and three gas models, including a cart trolley and a battery-rotated table top — with the website category, HSN code and GST rate recorded against each SKU.",
+  "link": {
+    "text": "Popcorn Machine category reviewed on 23 September 2026",
+    "url": "https://kitchenarykart.com/shop?cat=HOT+EQUIPMENT&sub=POPCORN+MACHINE"
+  },
+  "columns": [
+    "#",
+    "Model",
+    "SKU",
+    "Category",
+    "HSN code",
+    "GST"
+  ],
+  "rows": [
+    [
+      "1",
+      "Electric · cart trolley · MS red body, black top",
+      "KKHE0230-EPMSWC",
+      "Hot Equipment › Popcorn Machine",
+      "84198190",
+      "18%"
+    ],
+    [
+      "2",
+      "Electric · side compartments · MS red body",
+      "KKHE0231-EPMSB",
+      "Hot Equipment › Popcorn Machine",
+      "84198190",
+      "18%"
+    ],
+    [
+      "3",
+      "Electric · toughened glass · MS red body",
+      "KKHE0232-EPMSS",
+      "Hot Equipment › Popcorn Machine",
+      "84198190",
+      "18%"
+    ],
+    [
+      "4",
+      "Electric · toughened glass · SS body",
+      "KKHE0233-EPSS",
+      "Hot Equipment › Popcorn Machine",
+      "84198190",
+      "18%"
+    ],
+    [
+      "5",
+      "Gas manual · rotating container pot · SS body",
+      "KKHE0234-GPMSS",
+      "Hot Equipment › Popcorn Machine",
+      "84198190",
+      "18%"
+    ],
+    [
+      "6",
+      "Gas manual table top · 12 V battery rotation · SS body",
+      "KKHE0235-GPMSSB",
+      "Hot Equipment › Popcorn Machine",
+      "84198190",
+      "18%"
+    ],
+    [
+      "7",
+      "Gas · toughened glass · MS red body, black top",
+      "KKHE0236-GPMRB",
+      "Hot Equipment › Popcorn Machine",
+      "84198190",
+      "18%"
+    ]
+  ],
+  "notes": [
+    "GST: every SKU in this category is recorded at 18%.",
+    "HSN: every SKU in this category is recorded at 84198190 — machinery for the treatment of materials by a change of temperature. A popcorn machine heats its kettle, so the heading fits the electric and the gas models alike, and the category is internally consistent.",
+    "KKHE0235-GPMSSB is gas-heated but uses a 12 V battery to turn the pot. The battery drives rotation only, not heating, so it does not change the heading.",
+    "Five of the seven are currently out of stock on the website; only KKHE0230-EPMSWC and KKHE0236-GPMRB are sellable. Stock does not affect HSN or GST, noted only so the list is not mistaken for a live availability report."
+  ]
+}

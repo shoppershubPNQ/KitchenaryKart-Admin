@@ -1,0 +1,125 @@
+{
+  "title": "Commercial Blender Category, HSN and GST",
+  "header": "COMMERCIAL BLENDER",
+  "intro": "Twelve live listings in the KitchenaryKart Commercial Blender category — seven immersion blenders and whisks, three jar blenders, one hand blender and one shaker — with the website category, HSN code and GST rate recorded against each SKU.",
+  "link": {
+    "text": "Commercial Blender category reviewed on 23 September 2026",
+    "url": "https://kitchenarykart.com/shop?cat=COLD+EQUIPMENT&sub=COMMERCIAL+BLENDER"
+  },
+  "columns": [
+    "#",
+    "Model",
+    "SKU",
+    "Category",
+    "HSN code",
+    "GST"
+  ],
+  "rows": [
+    [
+      "1",
+      "Immersion blender · 750 W · BLM750WB",
+      "KKCE0007-BLM750WB",
+      "Cold Equipment › Commercial Blender",
+      "84198190",
+      "18%"
+    ],
+    [
+      "2",
+      "Immersion blender · 750 W · BLM750WC",
+      "KKCE0008-BLM750WC",
+      "Cold Equipment › Commercial Blender",
+      "84198190",
+      "18%"
+    ],
+    [
+      "3",
+      "Immersion whisk · 750 W · BLM750WE",
+      "KKCE0009-BLM750WE",
+      "Cold Equipment › Commercial Blender",
+      "84198190",
+      "18%"
+    ],
+    [
+      "4",
+      "Immersion blender · 750 W · HM750WB",
+      "KKCE0010-HM750WB",
+      "Cold Equipment › Commercial Blender",
+      "84198190",
+      "18%"
+    ],
+    [
+      "5",
+      "Immersion blender · 750 W · HM750WC",
+      "KKCE0011-HM750WC",
+      "Cold Equipment › Commercial Blender",
+      "84198190",
+      "18%"
+    ],
+    [
+      "6",
+      "Immersion whisk · 750 W · HM750WE",
+      "KKCE0012-HM750WE",
+      "Cold Equipment › Commercial Blender",
+      "84198190",
+      "18%"
+    ],
+    [
+      "7",
+      "Immersion blender · 550 W · HM550WC",
+      "KKCE0013-HM550WC",
+      "Cold Equipment › Commercial Blender",
+      "84198190",
+      "18%"
+    ],
+    [
+      "8",
+      "Jar blender · 2 L · 4500 W · black",
+      "KKCE0014-BLBL",
+      "Cold Equipment › Commercial Blender",
+      "85098000",
+      "18%"
+    ],
+    [
+      "9",
+      "Jar blender · 2 L · red (variant of KKCE0014-BLBL)",
+      "KKCE0015-SBL1",
+      "Cold Equipment › Commercial Blender",
+      "85098000",
+      "18%"
+    ],
+    [
+      "10",
+      "Soundproof jar blender · 2 L · 1300 W",
+      "KKCE0016-SPFBL",
+      "Cold Equipment › Commercial Blender",
+      "84351000",
+      "18%"
+    ],
+    [
+      "11",
+      "Hand blender · 500 W",
+      "KKCE0017-SBL1",
+      "Cold Equipment › Commercial Blender",
+      "85094090",
+      "18%"
+    ],
+    [
+      "12",
+      "Milk / cocktail / lassi shaker · single · 180 W",
+      "KKCE0018-EMSS",
+      "Cold Equipment › Commercial Blender",
+      "84198190",
+      "18%"
+    ]
+  ],
+  "notes": [
+    "GST: every SKU in this category is recorded at 18%.",
+    "HSN: this category is NOT uniform — the twelve listings carry 4 different codes (84198190, 85098000, 84351000, 85094090). The points below are what a chartered accountant should look at; they are observations about the catalogue, not tax advice.",
+    "84198190 is recorded against the seven immersion blenders and the lassi shaker. That heading covers machinery for treating materials by a change of temperature — right for equipment that cooks, heats or chills. None of these eight heat anything; they are motor-driven mixing tools.",
+    "84351000 is recorded against KKCE0016-SPFBL (soundproof jar blender). That heading covers presses and crushers used in making wine, cider and fruit juice. It is the only listing in the category on this code.",
+    "85098000 (KKCE0014-BLBL and its red variant) and 85094090 (KKCE0017-SBL1) sit under electro-mechanical appliances with a self-contained motor, which is the family blenders normally fall in. Three near-identical jar blenders are therefore split across three different headings.",
+    "KKCE0015-SBL1 is not a separate product here: it is the red variant of KKCE0014-BLBL and inherits its HSN and GST. It is listed above so the document matches the product document, which names it separately.",
+    "The SKU suffix SBL1 is used twice — by KKCE0015-SBL1 (red jar blender variant) and KKCE0017-SBL1 (500 W hand blender). Nothing is broken by this today, but any report keyed on the suffix alone would merge them.",
+    "The website names KKCE0010, KKCE0011 and KKCE0012 as HE750WB / HE750WC / HE750WE while their SKUs read HM750W…. The model letters disagree between the SKU and the name on all three."
+  ]
+}
