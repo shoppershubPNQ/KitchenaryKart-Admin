@@ -1,0 +1,64 @@
+[Title] Ice Cube Maker Product Descriptions
+[] Three individual, model-specific descriptions for the KitchenaryKart Ice Cube Maker category. Each entry includes verified product-page specifications supplied for the three SKUs, customer-friendly feature explanations, care guidance and SEO content.
+[Heading2] Products included
+[TBL] Product | SKU
+[TBL] Commercial Ice Cube Maker - 35 kg/day | KKCE0028-HZB35
+[TBL] MS Red Body Ice Cube Maker - 5 kg/day | KKCE0029-HZB5
+[TBL] Commercial Ice Cube Maker - 12 kg/day | KKCE0027-HZB12
+[Heading2] Using the descriptions
+[] Copy Product Description, Key Features, Suitable for and Care & Use into the matching product page. Place the SEO Title and Meta Description in the website SEO fields. Search phrases are written as focused terms for each model.
+[] Research note: The format follows the detailed Pasta Boilers and Makers reference document. Product-specific figures are limited to the specifications previously verified for these three KitchenaryKart SKUs; unsupported details such as cube size, storage-bin capacity, refrigerant, compressor type or cycle time have not been added.
+[Heading1] Commercial Ice Cube Maker - 35 kg/day
+[b] SKU: KKCE0028-HZB35
+[b] Quick details: Up to 35 kg/day ice production | 12 kg listed machine weight | 17.64 x 15.75 x 31.42 in
+[b] SEO Title: Commercial Ice Cube Maker 35kg/Day | KitchenaryKart
+[b] Meta Description: Make ice for regular beverage service with the KitchenaryKart 35kg/day commercial ice cube maker, suited to restaurants, hotels, cafes, bars and catering.
+[b] Search phrases: 35 kg ice cube maker, commercial ice maker machine, restaurant ice cube machine
+[Heading2] Product Description
+[b] Keep ice ready for every round of drinks.
+[] Prepare ice for your daily beverage service with the KitchenaryKart Commercial Ice Cube Maker - 35 kg/day. From chilled soft drinks and juices to mocktails and other cold beverages, the higher daily output helps busy food-service teams keep ice available as orders come in.
+[] With a listed production capacity of up to 35 kg per day, a 12 kg machine weight and dimensions of 17.64 x 15.75 x 31.42 inches, this commercial ice maker is a practical option for restaurants, hotels, cafes, bars, cloud kitchens and catering operations.
+[Heading2] Key Features
+[ListBullet,b] Up to 35 kg/day Ice Production: The highest-output model in this three-machine range, suited to businesses with a larger regular requirement for beverage ice.
+[ListBullet,b] Commercial Beverage Application: Keeps a dedicated ice-making station available for cold drinks, juices, soft drinks and mocktails.
+[ListBullet,b] 12 kg Listed Machine Weight: Gives you a clear specification to consider while planning placement and handling.
+[ListBullet,b] Specified Machine Size: Measures 17.64 x 15.75 x 31.42 inches, helping you check available installation space before ordering.
+[ListBullet,b] Professional Food-Service Fit: A practical choice for restaurants, hotels, cafes, bars, cloud kitchens and catering setups that use ice throughout service.
+[b] Suitable for: Cold drinks, juices, soft drinks, mocktails and regular beverage service in restaurants, hotels, cafes, bars and catering operations.
+[b] Care & Use: Use clean potable water and place the machine on a stable, level surface with adequate ventilation. Keep the ice-making and food-contact areas clean and sanitised. Switch off and unplug before cleaning or maintenance. Actual daily ice output can vary with water temperature, ambient temperature and operating conditions.
+[Heading1] MS Red Body Ice Cube Maker - 5 kg/day
+[b] SKU: KKCE0029-HZB5
+[b] Quick details: Up to 5 kg/day ice production | 105 W | MS red body | 222 x 313 x 320 mm | 7.1 kg
+[b] SEO Title: 5kg Ice Cube Maker 105W Red Body | KitchenaryKart
+[b] Meta Description: Make ice for smaller beverage requirements with the KitchenaryKart 5kg/day ice cube maker, featuring 105W power, an MS red body and compact countertop size.
+[b] Search phrases: 5 kg ice cube maker, compact countertop ice maker, 105W ice making machine
+[Heading2] Product Description
+[b] A compact ice maker for everyday drink service.
+[] Prepare ice for smaller beverage requirements with the KitchenaryKart MS Red Body Ice Cube Maker - 5 kg/day. It gives cafes, juice counters, offices and small food-service setups a dedicated machine for making ice for cold drinks without taking up the space of a higher-capacity commercial unit.
+[] With up to 5 kg/day listed ice production, 105 W rated power, a 222 x 313 x 320 mm body and 7.1 kg machine weight, this red-body ice maker is the compact option in the range for lighter daily use.
+[Heading2] Key Features
+[ListBullet,b] Up to 5 kg/day Ice Production: Sized for lighter daily ice requirements in smaller beverage and service areas.
+[ListBullet,b] 105 W Rated Power: Provides dedicated electric operation for the ice-making process.
+[ListBullet,b] MS Red Body: A distinctive metal-body format for countertop placement in beverage or preparation areas.
+[ListBullet,b] Compact 222 x 313 x 320 mm Size: Helps you plan placement where counter or back-bar space is limited.
+[ListBullet,b] 7.1 kg Listed Weight: Makes this the lightest-capacity model in the three-product range and a practical choice for smaller setups.
+[b] Suitable for: Ice for juices, soft drinks, mocktails and other cold beverages in cafes, juice counters, offices and smaller food-service setups.
+[b] Care & Use: Use clean potable water and keep the unit on a stable, level, ventilated surface. Clean and sanitise the ice-making and food-contact areas regularly. Switch off and unplug before cleaning or maintenance. Do not block ventilation openings. Actual ice output may change with water temperature, ambient temperature and operating conditions.
+[Heading1] Commercial Ice Cube Maker - 12 kg/day
+[b] SKU: KKCE0027-HZB12
+[b] Quick details: Up to 12 kg/day ice production | 222 x 294 x 290 mm | 6.3 kg listed machine weight
+[b] SEO Title: Commercial Ice Cube Maker 12kg/Day | KitchenaryKart
+[b] Meta Description: Prepare ice for everyday beverage service with the KitchenaryKart 12kg/day ice cube maker, a compact option for cafes, restaurants and juice counters.
+[b] Search phrases: 12 kg ice cube maker, compact commercial ice maker, countertop ice making machine
+[Heading2] Product Description
+[b] Fresh ice for your everyday beverage counter.
+[] Keep ice available for cold drinks and regular customer orders with the KitchenaryKart Commercial Ice Cube Maker - 12 kg/day. Its mid-range daily output makes it a useful step up from a small 5 kg/day machine when your cafe, restaurant or beverage counter needs ice more regularly.
+[] With up to 12 kg/day listed ice production, compact dimensions of 222 x 294 x 290 mm and a 6.3 kg machine weight, this countertop ice maker is a practical fit for cafes, restaurants, juice shops, cloud kitchens, offices and catering preparation areas.
+[Heading2] Key Features
+[ListBullet,b] Up to 12 kg/day Ice Production: Provides a mid-range daily output for businesses that need more ice than a small 5 kg/day unit.
+[ListBullet,b] Compact Countertop Format: The 222 x 294 x 290 mm listed size helps conserve useful preparation and beverage-counter space.
+[ListBullet,b] 6.3 kg Listed Machine Weight: A compact machine specification for countertop placement and workspace planning.
+[ListBullet,b] Dedicated Beverage Ice: Useful for keeping ice ready for juices, soft drinks, mocktails and other chilled beverages.
+[ListBullet,b] Flexible Food-Service Use: Suited to cafes, restaurants, juice shops, cloud kitchens, offices and catering preparation areas.
+[b] Suitable for: Cold drinks, juices, soft drinks, mocktails and everyday beverage service in cafes, restaurants, juice shops, cloud kitchens, offices and catering setups.
+[b] Care & Use: Use clean potable water and position the machine on a stable, level surface with adequate ventilation. Clean and sanitise ice-making and food-contact areas regularly. Switch off and unplug before cleaning or maintenance. Actual daily ice output may vary with ambient temperature, water temperature and operating conditions.
