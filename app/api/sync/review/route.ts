@@ -1,4 +1,4 @@
-/** GET /api/sync/review?status=&search=&limit=&offset= — the import queue. */
+/** GET /api/sync/review?status=&search=&category=&limit=&offset= — the import queue. */
 import { NextRequest } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import { handleError, ok, paging } from '@/lib/api';
@@ -19,6 +19,7 @@ export const GET = withAuth(async (req: NextRequest) => {
       await review({
         status,
         search: url.searchParams.get('search') ?? undefined,
+        category: url.searchParams.get('category') ?? undefined,
         limit,
         offset,
       }),

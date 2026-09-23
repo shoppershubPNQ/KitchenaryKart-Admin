@@ -980,6 +980,22 @@ model SyncLink {
   /// Last failure message, so a partial bulk import can be diagnosed later.
   lastError String? @map("last_error")
 
+  /// A snapshot of what the manifest said at the last scan, so the review
+  /// table can show the operator what they are about to pull — price, stock,
+  /// cover image, how the partner shelves it — without one request per row,
+  /// and without going dark when the partner is unreachable. Purely for
+  /// display and filtering: the import always re-reads the full payload, so
+  /// nothing here is ever written to a product.
+  remotePrice        Decimal? @map("remote_price") @db.Decimal(10, 2)
+  remoteMrp          Decimal? @map("remote_mrp") @db.Decimal(10, 2)
+  remoteStock        Int?     @map("remote_stock")
+  remoteStatus       String?  @map("remote_status")
+  remoteImage        String?  @map("remote_image")
+  remoteImageCount   Int?     @map("remote_image_count")
+  remoteVariantCount Int?     @map("remote_variant_count")
+  /// The partner's own shelving, e.g. ["Buffet & Tableware", "Chafing Dish"].
+  remoteCategoryPath String[] @map("remote_category_path")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

@@ -20,6 +20,10 @@
     {
       "path": "/api/cron/shipment-poll",
       "schedule": "10 * * * *"
+    },
+    {
+      "path": "/api/cron/partner-scan",
+      "schedule": "45 1 * * *"
     }
   ]
 }

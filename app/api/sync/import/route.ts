@@ -28,6 +28,9 @@ const schema = z.object({
   updateImages: z.boolean().optional(),
   updateDetails: z.boolean().optional(),
   updateStatus: z.boolean().optional(),
+  /** Where new products land here; blank means "match the partner's shelf". */
+  category: z.string().trim().max(120).optional(),
+  subcategory: z.string().trim().max(120).optional(),
 });
 
 export const POST = withAuth(async (req: NextRequest, { user }) => {

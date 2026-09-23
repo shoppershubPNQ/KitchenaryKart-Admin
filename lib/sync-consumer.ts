@@ -31,6 +31,9 @@ import {
 /** Full payloads are requested in batches so one call cannot time out. */
 const IMPORT_BATCH_SIZE = 50;
 
+/** Scan writes sent at once — enough to be fast, few enough not to drain the pool. */
+const SCAN_WRITE_CHUNK = 25;
+
 /** Per-product image ceiling — a runaway gallery is a data error. */
 const MAX_IMAGES = 12;
 
@@ -119,6 +122,14 @@ export interface ImportOptions {
   updateDetails?: boolean;
   /** Published / draft / discontinued. */
   updateStatus?: boolean;
+  /**
+   * Where a NEWLY created product is shelved here. Left unset, the partner's
+   * own top-level shelf is matched to ours by name; set, it wins for every
+   * product in this run. Never touches a product that already exists — our
+   * shelving stays ours.
+   */
+  category?: string;
+  subcategory?: string;
 }
 
 // ---------------------------------------------------------------- classify
@@ -219,6 +230,12 @@ export async function scan(userId?: number | null) {
     let updated = 0;
     const renames: string[] = [];
     const touched = new Set<number>();
+    /**
+     * Prisma's promises are lazy — nothing is sent until one is awaited — so
+     * the loop can decide every row first and the writes go out in chunks
+     * afterwards. See the chunked await below.
+     */
+    const writes: Prisma.PrismaPromise<unknown>[] = [];
 
     for (const entry of entries) {
       if (!entry?.sku) continue;
@@ -248,26 +265,53 @@ export async function scan(userId?: number | null) {
         remoteHash: entry.content_hash ?? null,
         remoteUpdatedAt: entry.updated_at ? new Date(entry.updated_at) : null,
         lastScannedAt: now,
+        // What the operator needs to judge a listing without opening it.
+        // Display only — the import re-reads the full payload.
+        remotePrice: numberOrNull(entry.price),
+        remoteMrp: numberOrNull(entry.mrp),
+        remoteStock: Number.isFinite(entry.stock) ? entry.stock : null,
+        remoteStatus: entry.status ?? null,
+        remoteImage: entry.image ?? null,
+        remoteImageCount: Number.isFinite(entry.image_count) ? entry.image_count : null,
+        remoteVariantCount: Number.isFinite(entry.variant_count) ? entry.variant_count : null,
+        remoteCategoryPath: Array.isArray(entry.category_path)
+          ? entry.category_path.filter((s): s is string => typeof s === 'string' && s.trim() !== '')
+          : [],
         // The product it pointed at is gone, so it is not 'already imported'.
         ...(adopted === null ? { importedHash: null, importedAt: null } : {}),
       };
 
       if (link) {
-        await prisma.syncLink.update({
-          where: { id: link.id },
-          // The link follows the rename now; the product's own SKU changes on
-          // import, once the operator has seen it in the queue.
-          data: renamedFrom ? { ...data, externalSku: entry.sku } : data,
-        });
+        writes.push(
+          prisma.syncLink.update({
+            where: { id: link.id },
+            // The link follows the rename now; the product's own SKU changes
+            // on import, once the operator has seen it in the queue.
+            data: renamedFrom ? { ...data, externalSku: entry.sku } : data,
+          }),
+        );
         touched.add(link.id);
         if (renamedFrom) renames.push(`${renamedFrom} → ${entry.sku}`);
         updated++;
       } else {
-        await prisma.syncLink.create({
-          data: { source: PARTNER_SOURCE, externalSku: entry.sku, ...data },
-        });
+        writes.push(
+          prisma.syncLink.create({
+            data: { source: PARTNER_SOURCE, externalSku: entry.sku, ...data },
+          }),
+        );
         created++;
       }
+    }
+
+    /*
+     * One round trip per listing, awaited in turn, is ~1.5s each from a laptop
+     * — half an hour for this catalogue, and uncomfortably close to the
+     * function limit even from the same region. The rows are independent, so
+     * they go out in chunks instead; the chunk is small enough not to exhaust
+     * the connection pool.
+     */
+    for (let i = 0; i < writes.length; i += SCAN_WRITE_CHUNK) {
+      await Promise.all(writes.slice(i, i + SCAN_WRITE_CHUNK));
     }
 
     // Rows we know about that the manifest no longer lists. Left in place and
@@ -315,6 +359,7 @@ export async function scan(userId?: number | null) {
 export async function review(options: {
   status?: SyncItemStatus | 'all';
   search?: string;
+  category?: string;
   limit: number;
   offset: number;
 }) {
@@ -326,6 +371,10 @@ export async function review(options: {
       { externalName: { contains: search, mode: 'insensitive' } },
     ];
   }
+  // The partner's own top-level shelf is filtered in memory, not here: the
+  // facet counts below have to describe every shelf, including the ones not
+  // currently selected, or the filter could not be changed.
+  const category = (options.category ?? '').trim();
 
   const links = await prisma.syncLink.findMany({
     where,
@@ -337,12 +386,37 @@ export async function review(options: {
     orderBy: [{ externalName: 'asc' }],
   });
 
+  // Shown beside each incoming price so the operator sees what it becomes
+  // here, not what the partner charges the trade.
+  const rule = await getPricingRule();
+
   const rows = links.map((link) => ({
     id: link.id,
     sku: link.externalSku,
     external_id: link.externalId,
     remote_name: link.externalName,
     status: classify(link),
+    remote: {
+      price: link.remotePrice === null ? null : Number(link.remotePrice),
+      mrp: link.remoteMrp === null ? null : Number(link.remoteMrp),
+      /**
+       * Their price after our markup and GST rule — what we would charge.
+       * Exact under the default rule ('none', which touches no tax). Under
+       * 'add'/'remove' it is an estimate at the default rate, because the
+       * manifest carries no per-listing rate; the import uses the real one
+       * from the full payload, and Compare shows it.
+       */
+      landed_price:
+        link.remotePrice === null
+          ? null
+          : applyPricingRule(Number(link.remotePrice), null, rule),
+      stock: link.remoteStock,
+      status: link.remoteStatus,
+      image: link.remoteImage,
+      image_count: link.remoteImageCount,
+      variant_count: link.remoteVariantCount,
+      category_path: link.remoteCategoryPath,
+    },
     product: link.product
       ? {
           id: link.product.id,
@@ -362,15 +436,25 @@ export async function review(options: {
   const counts = emptyCounts();
   for (const row of rows) counts[row.status]++;
 
-  const filtered =
+  const inTab =
     options.status && options.status !== 'all'
       ? rows.filter((r) => r.status === options.status)
       : rows;
+  const filtered = category === '' ? inTab : inTab.filter((r) => r.remote.category_path.includes(category));
+
+  // The partner's top-level shelves, with how many listings sit on each in
+  // the CURRENT status tab — so the filter reflects what is actually there.
+  const facets = new Map<string, number>();
+  for (const row of inTab) {
+    const top = row.remote.category_path[0];
+    if (top) facets.set(top, (facets.get(top) ?? 0) + 1);
+  }
 
   return {
     items: filtered.slice(options.offset, options.offset + options.limit),
     total: filtered.length,
     counts,
+    categories: [...facets].sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count })),
     source: PARTNER_SOURCE,
     source_label: PARTNER_LABEL,
   };
@@ -516,9 +600,14 @@ export async function runImport(options: ImportOptions, userId?: number | null) 
   });
 
   const rule = await getPricingRule();
+  // Built once per run: it reads our whole category table, and every create
+  // consults it.
+  const resolveCategory = await categoryResolver();
   const stats = { created: 0, updated: 0, renamed: 0, skipped: 0, failed: 0, examined: skus.length };
   const errors: string[] = [];
   const renames: string[] = [];
+  /** Created products that matched no shelf here — reported, not hidden. */
+  const unfiled: string[] = [];
 
   for (let i = 0; i < skus.length; i += IMPORT_BATCH_SIZE) {
     const batch = skus.slice(i, i + IMPORT_BATCH_SIZE);
@@ -548,7 +637,14 @@ export async function runImport(options: ImportOptions, userId?: number | null) 
 
     for (const remote of products) {
       try {
-        const { outcome, renamedFrom } = await importOne(remote, options, rule, userId);
+        const { outcome, renamedFrom, filedUnder } = await importOne(
+          remote,
+          options,
+          rule,
+          resolveCategory,
+          userId,
+        );
+        if (outcome === 'created' && filedUnder === null) unfiled.push(remote.sku);
         if (outcome === 'created') stats.created++;
         else stats.updated++;
         if (renamedFrom) {
@@ -571,7 +667,14 @@ export async function runImport(options: ImportOptions, userId?: number | null) 
         })`
       : '') +
     (stats.failed ? `, ${stats.failed} failed` : '') +
-    '.';
+    '.' +
+    // An unfiled product is live but reachable only by search, so say so
+    // rather than letting it sit invisible on every category page.
+    (unfiled.length
+      ? ` ${unfiled.length} new product(s) matched no category here and are unfiled` +
+        ` (${unfiled.slice(0, 5).join(', ')}${unfiled.length > 5 ? ', …' : ''})` +
+        ' — give them a category or they will not appear on any category page.'
+      : '');
 
   await prisma.syncRun.update({
     where: { id: run.id },
@@ -676,8 +779,9 @@ async function importOne(
   remote: RemoteProduct,
   options: ImportOptions,
   rule: PricingRule,
+  resolveCategory: (path: string[]) => { category: string | null; subcategory: string | null },
   userId?: number | null,
-): Promise<{ outcome: 'created' | 'updated'; renamedFrom: string | null }> {
+): Promise<{ outcome: 'created' | 'updated'; renamedFrom: string | null; filedUnder: string | null }> {
   const mapped = mapProduct(remote, rule);
   const images = (remote.images ?? [])
     .filter((u) => typeof u === 'string' && /^https?:\/\//i.test(u))
@@ -695,11 +799,21 @@ async function importOne(
   let isNew: boolean;
   let renamedFrom: string | null = null;
 
+  // Only a create is filed. An update leaves our shelving exactly where it is,
+  // which is the whole reason mapProduct() omits these columns.
+  const filed = existing
+    ? { category: null, subcategory: null }
+    : options.category
+      ? { category: options.category, subcategory: options.subcategory ?? null }
+      : resolveCategory(remote.category_path ?? []);
+
   if (!existing) {
     const created = await prisma.product.create({
       data: {
         ...mapped,
         sku: remote.sku,
+        category: filed.category,
+        subcategory: filed.subcategory,
         imageUrl: images[0] ?? null,
         images: images.length ? (images as any) : undefined,
         createdById: userId ?? null,
@@ -822,7 +936,7 @@ async function importOne(
     },
   });
 
-  return { outcome: isNew ? 'created' : 'updated', renamedFrom };
+  return { outcome: isNew ? 'created' : 'updated', renamedFrom, filedUnder: filed.category };
 }
 
 /**
@@ -991,6 +1105,61 @@ function display(value: unknown): string | null {
   if (typeof value === 'number') return String(value);
   if (typeof value === 'object' && 'toString' in value) return String(value);
   return String(value);
+}
+
+/**
+ * Where to shelve a newly imported listing.
+ *
+ * The two catalogues are shelved differently on purpose, and an update never
+ * moves a product we already hold. But a CREATE with no category at all lands
+ * on no category page — invisible to every customer who browses rather than
+ * searches — so a new product is filed on the way in.
+ *
+ * The partner's shelf names are ours, shortened: "Kitchen & Baking" against
+ * our "Kitchen & Baking Equipment", "Polyrattan" against "Polyrattan Basket".
+ * So the match is exact-then-prefix against our own category table rather than
+ * a hand-kept alias list, which would rot the first time either side renames a
+ * shelf. Anything that matches neither is left unfiled and reported, because
+ * guessing a shelf is worse than an operator placing it.
+ */
+const norm = (s: string) => s.toUpperCase().replace(/\s+/g, ' ').trim();
+
+async function categoryResolver() {
+  const rows = await prisma.category.findMany({ select: { name: true, parentId: true, id: true } });
+  const tops = rows.filter((r) => r.parentId === null);
+  const childrenOf = new Map<number, string[]>();
+  for (const r of rows) {
+    if (r.parentId !== null) childrenOf.set(r.parentId, [...(childrenOf.get(r.parentId) ?? []), r.name]);
+  }
+
+  return function resolve(path: string[]): { category: string | null; subcategory: string | null } {
+    const wantTop = (path[0] ?? '').trim();
+    if (wantTop === '') return { category: null, subcategory: null };
+    const n = norm(wantTop);
+    const top =
+      tops.find((t) => norm(t.name) === n) ?? tops.find((t) => norm(t.name).startsWith(n + ' '));
+    if (!top) return { category: null, subcategory: null };
+
+    // A subcategory is copied only when we already have that shelf under this
+    // parent; inventing one would put the product in a menu entry that does
+    // not exist.
+    const wantSub = (path[1] ?? '').trim();
+    const kids = childrenOf.get(top.id) ?? [];
+    const sub =
+      wantSub === ''
+        ? null
+        : kids.find((k) => norm(k) === norm(wantSub)) ??
+          kids.find((k) => norm(k).startsWith(norm(wantSub) + ' ')) ??
+          null;
+
+    return { category: top.name, subcategory: sub };
+  };
+}
+
+/** A finite, non-negative rupee figure, or null — the manifest is a partner's. */
+function numberOrNull(value: unknown): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
 function messageOf(err: unknown): string {
