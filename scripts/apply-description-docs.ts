@@ -50,7 +50,9 @@ function parse(file: string): Section[] {
 
     if (tags.includes('Heading1')) {
       flush();
-      const b = /^\d+\.?\s+(.+?)\s+—\s+([A-Z]{2,}[A-Z0-9]*\d+-[A-Z0-9.-]+)$/.exec(text); // layout B
+      // Layout B: "Name — SKU". The leading number is optional — the waffle
+      // doc drops it, and requiring it matched nothing at all there.
+      const b = /^(?:\d+\.?\s+)?(.+?)\s+—\s+([A-Z]{2,}[A-Z0-9]*\d+-[A-Z0-9.-]+)$/.exec(text);
       // Layout A: any heading may start a product (numbered or not — the
       // cotton candy doc has no numbers). It only counts once a "SKU:" line
       // follows; "SEO Keywords", "Research notes"… never get one and drop out.

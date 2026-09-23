@@ -1,0 +1,92 @@
+[Title] Shawarma Machine Product Descriptions
+[] Four product descriptions for the KitchenaryKart Shawarma Machine category. Each entry includes a product image, model details, key features, simple care instructions, an SEO title and a meta description.
+[] View the Shawarma Machine category
+[Heading2] Products included
+[TBL] Product | Website SKU | Label model
+[TBL] Electric Shawarma Machine 2 Burner | KKHE0248-E2B | HEP-B2
+[TBL] Electric Shawarma Machine 3 Burner | KKHE0249-E3B | HEP-B3
+[TBL] Gas Shawarma Machine 2 Burner | KKHE0250-G2B | HEP-E2
+[TBL] Gas Shawarma Machine 3 Burner | KKHE0251-G3B | HEP-E3
+[Heading2] Using the descriptions
+[] Copy Product Description, Key Features, Suitable for and Care & Use into the matching product page. Add the SEO title and meta description to the website SEO fields. The search phrases are used naturally in the product copy.
+[Heading2] Model specifications
+[TBL] Model | Heating supply | Size in cm | Machine weight
+[TBL] Electric 2 burner | 4 kW 220 V, 50 Hz | — | 17 kg
+[TBL] Electric 3 burner | 6 kW 220 V, 50 Hz | — | 22 kg
+[TBL] Gas 2 burner | LPG | 53 × 63 × 52.5 | 18.65 kg
+[TBL] Gas 3 burner | LPG | 53 × 63 × 72.5 | 25 kg
+[] Weights refer to the machines, not the quantity of meat they can hold. Gas models also use a motor to rotate the rod.
+[Heading2] Source references
+[] KitchenaryKart product listings and the three supplied product images. Each description links to its matching listing. The electric reference image contains both electric variants. Catalogue checked on 23 September 2026.
+[Heading1] Electric Shawarma Machine 2 Burner
+[] SKU: KKHE0248-E2B | Label model: HEP-B2 | Product listing
+[] Electric model reference image showing the 2 burner and 3 burner versions.
+[] SEO Title: 2 Burner Electric Shawarma Machine 4kW | KitchenaryKart
+[] Meta Description: Prepare chicken shawarma with the KitchenaryKart 4kW electric shawarma machine, featuring two heating sections, adjustable heat and an auto rotating rod.
+[] Search phrases: electric shawarma machine, 2 burner shawarma machine, chicken shawarma grill
+[Heading2] Product Description
+[] Fresh shawarma, roasted your way.
+[] Prepare chicken shawarma for wraps and rolls with the KitchenaryKart 2 Burner Electric Shawarma Machine. The auto rotating rod turns the meat in front of two electric heating sections, helping it brown on all sides.
+[] With 4 kW rated power, separate heat controls and a vertical cooking design, this commercial shawarma grill is a practical choice for shawarma shops, restaurants and cloud kitchens.
+[Heading2] Key Features
+[ListBullet] Auto Rotating Rod: Turns the meat during roasting, reducing the need for manual turning.
+[ListBullet] 4 kW Electric Heating: Two heating sections operate on a 220 V, 50 Hz supply.
+[ListBullet] Adjustable Heat Controls: Separate knobs and a listed 50°C to 300°C range help you adjust the heat during cooking.
+[ListBullet] Indicator Lights: Lights beside the controls show power and heating status at a glance.
+[ListBullet] Drip Collection Area: The base tray catches cooking juices and drips to help keep the counter tidy.
+[] Suitable for: Chicken shawarma, doner kebab and meat fillings for wraps and rolls.
+[] Care & Use: Ask an electrician to connect the machine to a supply suitable for 4 kW. Keep hands away from the heaters and rotating rod. Cook meat thoroughly before serving. Switch off, disconnect the power and let the machine cool before cleaning.
+[Heading1] Electric Shawarma Machine 3 Burner
+[] SKU: KKHE0249-E3B | Label model: HEP-B3 | Product listing
+[] Electric model reference image showing the 2 burner and 3 burner versions.
+[] SEO Title: 3 Burner Electric Shawarma Machine 6kW | KitchenaryKart
+[] Meta Description: Shop the KitchenaryKart 6kW electric shawarma machine with three heating sections, separate controls and an auto rotating rod for commercial shawarma kitchens.
+[] Search phrases: 3 burner electric shawarma machine, commercial shawarma machine, shawarma grill
+[Heading2] Product Description
+[] Three heating sections for your shawarma station.
+[] Roast meat for your shawarma menu with the KitchenaryKart 3 Burner Electric Shawarma Machine. Three vertically arranged heating sections face the auto rotating rod, helping brown the meat as it turns.
+[] The 6 kW rated power and separate heat controls give restaurants, takeaway shops and cloud kitchens a dedicated commercial shawarma grill for preparing freshly sliced fillings.
+[Heading2] Key Features
+[ListBullet] Three Electric Heating Sections: The vertical arrangement provides heat at three levels along the meat stack.
+[ListBullet] 6 kW Rated Power: Electric heating operates on a 220 V, 50 Hz supply.
+[ListBullet] Auto Rotating Rod: Keeps the meat turning in front of the heaters for roasting on all sides.
+[ListBullet] Separate Heat Controls: Three knobs, indicator lights and a listed 50°C to 300°C range help you manage the heating sections.
+[ListBullet] Drip Collection Area: The base tray collects drips beneath the rod for easier cleanup after service.
+[] Suitable for: Chicken shawarma, doner kebab and roasted meat for wraps, rolls and platters.
+[] Care & Use: Ask an electrician to connect the machine to a supply suitable for 6 kW. Keep hands away from the heaters and rotating rod. Cook meat thoroughly before serving. Switch off, disconnect the power and allow the machine to cool before cleaning.
+[Heading1] Gas Shawarma Machine 2 Burner
+[] SKU: KKHE0250-G2B | Label model: HEP-E2 | Product listing
+[] Gas 2 burner shawarma machine with auto rotating rod.
+[] SEO Title: 2 Burner LPG Gas Shawarma Machine | KitchenaryKart
+[] Meta Description: Prepare fresh shawarma with the KitchenaryKart 2 burner LPG gas shawarma machine, with an auto rotating rod, separate burner controls and a drip collection tray.
+[] Search phrases: gas shawarma machine, 2 burner shawarma machine, LPG shawarma grill
+[Heading2] Product Description
+[] Gas roasting for freshly sliced shawarma.
+[] Make chicken shawarma for your takeaway counter with the KitchenaryKart 2 Burner Gas Shawarma Machine. Two LPG burners heat the meat while the auto rotating rod turns it for browning on all sides.
+[] With separate burner controls and a listed size of 53 × 63 × 52.5 cm, this commercial gas shawarma grill suits shawarma shops, restaurants and food outlets planning a dedicated roasting station.
+[Heading2] Key Features
+[ListBullet] Two LPG Gas Burners: Provide heat at two levels for vertical shawarma cooking.
+[ListBullet] Auto Rotating Rod: Turns the meat in front of the burners, reducing manual turning during roasting.
+[ListBullet] Separate Burner Controls: Individual knobs let you adjust the two burners to suit your cooking needs.
+[ListBullet] Countertop Format: A listed size of 53 × 63 × 52.5 cm helps you plan the counter space and installation.
+[ListBullet] Drip Collection Area: The tray beneath the rod catches cooking juices and helps contain drips.
+[] Suitable for: Chicken shawarma, doner kebab and meat fillings for rolls and takeaway wraps.
+[] Care & Use: Have a technician connect the LPG supply and motor power. Use the machine in a well ventilated area. Cook meat thoroughly before serving. Turn off the gas and power, let the machine cool, then clean the rod and drip tray.
+[Heading1] Gas Shawarma Machine 3 Burner
+[] SKU: KKHE0251-G3B | Label model: HEP-E3 | Product listing
+[] Gas 3 burner shawarma machine with auto rotating rod.
+[] SEO Title: 3 Burner LPG Gas Shawarma Machine | KitchenaryKart
+[] Meta Description: Equip your shawarma shop with the KitchenaryKart 3 burner LPG gas shawarma machine, featuring an auto rotating rod, individual burner controls and a drip tray.
+[] Search phrases: 3 burner gas shawarma machine, commercial shawarma grill, chicken shawarma machine
+[Heading2] Product Description
+[] Three burners for your daily shawarma menu.
+[] Prepare meat for shawarma wraps and platters with the KitchenaryKart 3 Burner Gas Shawarma Machine. Three vertically arranged LPG burners heat the meat as the auto rotating rod turns it during roasting.
+[] Individual burner controls let you adjust heat at each level. With a listed size of 53 × 63 × 72.5 cm, this commercial shawarma machine is a practical addition to restaurants, shawarma outlets and takeaway kitchens.
+[Heading2] Key Features
+[ListBullet] Three LPG Gas Burners: Deliver heat at three levels along the vertical cooking area.
+[ListBullet] Auto Rotating Rod: Turns the meat in front of the burners to help it brown on all sides.
+[ListBullet] Individual Burner Controls: Three separate knobs help you adjust heat at each burner.
+[ListBullet] Taller Cooking Format: The listed 53 × 63 × 72.5 cm size accommodates the three vertically arranged burners.
+[ListBullet] Drip Collection Area: The base tray catches cooking juices and drips for easier cleaning after use.
+[] Suitable for: Chicken shawarma, doner kebab and roasted meat for wraps, rolls and platters.
+[] Care & Use: Have a technician connect the LPG supply and motor power. Use the machine in a well ventilated area. Cook meat thoroughly before serving. Turn off the gas and power, let the machine cool, then clean the rod and drip tray.
