@@ -25,13 +25,14 @@ const FILE = process.argv.slice(2).find((a) => !a.startsWith('--'));
       // / Meta Description: M | / Supplied product photograph."
       const sku = /KK-[A-Z]+-\d+|[A-Z]{2,}[A-Z0-9]*\d+-[A-Z0-9.]*[A-Z0-9]/.exec(t.slice(4))?.[0] ?? t.slice(4).trim();
       const item: { sku: string; title?: string; desc?: string } = { sku };
-      const title = /SEO Title:\s*(.+?\|\s*KitchenaryKart)/.exec(t)?.[1];
+      const title = /(?:SEO|Meta) Title:\s*(.+?\|\s*KitchenaryKart)/.exec(t)?.[1];
       const desc = /Meta Description:\s*(.+?)\s*(?:\|\s*\/|\|\s*$|$)/.exec(t)?.[1];
       if (title) item.title = title.trim();
       if (desc) item.desc = desc.trim();
       items.push(item);
     }
-    else if (t.startsWith('SEO Title:') && items.length) items[items.length - 1].title = t.slice(10).trim();
+    // The popcorn doc labels the title "Meta Title:"; earlier docs say "SEO Title:".
+    else if (/^(SEO|Meta) Title:/.test(t) && items.length) items[items.length - 1].title = t.replace(/^(SEO|Meta) Title:/, '').trim();
     else if (t.startsWith('Meta Description:') && items.length) items[items.length - 1].desc = t.slice(17).trim();
   }
 

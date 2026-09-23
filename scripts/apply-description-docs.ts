@@ -69,6 +69,10 @@ function parse(file: string): Section[] {
     }
     if (tags.includes('Heading2')) {
       if (text === 'Product Description') { cur.inDesc = true; continue; }
+      // Trailing sections that belong to the doc, not to the page. In most
+      // docs these are Heading1 and end the section anyway; the popcorn doc
+      // makes them Heading2, which would publish the keyword list as body.
+      if (/^(SEO Keywords|Keywords|Research notes|Notes)$/i.test(text)) { cur.inDesc = false; continue; }
       if (!cur.inDesc) continue;
       if (/^(Suitable for|Care & Use):$/.test(text)) { cur.pendingLabel = text; continue; } // layout B
       cur.body.push(`H:${text}`);
