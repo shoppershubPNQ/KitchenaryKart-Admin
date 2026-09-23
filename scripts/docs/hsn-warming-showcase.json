@@ -1,0 +1,98 @@
+{
+  "title": "Warming Showcase Category, HSN and GST",
+  "header": "WARMING SHOWCASE",
+  "intro": "Nine live listings in the KitchenaryKart Warming Showcase category — two-layer and three-layer cabinets in black and red, curved, straight and slanting fronts, and four numbered countertop models — with the website category, HSN code and GST rate recorded against each SKU.",
+  "link": {
+    "text": "Warming Showcase category reviewed on 23 September 2026",
+    "url": "https://kitchenarykart.com/shop?cat=HOT+EQUIPMENT&sub=WARMING+SHOWCASE"
+  },
+  "columns": [
+    "#",
+    "Model",
+    "SKU",
+    "Category",
+    "HSN code",
+    "GST"
+  ],
+  "rows": [
+    [
+      "1",
+      "2 layer · black · slanting model",
+      "KKHE0281-BWS2LSM",
+      "Hot Equipment › Warming Showcase",
+      "84198190",
+      "18%"
+    ],
+    [
+      "2",
+      "2 layer · black · curved model",
+      "KKHE0282-BWS2LCM",
+      "Hot Equipment › Warming Showcase",
+      "84198190",
+      "18%"
+    ],
+    [
+      "3",
+      "3 layer · black · straight model",
+      "KKHE0283-BWS3LSM",
+      "Hot Equipment › Warming Showcase",
+      "84198190",
+      "18%"
+    ],
+    [
+      "4",
+      "3 layer · red · curved model, small",
+      "KKHE0284-RWS3LCMS",
+      "Hot Equipment › Warming Showcase",
+      "84198190",
+      "18%"
+    ],
+    [
+      "5",
+      "3 layer · red · curved model, big",
+      "KKHE0285-RWS3LCMB",
+      "Hot Equipment › Warming Showcase",
+      "84198190",
+      "18%"
+    ],
+    [
+      "6",
+      "Model 604 · countertop cabinet",
+      "KKHE0286-604",
+      "Hot Equipment › Warming Showcase",
+      "84198190",
+      "18%"
+    ],
+    [
+      "7",
+      "Model 601 · wide cabinet",
+      "KKHE0287-601",
+      "Hot Equipment › Warming Showcase",
+      "84198190",
+      "18%"
+    ],
+    [
+      "8",
+      "Model 2P2",
+      "KKHE0288-2P2",
+      "Hot Equipment › Warming Showcase",
+      "84198190",
+      "18%"
+    ],
+    [
+      "9",
+      "Model 2P1",
+      "KKHE0289-2P1",
+      "Hot Equipment › Warming Showcase",
+      "84198190",
+      "18%"
+    ]
+  ],
+  "notes": [
+    "GST: every SKU in this category is recorded at 18%.",
+    "HSN: every SKU is recorded at 84198190 — machinery for the treatment of materials by a change of temperature. A warming showcase holds prepared food at serving temperature, so the heading fits and the category is internally consistent.",
+    "KKHE0282-BWS2LCM, KKHE0285-RWS3LCMB are variant rows rather than products of their own: the curved 2-layer is a variant of KKHE0281-BWS2LSM and the big 3-layer red is a variant of KKHE0284-RWS3LCMS. They inherit the parent listing’s HSN and GST, and are listed here so the document covers all nine.",
+    "KKHE0285-RWS3LCMB (big) currently shows the same dimensions as its parent KKHE0284-RWS3LCMS (small) — 49 x 39 x 54 cm on both. Those cannot both be right; the big model’s own measurements are still needed. This does not affect HSN or GST.",
+    "Six of the nine are out of stock on the website at the time of writing. Stock does not affect HSN or GST; noted only so this list is not mistaken for an availability report."
+  ]
+}
