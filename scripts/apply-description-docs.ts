@@ -32,7 +32,7 @@ const FILES = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 // Mirrors web/components/ProductDescription.tsx, to report labels that would
 // not render bold.
 const LABEL = /^([A-Z0-9][A-Za-z0-9 &/'’.-]{1,30}):\s+(.+)$/;
-const BULLET_LABEL = /^([A-Z0-9][A-Za-z0-9 &/'’.,×–-]{1,59}):\s+(.+)$/;
+const BULLET_LABEL = /^([A-Z0-9][A-Za-z0-9 &/'’.,×–+-]{1,59}):\s+(.+)$/;
 
 type Section = { file: string; sku: string; title: string; body: string[] };
 
