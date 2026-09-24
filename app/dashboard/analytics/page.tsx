@@ -15,13 +15,15 @@ import { Fragment, useCallback, useEffect, useState } from 'react';
 import { api, inr } from '@/lib/fetch';
 import { SalesChart } from '@/components/SalesChart';
 import { Overview } from '@/components/analytics/Overview';
+import { WhyLost } from '@/components/analytics/WhyLost';
 
-type Tab = 'overview' | 'visitors' | 'products' | 'sales';
+type Tab = 'overview' | 'visitors' | 'products' | 'sales' | 'whylost';
 const TABS: Array<{ v: Tab; label: string }> = [
   { v: 'overview', label: 'Overview' },
   { v: 'visitors', label: 'Visitors' },
   { v: 'products', label: 'Products' },
   { v: 'sales', label: 'Sales' },
+  { v: 'whylost', label: 'Why lost' },
 ];
 // 28 days is GA4's default month; 365 is there because sales history goes back
 // far further than visitor tracking does.
@@ -181,6 +183,7 @@ export default function AnalyticsPage() {
       {tab === 'visitors' && <Visitors days={days} />}
       {tab === 'products' && <Products days={days} />}
       {tab === 'sales' && <Sales />}
+      {tab === 'whylost' && <WhyLost days={days} />}
     </div>
   );
 }

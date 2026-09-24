@@ -193,18 +193,18 @@ model ProductVariant {
   /// storefront uses this directly instead of parent.price + priceModifier.
   /// Nullable + additive — legacy variants fall back to the modifier until
   /// backfilled.
-  price Decimal? @db.Decimal(10, 2)
+  price        Decimal? @db.Decimal(10, 2)
   /// Absolute per-variant MRP (sticker price) driving the strike-through +
   /// SAVE %. Null = no MRP for this variant.
-  mrp   Decimal? @db.Decimal(10, 2)
+  mrp          Decimal? @db.Decimal(10, 2)
   /// Per-variant weight, free text like the parent ("360g", "1.2 kg").
   /// Null = fall back to the parent product weight. Drives the shipping
   /// quote, so a big size is not charged as if it were the small one.
-  weight        String?
+  weight       String?
   /// Per-variant free-shipping override. Null = inherit the parent's flag,
   /// so one size can ship free without freeing its siblings. Column added
   /// by raw SQL 2026-08-27.
-  freeShipping  Boolean? @map("free_shipping")
+  freeShipping Boolean? @map("free_shipping")
 
   /// Per-variant SPECS. Same free-text convention and same null-inherits-parent
   /// rule as `weight` above.
@@ -222,7 +222,6 @@ model ProductVariant {
   /// one text cannot describe them all. Null = show the parent's description.
   /// Column added by raw SQL 2026-09-15 (scripts/add-variant-description-column.ts).
   description String?
-
 
   /// Order lines that bought this specific variant (for stock decrement).
   orderItems OrderItem[]
@@ -262,11 +261,11 @@ model CreditNote {
   financialYear String @map("financial_year")
 
   /// The order/invoice being credited.
-  orderId       Int    @map("order_id")
-  order         Order  @relation(fields: [orderId], references: [id])
+  orderId       Int      @map("order_id")
+  order         Order    @relation(fields: [orderId], references: [id])
   /// Copied at issue time so the note still reads correctly if the order is
   /// later edited — a tax document must not change under the taxpayer's feet.
-  invoiceNumber String @map("invoice_number")
+  invoiceNumber String   @map("invoice_number")
   invoiceDate   DateTime @map("invoice_date")
 
   /// GSTR-1 reason code: return / deficiency / correction / discount / other.
@@ -282,8 +281,8 @@ model CreditNote {
   totalAmount  Decimal @map("total_amount") @db.Decimal(12, 2)
 
   /// Copied from the order so the note is self-contained for filing.
-  customerName    String? @map("customer_name")
-  customerGstin   String? @map("customer_gstin")
+  customerName      String? @map("customer_name")
+  customerGstin     String? @map("customer_gstin")
   placeOfSupply     String? @map("place_of_supply")
   placeOfSupplyCode String? @map("place_of_supply_code")
 
@@ -369,9 +368,9 @@ model Order {
   /// prefers this over the linked customer's stored GSTIN.
   customerGstin String? @map("customer_gstin")
 
-  shippingAddress String? @map("shipping_address")
-  shippingMethod  String? @map("shipping_method")
-  shippingCost    Decimal @default(0) @map("shipping_cost") @db.Decimal(10, 2)
+  shippingAddress      String? @map("shipping_address")
+  shippingMethod       String? @map("shipping_method")
+  shippingCost         Decimal @default(0) @map("shipping_cost") @db.Decimal(10, 2)
   /// Internal-only: the ACTUAL courier/logistics cost the store bears on this
   /// order. Never shown to the customer (the customer's shipping fee is
   /// `shippingCost` above). Used by the per-order profit breakdown.
@@ -451,8 +450,8 @@ model Order {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  items    OrderItem[]
-  payments Payment[]
+  items       OrderItem[]
+  payments    Payment[]
   creditNotes CreditNote[]
   shipments   Shipment[]
 
@@ -913,11 +912,11 @@ model StockNotification {
 /// `keyPrefix` is the first 12 characters, kept in clear so the panel can show
 /// "kk_live_a1b2…" next to each key without being able to reconstruct it.
 model SyncApiKey {
-  id        Int     @id @default(autoincrement())
+  id        Int    @id @default(autoincrement())
   /// Operator-facing label, e.g. "Hotelic Essentials — production".
   name      String
-  keyPrefix String  @map("key_prefix")
-  keyHash   String  @unique @map("key_hash")
+  keyPrefix String @map("key_prefix")
+  keyHash   String @unique @map("key_hash")
 
   /// Read-only audit of what the partner has been doing with the key.
   lastUsedAt   DateTime? @map("last_used_at")
@@ -1188,11 +1187,47 @@ model IntegrationCredential {
 
   /// Cached Shiprocket JWT — valid 240 h, and a cold lambda would otherwise
   /// re-login on every request.
-  cachedToken     String?   @map("cached_token")
-  tokenExpiresAt  DateTime? @map("token_expires_at")
+  cachedToken    String?   @map("cached_token")
+  tokenExpiresAt DateTime? @map("token_expires_at")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("integration_credentials")
+}
+
+/// Why a shopper left checkout without paying — their own answer, given on
+/// the way out. The abandoned-checkout alert already says THAT a cart was
+/// lost; this is the only place that records WHY.
+///
+/// Written by the storefront from an untrusted browser, so every field is
+/// validated and capped at /api/checkout-feedback and `reason` must be one of
+/// the known keys. No name, email or phone is stored: the answer is about the
+/// checkout, not the person.
+model CheckoutFeedback {
+  id BigInt @id @default(autoincrement())
+
+  /// A stable key, never the label — the wording changes without breaking the
+  /// report. See lib/checkout-feedback.ts for the list.
+  reason String  @db.VarChar(40)
+  /// Free text, only for the "other" reason.
+  note   String? @db.VarChar(500)
+
+  /// The analytics session, so an answer can be read beside what that visit
+  /// actually did. Null when the visitor blocks tracking.
+  sessionId String?  @map("session_id") @db.VarChar(40)
+  /// What was in the cart when they gave up — the size of the lost sale.
+  cartValue Decimal? @map("cart_value") @db.Decimal(10, 2)
+  itemCount Int?     @map("item_count")
+
+  /// Kept to separate real shoppers from staff testing the checkout, which is
+  /// what inflated the lost-cart numbers before.
+  userAgent String? @map("user_agent") @db.VarChar(300)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([reason])
+  @@index([createdAt])
+  @@index([sessionId])
+  @@map("checkout_feedback")
 }
