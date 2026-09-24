@@ -66,8 +66,11 @@ function parse(file: string): Section[] {
     // so take the SKU token itself, not the rest of the line.
     if (text.startsWith('SKU:')) {
       // Brackets and a slash belong to some SKUs — KKHE0141-288(C06),
-      // KKSP0179-WLX1/2AF — so the token must not stop at one.
-      const m = /KK-[A-Z]+-\d+|[A-Z]{2,}[A-Z0-9]*\d+-[A-Z0-9./()]*[A-Z0-9)]/.exec(text.slice(4));
+      // KKSP0179-WLX1/2AF — so the token must not stop at one. The middle
+      // alternative is for partner-style SKUs with letters before the first
+      // hyphen (HE-JDCW-16X2), which the last one cannot reach: it wants
+      // digits immediately before the hyphen.
+      const m = /KK-[A-Z]+-\d+|\b[A-Z]{2,}-[A-Z0-9]+(?:-[A-Z0-9]+)+\b|[A-Z]{2,}[A-Z0-9]*\d+-[A-Z0-9./()-]*[A-Z0-9)]/.exec(text.slice(4));
       cur.sku = (m ? m[0] : text.slice(4)).trim();
       continue;
     }
@@ -86,6 +89,11 @@ function parse(file: string): Section[] {
       continue;
     }
     if (!cur.inDesc) continue; // skips "Source product listing", SEO Title, Meta Description
+    // Notes the writer addressed to the catalogue team, not to a shopper:
+    // "the product name/SKU supplied for this category was used as the factual
+    // basis", "the page does not list a temperature range, so it was not
+    // added". They sit inside the description block but must not be published.
+    if (/^(Research|Important|Catalogue|Editor'?s) Note:/i.test(text)) continue;
     if (cur.pendingLabel) { cur.body.push(`P:${cur.pendingLabel} ${text}`); cur.pendingLabel = ''; continue; }
     if (tags.includes('ListBullet')) { cur.body.push(`B:${text}`); continue; }
     if (/^[•*]\s+/.test(text)) { cur.body.push(`B:${text.replace(/^[•*]\s+/, '')}`); continue; }

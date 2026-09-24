@@ -1,0 +1,364 @@
+[Title] BBQ Equipment Product Descriptions
+[] Nineteen English product descriptions for the KitchenaryKart BBQ Equipment range. Each product includes an SEO title, meta description, key features, suitable uses and care guidance. Use the SKU index to match each description to its product page.
+[] BBQ Equipment category reviewed on 21 September 2026
+[Heading2] Product index
+[TBL] Page | Model | SKU
+[TBL] 2 | Electric tawa grill · Small | KKHE0023-BBQEGTPS
+[TBL] 3 | Electric tawa grill · Medium | KKHE0024-BBQEGTPM
+[TBL] 4 | Electric tawa grill · Big | KKHE0025-BBQEGTPB
+[TBL] 5 | Heavy cylindrical grill · Wood shelves | KKHE0026-BBQH2W
+[TBL] 6 | Portable cylindrical grill · Black | KKHE0027-BBQPC
+[TBL] 7 | Portable rectangle grill · Small | KKHE0028-2-35-87
+[TBL] 8 | Portable rectangle grill · Big | KKHE0029-2-35-88
+[TBL] 9 | Eco blower grill · Small | KKHE0030-3-25-69
+[TBL] 10 | Eco blower grill · Big | KKHE0031-3-25-70
+[TBL] 11 | Foldable X stand grill · 30 × 80 cm | KKHE0032-BBQXB
+[TBL] 12 | Lid and premium blower · Small | KKHE0033-BBQPBS
+[TBL] 13 | Lid and premium blower · Big | KKHE0034-BBQPBB
+[TBL] 14 | Rectangle grill · Removable legs | KKHE0035-2-35-89
+[TBL] 15 | Rectangle grill · Temperature gauge | KKHE0036-BBQTS
+[TBL] 16 | Red top rectangle grill · Wheels | KKHE0037-BBQMSRE
+[TBL] 17 | Round red top grill · 35 cm | KKHE0038-BBQMSROS
+[TBL] 18 | Round red top grill · 43 cm | KKHE0039-BBQMSROB
+[TBL] 19 | Red top square grill · Wheels | KKHE0040-BBQMSSQ
+[TBL] 20 | Stainless steel folding grill | KKHE0041-2-35-91
+
+[Heading1] 1 Electric Rectangle BBQ Grill Tawa Plate Small
+[b] SKU: KKHE0023-BBQEGTPS
+[] Source product listing
+[b] SEO Title: Small Electric BBQ Grill Tawa 1500W | KitchenaryKart
+[b] Meta Description: Prepare paneer, vegetables and grilled snacks with the KitchenaryKart Small 1500W Electric BBQ Grill Tawa Plate, featuring flat and ridged cooking sections.
+[Heading2] Product Description
+[b] Grilled snacks, fresh from your counter.
+[b] Prepare paneer, vegetables and grilled sandwiches with the KitchenaryKart Small Electric Rectangle Barbeque Grill Tawa Plate. The combination of flat and ridged sections gives you options for different preparations on one plate.
+[b] With 1500 W rated power and a countertop design, this electric BBQ grill tawa is a practical addition to cafés, restaurant snack counters and catering stations.
+[Heading2] Key Features
+[ListBullet,b] 1500 W Electric Heating: Provides a dedicated electric cooking surface for grilling and tawa-style preparation.
+[ListBullet,b] Flat and Ridged Sections: Use the flat area for contact cooking and the ridged area for grill-style presentation.
+[ListBullet,b] Rectangular Plate: Helps organise ingredients across the cooking surface.
+[ListBullet,b] Raised Plate Edges: Help contain ingredients and cooking juices within the plate.
+[ListBullet,b] Side Handles: Provide grip points for positioning the appliance when unplugged and completely cool.
+[b] Suitable for: Paneer, vegetables, sandwiches and other foods suitable for electric plate grilling.
+[b] Care & Use: Use on a stable, heat-resistant surface with suitable ventilation. Follow the rated electrical supply and operating instructions. Switch off, unplug and allow the plate to cool before cleaning; keep electrical parts dry.
+
+[Heading1] 2 Electric Rectangle BBQ Grill Tawa Plate Medium
+[b] SKU: KKHE0024-BBQEGTPM
+[] Source product listing
+[b] SEO Title: Medium Electric BBQ Grill Tawa 1500W | KitchenaryKart
+[b] Meta Description: Bring electric plate grilling to your menu with the KitchenaryKart Medium 1500W BBQ Grill Tawa, with flat and ridged sections for snacks and vegetables.
+[Heading2] Product Description
+[b] Bring tawa cooking and grill-style finishing together.
+[b] Add freshly grilled options to your menu with the KitchenaryKart Medium Electric Rectangle Barbeque Grill Tawa Plate. Cook on the flat section or use the ridged section to give suitable ingredients a grilled finish.
+[b] This 1500 W electric grill plate suits café menus, restaurant starters and live snack service. Its rectangular countertop format keeps the cooking surface within easy reach.
+[Heading2] Key Features
+[ListBullet,b] 1500 W Rated Power: Supports electric plate cooking for a range of snack preparations.
+[ListBullet,b] Two Surface Textures: Flat and ridged sections accommodate different cooking and presentation needs.
+[ListBullet,b] Rectangular Cooking Layout: Provides a straightforward surface for arranging and turning food.
+[ListBullet,b] Raised Edges: Help keep ingredients and juices on the cooking plate.
+[ListBullet,b] Side Handles: Help with positioning the unplugged, completely cooled appliance on the counter.
+[b] Suitable for: Grilled vegetables, paneer, sandwiches and tawa-style snacks for cafés and restaurant counters.
+[b] Care & Use: Use on a stable, heat-resistant surface with suitable ventilation. Follow the rated electrical supply and operating instructions. Switch off, unplug and allow the plate to cool before cleaning; keep electrical parts dry.
+
+[Heading1] 3 Electric Rectangle BBQ Grill Tawa Plate Big
+[b] SKU: KKHE0025-BBQEGTPB
+[] Source product listing
+[b] SEO Title: Big Electric BBQ Grill Tawa 1500W | KitchenaryKart
+[b] Meta Description: Create grilled starters with the KitchenaryKart Big 1500W Electric BBQ Grill Tawa Plate. Flat and ridged sections support varied countertop preparations.
+[Heading2] Product Description
+[b] Give everyday starters a grilled finish.
+[b] Prepare your choice of vegetables, paneer and sandwich fillings with the KitchenaryKart Big Electric Rectangle Barbeque Grill Tawa Plate. Flat and ridged cooking sections let you adapt the surface to the preparation.
+[b] With 1500 W rated power, this electric barbeque tawa provides a dedicated plate for restaurant starters, café snacks and catered food stations.
+[Heading2] Key Features
+[ListBullet,b] 1500 W Electric Operation: Uses electric heating for plate-based grilling and tawa cooking.
+[ListBullet,b] Flat and Ridged Cooking Areas: Bring two surface styles together for different ingredients and finishes.
+[ListBullet,b] Rectangular Plate Format: Keeps food accessible for turning, checking and serving.
+[ListBullet,b] Raised Plate Edges: Help retain ingredients and cooking juices on the plate.
+[ListBullet,b] Side Handles: Provide holding points when moving the unplugged appliance after it has cooled.
+[b] Suitable for: Paneer starters, grilled vegetables, sandwiches and other foods suited to contact grilling.
+[b] Care & Use: Use on a stable, heat-resistant surface with suitable ventilation. Follow the rated electrical supply and operating instructions. Switch off, unplug and allow the plate to cool before cleaning; keep electrical parts dry.
+
+[Heading1] 4 MS Cylindrical Heavy BBQ Grill with Two Wooden Planks
+[b] SKU: KKHE0026-BBQH2W
+[] Source product listing
+[b] SEO Title: Heavy Cylindrical BBQ Grill with Shelves | KitchenaryKart
+[b] Meta Description: Set up outdoor grilling with the KitchenaryKart MS Cylindrical Heavy BBQ Grill, featuring two wooden shelves, a hinged lid and wheels for positioning.
+[Heading2] Product Description
+[b] Keep your outdoor grill station organised.
+[b] Bring cooking and preparation space together with the KitchenaryKart MS Cylindrical Heavy Barbeque Grill with Two Wooden Planks. Grill your selection of starters while keeping serving trays and utensils close by.
+[b] The cylindrical body, hinged lid and wheeled stand make this charcoal BBQ grill useful for outdoor restaurant service, hotel lawns and catered events.
+[Heading2] Key Features
+[ListBullet,b] Mild Steel Body: Provides the structure for this Heavy Model charcoal grill.
+[ListBullet,b] Two Wooden Shelves: Offer nearby space for utensils and serving trays during preparation.
+[ListBullet,b] Hinged Cylindrical Lid: Provides access to the grill and a cover for cooking as directed.
+[ListBullet,b] Stand with Wheels: Supports the grill and makes repositioning on suitable level ground easier when cold.
+[ListBullet,b] Lower Utility Rack: Adds space beneath the grill for suitable accessories, away from the cooking surface.
+[b] Suitable for: Outdoor grilling of kebabs, paneer, vegetables and meat portions at restaurants, hotels and catered events.
+[b] Care & Use: Use charcoal outdoors only, away from enclosed spaces and flammable materials. Position securely on level ground before lighting. Move only when the grill and ashes are completely cold. Clean and dry before storage.
+
+[Heading1] 5 MS Portable Cylindrical BBQ Grill Black
+[b] SKU: KKHE0027-BBQPC
+[] Source product listing
+[b] SEO Title: Portable Cylindrical Charcoal BBQ Grill | KitchenaryKart
+[b] Meta Description: Enjoy outdoor grilling with the KitchenaryKart Black MS Portable Cylindrical BBQ Grill, with a carry handle, closing latch and a listed weight of 3.4 kg.
+[Heading2] Product Description
+[b] Pack your grill for the next outdoor gathering.
+[b] Prepare barbecue favourites with the KitchenaryKart Black MS Portable Cylindrical Barbeque Grill. Its barrel-shaped body and carry handle make it a convenient option for outdoor gatherings and occasional catering setups.
+[b] With mild steel construction and a listed weight of 3.4 kg, this portable charcoal grill is designed to be carried between locations once completely cool.
+[Heading2] Key Features
+[ListBullet,b] Portable Cylindrical Design: Combines a barrel-shaped cooking body with a compact supporting frame.
+[ListBullet,b] Mild Steel Construction: Forms the body of the black-finish BBQ grill.
+[ListBullet,b] Carry Handle and Closing Latch: Help with carrying and keeping the grill closed during cold transport.
+[ListBullet,b] Side Vent Openings: Provide openings for airflow around the charcoal chamber.
+[ListBullet,b] 3.4 kg Listed Weight: Helps you plan transport and handling for outdoor use.
+[b] Suitable for: Outdoor grilling of paneer, kebabs, vegetables and small meat portions at picnics and catered gatherings.
+[b] Care & Use: Use charcoal outdoors only on a stable, non-combustible surface, away from enclosed spaces and flammable materials. Follow the fuel-loading instructions. Allow the grill and ashes to cool completely before cleaning or moving; dry thoroughly before storage.
+
+[Heading1] 6 MS Portable Rectangle BBQ Grill Small
+[b] SKU: KKHE0028-2-35-87
+[] Source product listing
+[b] SEO Title: Small Portable Rectangle BBQ Grill | KitchenaryKart
+[b] Meta Description: Set up outdoor snacks with the KitchenaryKart Small MS Portable Rectangle BBQ Grill. Its folding design and open grate make cooking and packing convenient.
+[Heading2] Product Description
+[b] Set up, grill and pack away.
+[b] Make outdoor snack preparation straightforward with the KitchenaryKart Small MS Portable Rectangle Barbeque Grill. Arrange paneer, vegetable pieces or suitable skewers across the open rectangular grate.
+[b] The folding portable BBQ design helps reduce storage bulk between uses, making this Small model practical for outdoor gatherings and occasional live cooking setups.
+[Heading2] Key Features
+[ListBullet,b] Mild Steel Body: Provides the structure for the rectangular charcoal chamber.
+[ListBullet,b] Folding Design: Packs down for storage and transport after the unit has cooled.
+[ListBullet,b] Open Rectangular Grate: Keeps food visible and accessible for turning during cooking.
+[ListBullet,b] Side Carry Handle: Provides a grip for handling the empty grill when cold.
+[ListBullet,b] Side Vent Openings: Allow airflow around the charcoal chamber during cooking.
+[b] Suitable for: Paneer, vegetables, kebabs and suitable meat portions for outdoor barbecues.
+[b] Care & Use: Use charcoal outdoors only, away from enclosed spaces and flammable materials. Fully secure the stand on a level, non-combustible surface before lighting. Let the grill and ashes cool completely before folding, cleaning or transport; store dry.
+
+[Heading1] 7 MS Portable Rectangle BBQ Grill Big
+[b] SKU: KKHE0029-2-35-88
+[] Source product listing
+[b] SEO Title: Big Portable Rectangle Charcoal BBQ | KitchenaryKart
+[b] Meta Description: Prepare outdoor barbecue favourites with the KitchenaryKart Big MS Portable Rectangle BBQ Grill, featuring an open grate and a folding design for storage.
+[Heading2] Product Description
+[b] Take your barbecue menu outdoors.
+[b] Bring freshly grilled starters to outdoor gatherings with the KitchenaryKart Big MS Portable Rectangle Barbeque Grill. The open grate gives you direct access to food as you turn, check and serve each preparation.
+[b] This portable charcoal BBQ grill combines a mild steel body with a folding format that is convenient to pack away between events.
+[Heading2] Key Features
+[ListBullet,b] Mild Steel Construction: Forms the body of the Big portable rectangle model.
+[ListBullet,b] Folding Format: Helps reduce the space required for storage when the grill is cold and empty.
+[ListBullet,b] Rectangular Grilling Surface: Allows ingredients to be arranged in rows for convenient handling.
+[ListBullet,b] Open Cooking Access: Makes it easy to check browning and turn food while grilling.
+[ListBullet,b] Carry Handle: Provides a holding point for moving the empty, completely cooled grill.
+[b] Suitable for: Outdoor kebab service, grilled vegetables, paneer and suitable meat preparations.
+[b] Care & Use: Use charcoal outdoors only, away from enclosed spaces and flammable materials. Fully secure the stand on a level, non-combustible surface before lighting. Let the grill and ashes cool completely before folding, cleaning or transport; store dry.
+
+[Heading1] 8 MS Rectangle BBQ Grill with Eco Blower Small
+[b] SKU: KKHE0030-3-25-69
+[] Source product listing
+[b] SEO Title: Small Charcoal BBQ Grill with Eco Blower | KitchenaryKart
+[b] Meta Description: Manage charcoal airflow with the KitchenaryKart Small MS Rectangle BBQ Grill with Eco Blower, featuring an open rectangular grate and supporting stand.
+[Heading2] Product Description
+[b] Give your charcoal fire a helping hand.
+[b] Prepare outdoor barbecue starters with the KitchenaryKart Small MS Rectangle Barbeque Grill with Eco Blower. The included blower supplies air to the charcoal bed, helping you tend the fire during cooking.
+[b] A mild steel body, open grate and supporting stand make this BBQ grill with blower useful for restaurant outdoor areas and catered live cooking stations.
+[Heading2] Key Features
+[ListBullet,b] Eco Blower Included: Directs airflow towards the fuel bed to assist charcoal burning.
+[ListBullet,b] Mild Steel Body: Provides the structure for the rectangular grill chamber.
+[ListBullet,b] Open Rectangular Grate: Keeps ingredients accessible for turning and checking.
+[ListBullet,b] Supporting Stand: Raises the cooking chamber above the ground for standing service.
+[b] Suitable for: Outdoor charcoal cooking of kebabs, paneer, vegetables and meat portions.
+[b] Care & Use: Use charcoal outdoors only on level, non-combustible ground. Follow the blower and fuel-loading instructions; keep hands clear of hot surfaces and moving parts. Let the grill and ashes cool completely before cleaning or moving; store dry.
+
+[Heading1] 9 MS Rectangle BBQ Grill with Eco Blower Big
+[b] SKU: KKHE0031-3-25-70
+[] Source product listing
+[b] SEO Title: Big Charcoal BBQ Grill with Eco Blower | KitchenaryKart
+[b] Meta Description: Build an outdoor grill station with the KitchenaryKart Big MS Rectangle BBQ Grill with Eco Blower, combining an open grate with assisted charcoal airflow.
+[Heading2] Product Description
+[b] Keep the fire ready for your next batch.
+[b] Bring charcoal-grilled dishes to your outdoor menu with the KitchenaryKart Big MS Rectangle Barbeque Grill with Eco Blower. Its blower helps deliver air to the charcoal bed while you manage the cooking process.
+[b] This rectangular charcoal BBQ grill offers an open cooking layout and supporting stand for hotel lawns, outdoor restaurant service and catered events.
+[Heading2] Key Features
+[ListBullet,b] Eco Blower: Assists airflow to the charcoal bed during fire management.
+[ListBullet,b] Mild Steel Construction: Forms the grill body for outdoor barbecue preparation.
+[ListBullet,b] Rectangular Cooking Layout: Helps arrange ingredients or suitable skewers across the grate.
+[ListBullet,b] Raised Stand: Supports the cooking chamber for convenient access during service.
+[b] Suitable for: Outdoor barbecue starters, grilled vegetables, paneer and meat portions at restaurants and catered events.
+[b] Care & Use: Use charcoal outdoors only on level, non-combustible ground. Follow the blower and fuel-loading instructions; keep hands clear of hot surfaces and moving parts. Let the grill and ashes cool completely before cleaning or moving; store dry.
+
+[Heading1] 10 MS Rectangle BBQ Grill with Foldable X Stand Big
+[b] SKU: KKHE0032-BBQXB
+[] Source product listing
+[b] SEO Title: 30x80 cm BBQ Grill with Folding Stand | KitchenaryKart
+[b] Meta Description: Grill kebabs and vegetables on the KitchenaryKart 30 x 80 cm MS Rectangle BBQ Grill, with a foldable X-shaped stand for convenient setup and storage.
+[Heading2] Product Description
+[b] A long grill surface that packs away after service.
+[b] Arrange your barbecue selection across the KitchenaryKart Big MS Rectangle Barbeque Grill with Foldable X-Shaped Stand. The 30 × 80 cm grill area provides an elongated surface for suitable skewers and individual portions.
+[b] Its folding stand makes this charcoal BBQ grill convenient for outdoor catering setups that need to be assembled for service and stored afterwards.
+[Heading2] Key Features
+[ListBullet,b] 30 × 80 cm Grill Area: Provides a clearly specified rectangular cooking surface.
+[ListBullet,b] Foldable X-Shaped Stand: Supports the grill during use and folds for storage when cold.
+[ListBullet,b] Mild Steel Body: Forms the structure around the charcoal chamber.
+[ListBullet,b] Open Grate: Allows direct access for arranging ingredients and turning food.
+[ListBullet,b] Side Handles: Provide holding points for positioning the empty, cooled grill.
+[b] Suitable for: Outdoor kebab counters, paneer tikka, vegetables and suitable meat portions at catered events.
+[b] Care & Use: Use charcoal outdoors only, away from enclosed spaces and flammable materials. Fully secure the stand on a level, non-combustible surface before lighting. Let the grill and ashes cool completely before folding, cleaning or transport; store dry.
+
+[Heading1] 11 MS Rectangle BBQ Grill with Lid and Premium Blower Small
+[b] SKU: KKHE0033-BBQPBS
+[] Source product listing
+[b] SEO Title: Small BBQ Grill with Lid and Blower | KitchenaryKart
+[b] Meta Description: Prepare outdoor barbecue dishes with the KitchenaryKart Small MS Rectangle BBQ Grill, featuring a lid, premium blower and raised supporting stand.
+[Heading2] Product Description
+[b] Add airflow assistance and a cover to your grill setup.
+[b] Cook your barbecue favourites with the KitchenaryKart Small MS Rectangle Barbeque Grill with Lid and Premium Blower. The blower helps supply air to the charcoal bed, while the lid provides a cover for the cooking chamber.
+[b] With a mild steel body and rectangular grate, this charcoal grill with lid and blower suits outdoor snack service and catered live cooking stations.
+[Heading2] Key Features
+[ListBullet,b] Premium Blower Included: Assists airflow to the charcoal bed as you tend the fire.
+[ListBullet,b] Lid with Handle: Provides a cover for the grill chamber; use as directed by the operating instructions.
+[ListBullet,b] Mild Steel Body: Forms the structure of the Small BBQ model.
+[ListBullet,b] Rectangular Grate: Keeps suitable skewers and individual portions accessible for turning.
+[ListBullet,b] Supporting Stand: Raises the grill for convenient access at an outdoor cooking station.
+[b] Suitable for: Outdoor grilling of kebabs, paneer, vegetables and meat portions for restaurants and caterers.
+[b] Care & Use: Use charcoal outdoors only on level, non-combustible ground. Follow the blower and fuel-loading instructions; keep hands clear of hot surfaces and moving parts. Let the grill and ashes cool completely before cleaning or moving; store dry.
+
+[Heading1] 12 MS Rectangle BBQ Grill with Lid and Premium Blower Big
+[b] SKU: KKHE0034-BBQPBB
+[] Source product listing
+[b] SEO Title: Big BBQ Grill with Lid and Blower | KitchenaryKart
+[b] Meta Description: Set up charcoal cooking with the KitchenaryKart Big MS Rectangle BBQ Grill with Lid and Premium Blower, designed for accessible outdoor barbecue preparation.
+[Heading2] Product Description
+[b] Bring covered grilling to your outdoor menu.
+[b] Prepare a selection of barbecue starters with the KitchenaryKart Big MS Rectangle Barbeque Grill with Lid and Premium Blower. Arrange your ingredients on the rectangular grate and use the blower to assist charcoal airflow.
+[b] The lid, mild steel body and raised stand make this BBQ grill with premium blower a practical option for outdoor restaurant areas and catering setups.
+[Heading2] Key Features
+[ListBullet,b] Premium Blower: Delivers air towards the charcoal bed to support fire tending.
+[ListBullet,b] Grill Lid: Covers the cooking chamber when used according to the operating instructions.
+[ListBullet,b] Mild Steel Construction: Provides the body of the Big model in this range.
+[ListBullet,b] Rectangular Grilling Layout: Lets you arrange preparations across an accessible open grate.
+[ListBullet,b] Raised Supporting Stand: Keeps the cooking chamber off the ground for standing service.
+[b] Suitable for: Charcoal-grilled paneer, kebabs, vegetables and suitable meat portions at outdoor events.
+[b] Care & Use: Use charcoal outdoors only on level, non-combustible ground. Follow the blower and fuel-loading instructions; keep hands clear of hot surfaces and moving parts. Let the grill and ashes cool completely before cleaning or moving; store dry.
+
+[Heading1] 13 MS Rectangle BBQ Grill with Removable Legs
+[b] SKU: KKHE0035-2-35-89
+[] Source product listing
+[b] SEO Title: Rectangle BBQ Grill with Removable Legs | KitchenaryKart
+[b] Meta Description: Make setup and storage convenient with the KitchenaryKart MS Rectangle BBQ Grill with Removable Legs, a 67 cm assembled height and open cooking grate.
+[Heading2] Product Description
+[b] Set up for service, remove the legs for storage.
+[b] Create an outdoor cooking station with the KitchenaryKart MS Rectangle Barbeque Grill with Removable Legs. The open grate keeps food within reach, while the detachable legs help simplify packing after service.
+[b] With a listed assembled height of 67 cm, this charcoal BBQ grill offers a freestanding format for outdoor restaurant areas, hotel lawns and catering events.
+[Heading2] Key Features
+[ListBullet,b] Removable Legs: Detach after the grill has cooled to make storage and transport more convenient.
+[ListBullet,b] 67 cm Assembled Height: The listed height with legs fitted helps you plan the cooking setup.
+[ListBullet,b] Mild Steel Body: Provides a rectangular chamber for charcoal grilling.
+[ListBullet,b] Open Rectangular Grate: Allows direct access for checking, turning and serving food.
+[ListBullet,b] Side Vent Openings: Allow airflow around the fuel chamber during use.
+[b] Suitable for: Outdoor barbecue starters, paneer, vegetables, kebabs and suitable meat portions.
+[b] Care & Use: Use charcoal outdoors only, away from enclosed spaces and flammable materials. Secure all legs on a level, non-combustible surface before lighting. Cool the grill and ashes completely before removing the legs or cleaning; store dry.
+
+[Heading1] 14 MS Rectangle BBQ Grill with Temperature Sensor
+[b] SKU: KKHE0036-BBQTS
+[] Source product listing
+[b] SEO Title: Charcoal BBQ Grill with Temperature Gauge | KitchenaryKart
+[b] Meta Description: Monitor grill heat with the KitchenaryKart MS Rectangle BBQ Grill with Temperature Sensor, featuring a covered chamber, side shelf and wheeled stand.
+[Heading2] Product Description
+[b] Keep an eye on the heat while you grill.
+[b] Prepare barbecue favourites with the KitchenaryKart MS Rectangle Barbeque Grill with Temperature Sensor. The lid-mounted gauge gives a temperature indication while the cooking chamber remains covered.
+[b] A side shelf, lower rack and wheeled stand make this charcoal BBQ grill with temperature gauge useful for an organised outdoor cooking station at restaurants, hotels and catered events.
+[Heading2] Key Features
+[ListBullet,b] Lid-Mounted Temperature Gauge: Provides a grill temperature indication to support cooking checks; it is not an automatic temperature controller.
+[ListBullet,b] Covered Rectangular Chamber: Combines a hinged lid with a rectangular cooking layout.
+[ListBullet,b] Mild Steel Construction: Forms the body of the grill, with a listed total weight of 24.22 kg.
+[ListBullet,b] Side Shelf and Lower Rack: Provide nearby space for suitable trays and grilling accessories.
+[ListBullet,b] Stand with Wheels: Helps move the cold grill into position on suitable level ground.
+[b] Suitable for: Outdoor charcoal cooking of meat portions, paneer, kebabs and vegetables.
+[b] Care & Use: Use charcoal outdoors only on level ground, away from flammable materials. Check food doneness separately from the lid gauge. Move only when the grill and ashes are completely cold. Follow the operating instructions and store clean and dry.
+
+[Heading1] 15 MS Red Top Rectangle BBQ Grill with Stand and Wheels
+[b] SKU: KKHE0037-BBQMSRE
+[] Source product listing
+[b] SEO Title: Red Rectangle BBQ Grill with Wheels | KitchenaryKart
+[b] Meta Description: Add a mobile grill to outdoor service with the KitchenaryKart MS Red Top Rectangle BBQ Grill, featuring a lid, supporting stand and wheels for positioning.
+[Heading2] Product Description
+[b] Roll your grill into place before the gathering begins.
+[b] Serve freshly grilled starters with the KitchenaryKart MS Red Top Rectangle Barbeque Grill with Stand and Wheels. The rectangular format helps arrange your barbecue selection, while the red top adds a distinct finish to the setup.
+[b] This wheeled charcoal BBQ grill combines a mild steel body and freestanding design for outdoor gatherings, hotel lawns and catered food stations.
+[Heading2] Key Features
+[ListBullet,b] Rectangular Grill Format: Provides a familiar layout for arranging vegetables, paneer and suitable meat portions.
+[ListBullet,b] Red Top Cover: Gives the grill a distinctive appearance and covers the chamber as directed.
+[ListBullet,b] Mild Steel Body: Forms the structure of this outdoor BBQ model.
+[ListBullet,b] Supporting Stand: Raises the grill above the ground for convenient access.
+[ListBullet,b] Wheels for Positioning: Make it easier to relocate the cold grill on suitable level surfaces.
+[b] Suitable for: Outdoor barbecue snacks, vegetables, paneer and meat portions at gatherings and catering events.
+[b] Care & Use: Use charcoal outdoors only, away from enclosed spaces and flammable materials. Position securely on level ground before lighting. Move only when the grill and ashes are completely cold. Clean and dry before storage.
+
+[Heading1] 16 MS Red Top Round BBQ Grill 35 cm Small
+[b] SKU: KKHE0038-BBQMSROS
+[] Source product listing
+[b] SEO Title: 35 cm Round BBQ Grill with Wheels | KitchenaryKart
+[b] Meta Description: Prepare outdoor barbecue snacks with the KitchenaryKart Small 35 cm Round BBQ Grill, featuring a red top, mild steel body, supporting stand and wheels.
+[Heading2] Product Description
+[b] A compact round grill for outdoor favourites.
+[b] Prepare paneer, vegetables and barbecue snacks with the KitchenaryKart Small MS Red Top Round Barbeque Grill with Stand and Wheels. Its 35 cm diameter grill area suits a compact outdoor cooking setup.
+[b] The red top, mild steel body and wheeled stand make this round charcoal BBQ grill convenient for picnics, garden gatherings and occasional outdoor service.
+[Heading2] Key Features
+[ListBullet,b] 35 cm Diameter Grill Area: Defines the circular cooking space on this Small model.
+[ListBullet,b] Round Grilling Layout: Allows individual portions to be arranged around the cooking surface.
+[ListBullet,b] Mild Steel Body with Red Top: Combines a metal grill body with a distinct red cover.
+[ListBullet,b] Supporting Stand: Holds the cooking bowl above the ground.
+[ListBullet,b] Wheels for Easy Positioning: Help relocate the grill on suitable level ground before lighting and after cooling.
+[b] Suitable for: Paneer, vegetables, kebabs and suitable meat portions for outdoor gatherings.
+[b] Care & Use: Use charcoal outdoors only, away from enclosed spaces and flammable materials. Position securely on level ground before lighting. Move only when the grill and ashes are completely cold. Clean and dry before storage.
+
+[Heading1] 17 MS Red Top Round BBQ Grill 43 cm Big
+[b] SKU: KKHE0039-BBQMSROB
+[] Source product listing
+[b] SEO Title: 43 cm Round BBQ Grill with Wheels | KitchenaryKart
+[b] Meta Description: Choose a 43 cm cooking area with the KitchenaryKart Big Round Charcoal BBQ Grill, featuring a red top, mild steel body, stand and wheels for positioning.
+[Heading2] Product Description
+[b] Make room for your next barbecue selection.
+[b] Arrange outdoor barbecue favourites on the KitchenaryKart Big MS Red Top Round Barbeque Grill with Stand and Wheels. The 43 cm diameter grill area offers more cooking surface than the 35 cm Small round model.
+[b] With a mild steel body, red top and wheeled stand, this round charcoal grill is a practical choice for garden gatherings, outdoor dining and catered snack stations.
+[Heading2] Key Features
+[ListBullet,b] 43 cm Diameter Grill Area: Provides the circular cooking space specified for the Big round model.
+[ListBullet,b] Mild Steel Construction: Forms the body of the grill for outdoor charcoal cooking.
+[ListBullet,b] Red Top Cover: Adds a distinctive finish and a cover for the cooking chamber.
+[ListBullet,b] Freestanding Support: Positions the cooking bowl above the ground for convenient access.
+[ListBullet,b] Wheels for Movement: Help move the completely cooled grill between suitable outdoor positions.
+[b] Suitable for: Outdoor grilling of vegetables, paneer, kebabs and meat portions for gatherings and catering.
+[b] Care & Use: Use charcoal outdoors only, away from enclosed spaces and flammable materials. Position securely on level ground before lighting. Move only when the grill and ashes are completely cold. Clean and dry before storage.
+
+[Heading1] 18 MS Red Top Square BBQ Grill with Stand and Wheels
+[b] SKU: KKHE0040-BBQMSSQ
+[] Source product listing
+[b] SEO Title: Red Square BBQ Grill with Stand and Wheels | KitchenaryKart
+[b] Meta Description: Set up outdoor cooking with the KitchenaryKart MS Red Top Square BBQ Grill, combining a covered cooking chamber, supporting stand, wheels and lower rack.
+[Heading2] Product Description
+[b] A covered grill that is easy to position outdoors.
+[b] Bring freshly grilled starters to your gathering with the KitchenaryKart MS Red Top Square Barbeque Grill with Stand and Wheels. Its covered cooking chamber and freestanding format create a dedicated outdoor barbecue station.
+[b] The mild steel body, red top and lower utility rack make this charcoal BBQ grill on wheels practical for garden events, outdoor dining and catered snack service.
+[Heading2] Key Features
+[ListBullet,b] Square Model Design: Provides a broad cooking layout within the named Square BBQ model.
+[ListBullet,b] Mild Steel Body and Red Lid: Combine the metal grill body with a cover for the cooking chamber.
+[ListBullet,b] Supporting Stand: Holds the grill above the ground for convenient cooking access.
+[ListBullet,b] Wheels for Repositioning: Help move the cold grill across suitable level surfaces.
+[ListBullet,b] Lower Utility Rack: Offers a place for suitable grilling accessories beneath the cooking chamber.
+[b] Suitable for: Outdoor preparation of paneer, vegetables, kebabs and suitable meat portions.
+[b] Care & Use: Use charcoal outdoors only, away from enclosed spaces and flammable materials. Position securely on level ground before lighting. Move only when the grill and ashes are completely cold. Clean and dry before storage.
+
+[Heading1] 19 SS Foldable Rectangle BBQ Grill
+[b] SKU: KKHE0041-2-35-91
+[] Source product listing
+[b] SEO Title: Stainless Steel Foldable BBQ Grill | KitchenaryKart
+[b] Meta Description: Take outdoor grilling to your next event with the KitchenaryKart SS Foldable Rectangle BBQ Grill, featuring a folding design and stainless steel body.
+[Heading2] Product Description
+[b] Stainless steel grilling that folds away.
+[b] Prepare outdoor barbecue dishes with the KitchenaryKart SS Foldable Rectangle Barbeque Grill. Its rectangular cooking layout keeps your selection accessible, while the folding format makes packing away more convenient.
+[b] With stainless steel construction and a listed weight of 4.6 kg, this foldable charcoal BBQ grill suits outdoor gatherings, travelling catering setups and occasional live cooking stations.
+[Heading2] Key Features
+[ListBullet,b] Stainless Steel Body: Provides a metal structure suited to routine cleaning after barbecue use.
+[ListBullet,b] Foldable Design: Helps reduce storage bulk once the grill is empty and completely cool.
+[ListBullet,b] Rectangular Cooking Layout: Offers an accessible arrangement for suitable skewers and individual portions.
+[ListBullet,b] Supporting Legs: Raise the grill body above the ground when fully assembled.
+[ListBullet,b] 4.6 kg Listed Weight: Helps you plan handling and transport between outdoor locations.
+[b] Suitable for: Outdoor grilling of paneer, kebabs, vegetables and suitable meat portions.
+[b] Care & Use: Use charcoal outdoors only, away from enclosed spaces and flammable materials. Fully secure the stand on a level, non-combustible surface before lighting. Let the grill and ashes cool completely before folding, cleaning or transport; store dry.

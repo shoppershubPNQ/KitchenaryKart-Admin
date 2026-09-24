@@ -1,0 +1,81 @@
+[Title] Cotton Candy Machine Product Descriptions
+[] Four English product descriptions for the KitchenaryKart cotton candy machine range, covering electric countertop, electric trolley and gas models. Each product includes an SEO title, meta description, key features, suitable uses and care guidance. Use the SKU index to match each description to its product page.
+[] Cotton Candy Machine category reviewed on 21 September 2026
+[Heading2] Product index
+[TBL] Page | Model | SKU
+[TBL] 2 | Electric countertop · Pink MS body | KKHE0078-ECMS
+[TBL] 3 | Electric countertop · Stainless steel body | KKHE0079-ECSS
+[TBL] 4 | Electric trolley · Pink MS body | KKHE0080-ECMSWC
+[TBL] 5 | Gas model · Pink MS body | KKHE0081-GCM
+
+[Heading1] Electric Cotton Candy Machine with Pink MS Body
+[b] SKU: KKHE0078-ECMS
+[] Source product listing
+[b] SEO Title: Pink Cotton Candy Machine 1200 W | KitchenaryKart
+[b] Meta Description: Make fresh candy floss with the KitchenaryKart 1200 W pink MS cotton candy machine, featuring a 20.5-inch bowl, countertop design and front storage drawer.
+[Heading2] Product Description
+[b] Fresh candy floss, made in front of your customers.
+[] Turn sugar into a freshly spun treat with the KitchenaryKart Electric Cotton Candy Machine with Pink MS Body. Whether you are serving at a dessert counter, birthday party or catered event, this countertop candy floss machine brings preparation into view.
+[] With 1200 W rated power, a 20.5-inch bowl and a pink mild steel body, it offers a dedicated setup for cotton candy service. The front drawer keeps small serving supplies close to the operator.
+[Heading2] Key Features
+[ListBullet,b] 1200 W Rated Power: Electric operation for preparing cotton candy at counters and event stations with a suitable power supply.
+[ListBullet,b] 20.5-Inch Bowl: The approximately 52 cm diameter bowl provides room to collect spun sugar around the head; the listed bowl depth is 6 inches.
+[ListBullet,b] Pink Mild Steel Body: A colourful exterior suited to visible dessert counters and party setups.
+[ListBullet,b] Front Storage Drawer: A pull-out drawer provides space for small serving supplies near the work area.
+[ListBullet,b] Countertop Format: A listed 13 × 13-inch base and 19-inch overall height help with counter planning. Allow additional space around the wider bowl.
+[b] Suitable for: Fresh cotton candy and candy floss at dessert counters, food stalls, parties and catering events.
+[b] Care & Use: Use dry sugar suitable for cotton candy machines and follow the recommended preheating, loading and cleaning procedure. Keep hands and utensils away from the hot spinning head. Switch off, unplug and allow the head to stop and cool before cleaning. Do not immerse the electrical base.
+
+[Heading1] Electric Cotton Candy Machine with SS Body
+[b] SKU: KKHE0079-ECSS
+[] Source product listing
+[b] SEO Title: SS Cotton Candy Machine 1200 W | KitchenaryKart
+[b] Meta Description: Serve fresh candy floss with the KitchenaryKart 1200 W stainless steel cotton candy machine, featuring a countertop format, front controls and storage drawer.
+[Heading2] Product Description
+[b] A stainless steel setup for freshly spun sweets.
+[] Add freshly made cotton candy to your dessert offering with the KitchenaryKart Electric Cotton Candy Machine with SS Body. Its stainless steel exterior suits cafés, snack counters and catering stations where the machine sits alongside other food-service equipment.
+[] The 1200 W electric machine combines a countertop format with accessible front controls and a storage drawer. At a listed weight of 6 kg, it is a lighter option than the 10 kg pink MS countertop model in this range.
+[Heading2] Key Features
+[ListBullet,b] Stainless Steel Body: A metal exterior that can be wiped clean as part of the counter’s regular cleaning routine.
+[ListBullet,b] 1200 W Rated Power: Dedicated electric operation for preparing cotton candy with a suitable electrical connection.
+[ListBullet,b] Front Control Panel: The operating switch and adjustment knob are positioned at the front for access during preparation.
+[ListBullet,b] Storage Drawer: A front drawer keeps small serving supplies together and within reach.
+[ListBullet,b] 6 kg Listed Weight: A comparatively lighter countertop option in this range. Move the machine only after it is unplugged and fully cool.
+[b] Suitable for: Cotton candy and candy floss service at cafés, dessert counters, snack outlets and catered events.
+[b] Care & Use: Use dry sugar suitable for cotton candy machines and follow the recommended preheating, loading and cleaning procedure. Keep hands and utensils away from the hot spinning head. Switch off, unplug and allow the head to stop and cool before cleaning. Do not immerse the electrical base.
+
+[Heading1] Electric Cotton Candy Machine with Pink MS Cart Trolley
+[b] SKU: KKHE0080-ECMSWC
+[] Source product listing
+[b] SEO Title: Cotton Candy Machine with Trolley 1200 W | KitchenaryKart
+[b] Meta Description: Set up a live candy floss station with the KitchenaryKart 1200 W pink MS cotton candy machine, featuring a wheeled trolley, 52 cm bowl and side work shelf.
+[Heading2] Product Description
+[b] Take the sweet counter to your next event.
+[] Create a dedicated serving point with the KitchenaryKart Electric Cotton Candy Machine with Pink MS Cart Trolley. The wheeled cart helps you reposition the machine during setup for parties, exhibitions and catering events, then serve freshly spun candy floss from one station.
+[] With 1200 W rated power, a 52 cm bowl and a listed overall height of 102 cm, this trolley model combines cotton candy preparation with a freestanding setup. A side work shelf provides a convenient place to organise serving essentials.
+[Heading2] Key Features
+[ListBullet,b] Cart Trolley with Wheels: Large wheels help move the station across suitable level surfaces during setup. Reposition only when unplugged and cool.
+[ListBullet,b] 1200 W Electric Operation: Provides electric operation at venues with a suitable power connection.
+[ListBullet,b] 52 cm Bowl: A wide collection area around the spinning head for gathering the freshly formed candy floss.
+[ListBullet,b] Side Work Shelf: Additional surface space helps keep serving items close to the operator.
+[ListBullet,b] Pink MS Body and Raised Stand: A colourful mild steel body on a trolley creates a visible serving station, with a listed overall height of 102 cm.
+[b] Suitable for: Live cotton candy counters at parties, fairs, exhibitions, catered celebrations and event venues.
+[b] Care & Use: Use dry sugar suitable for cotton candy machines and follow the recommended preheating, loading and cleaning procedure. Keep hands and utensils away from the hot spinning head. Switch off, unplug and allow the head to stop and cool before cleaning. Do not immerse the electrical base. Position the cart securely on a level surface and route the power cable away from walkways.
+
+[Heading1] Gas Cotton Candy Machine with Pink MS Body
+[b] SKU: KKHE0081-GCM
+[] Source product listing
+[b] SEO Title: Gas Cotton Candy Machine Pink MS Body | KitchenaryKart
+[b] Meta Description: Prepare fresh candy floss with the KitchenaryKart gas cotton candy machine, featuring a pink mild steel body, stainless steel bowl and compact tabletop size.
+[Heading2] Product Description
+[b] A gas-heated option for your candy floss counter.
+[] Prepare freshly spun sweets with the KitchenaryKart Gas Cotton Candy Machine with Pink MS Body. This model is a cotton candy option for food stalls, event operators and caterers planning a serving station with an appropriate gas connection.
+[] The pink mild steel body and stainless steel bowl combine a colourful appearance with a tabletop format. Its listed dimensions of 52 × 52 × 42 cm and weight of 8.6 kg help you plan the counter space and handling arrangements for your setup.
+[Heading2] Key Features
+[ListBullet,b] Gas-Heating Model: A gas-heated option in the KitchenaryKart cotton candy range. Use the fuel and connection arrangement specified for this model.
+[ListBullet,b] Pink Mild Steel Body: A colourful metal housing for visible candy floss counters and event serving areas.
+[ListBullet,b] Stainless Steel Bowl: Provides the collection area for spun sugar and supports routine cleaning after the machine has cooled.
+[ListBullet,b] Tabletop Dimensions: Listed at 52 × 52 × 42 cm, allowing you to plan a suitable work surface with clearance for safe operation.
+[ListBullet,b] 8.6 kg Listed Weight: Useful for planning transport and installation. Disconnect supplies and allow the machine to cool before moving it.
+[b] Suitable for: Cotton candy and candy floss service at suitably ventilated food stalls and event stations with a suitable gas setup.
+[b] Care & Use: Confirm the specified gas type, regulator and motor power requirements before installation. Have the gas connection checked and operate in a well-ventilated area. Use suitable dry sugar and keep clear of the hot spinning head. Shut off the gas, disconnect any electrical supply and allow the machine to stop and cool before cleaning.

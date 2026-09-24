@@ -34,6 +34,10 @@ interface Variant {
   /** Per-variant description. Sizes have different features; null → the
    *  product's own description is shown on this size's page. */
   description?: string | null;
+  /** Per-variant SEO title / meta description. Every size has its own url and
+   *  is its own Google result; null → the product's own, then a generated one. */
+  metaTitle?: string | null;
+  metaDescription?: string | null;
   imageUrl: string | null;
   images?: string[] | null;
 }
@@ -416,6 +420,35 @@ export function ProductVariants({ productId }: { productId: number }) {
                   />
                 </td>
               </tr>
+              {/* Each size is its own url and its own Google result, so each
+                  can carry its own title and snippet. Blank = the product's
+                  own, and then the generated title. The counters are the
+                  lengths Google shows before it truncates. */}
+              <tr className="border-t-0">
+                <td></td>
+                <td colSpan={10} className="px-2 pb-3 pt-0">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <MetaField
+                      label="SEO title"
+                      limit={60}
+                      value={v.metaTitle ?? ''}
+                      placeholder="Title for this size — blank uses the product's"
+                      onCommit={(next) => {
+                        if (next !== (v.metaTitle ?? null)) update(v, 'metaTitle', next);
+                      }}
+                    />
+                    <MetaField
+                      label="Meta description"
+                      limit={160}
+                      value={v.metaDescription ?? ''}
+                      placeholder="Search snippet for this size — blank uses the product's"
+                      onCommit={(next) => {
+                        if (next !== (v.metaDescription ?? null)) update(v, 'metaDescription', next);
+                      }}
+                    />
+                  </div>
+                </td>
+              </tr>
               </Fragment>
             ))}
           </tbody>
@@ -775,5 +808,51 @@ function VariantImageCell({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * A size's own SEO title or meta description, with the character count Google
+ * actually shows. Over the limit the counter turns red and the API refuses the
+ * save, so a title cannot be written here and then silently truncated on the
+ * page — which is how the variant pages ended up serving a sentence cut in
+ * half out of their body text.
+ */
+function MetaField({
+  label,
+  limit,
+  value,
+  placeholder,
+  onCommit,
+}: {
+  label: string;
+  limit: number;
+  value: string;
+  placeholder: string;
+  onCommit: (next: string | null) => void;
+}) {
+  const [text, setText] = useState(value);
+  const over = text.trim().length > limit;
+
+  return (
+    <label className="block">
+      <span className="flex items-baseline justify-between text-[11px] text-slate-500">
+        {label}
+        <span className={over ? 'font-semibold text-red-600' : 'text-slate-400'}>
+          {text.trim().length}/{limit}
+        </span>
+      </span>
+      <input
+        className={`input input-sm w-full text-sm ${over ? 'border-red-400' : ''}`}
+        placeholder={placeholder}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => {
+          const raw = text.trim();
+          if (raw.length > limit) return; // leave it on screen to be shortened
+          onCommit(raw === '' ? null : raw);
+        }}
+      />
+    </label>
   );
 }

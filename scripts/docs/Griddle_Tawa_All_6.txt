@@ -1,0 +1,141 @@
+[Title] Griddle Tawa Plate
+Product Descriptions
+[] Six English product descriptions in the requested format, with individual SEO titles and meta descriptions. The supplied updated images are the primary feature reference for models 818, 820 and 822.
+[] Griddle Tawa Plate category
+[] Prepared on 22 September 2026. All six product listings were reviewed; old website photographs have not been reused.
+[Heading2] Products included
+[TBL] Model | Product | SKU
+[TBL] 818 | Eco Electric Griddle Tawa Plate Full Plain | KKHE0123-818
+[TBL] 820 | Eco Electric Griddle Tawa Plate Full Plain | KKHE0120-820
+[TBL] 822 | Electric Griddle Tawa Plate Plain and Grooved | KKHE0122-822
+[TBL] 818H | Premium Electric Griddle Tawa Plate Full Plain | KKHE0124-818H
+[TBL] 820H | Premium Electric Griddle Tawa Plate Full Plain | KKHE0121-820H
+[TBL] 720 | Gas Griddle Tawa Plate Full Plain | KKHE0125-720
+[Heading2] Using this copy
+[b] Each product begins on a separate page. Use Product Description, Key Features, Suitable for and Care & Use in the product page, and place the SEO title and meta description in the corresponding website fields.
+[] The three updated graphics appear with their matching models. Descriptions for 818H, 820H and gas model 720 use only their own listed specifications; the new images have not been assumed to cover those variants.
+[b] Review before publication: Some printed dimensions and the 818 temperature range conflict. The affected numbers are omitted from the three updated descriptions. See the final review notes before updating specification fields or publishing the image artwork.
+
+[Heading1] 818 Eco Electric Griddle Tawa Plate Full Plain
+[b] SKU: KKHE0123-818  |  Source product listing
+
+[] Updated model 818 image supplied by KitchenaryKart
+[b] SEO Title: 3 kW Electric Griddle Tawa Plate 818 | KitchenaryKart
+[b] Meta Description: Prepare dosas, eggs and tawa snacks with the KitchenaryKart 818 electric griddle. Features a plain plate, 3 kW heating and a stainless steel body.
+[Heading2] Product Description
+[b] Fresh dosas and tawa favourites, made to order.
+[b] Prepare dosas, uttapams, eggs and toasted pav with the KitchenaryKart 818 Electric Griddle Tawa Plate. Its full plain cooking surface gives you an open workspace for spreading batter, turning food and finishing individual orders.
+[b] With 3 kW rated power, an adjustable temperature dial and a stainless steel body, this countertop electric tawa suits cafés, snack counters and restaurant breakfast stations.
+[Heading2] Key Features
+[ListBullet,b] Full Plain Cooking Plate: A smooth, uninterrupted surface for dosas, pancakes, eggs and everyday tawa cooking.
+[ListBullet,b] 3 kW Electric Heating: Operates on a 220 V, 50 Hz supply for a dedicated electric cooking station.
+[ListBullet,b] Adjustable Temperature Dial: Front-mounted rotary control lets the operator adjust heat to suit the recipe.
+[ListBullet,b] Power and Heating Indicators: Indicator lights make the operating status visible from the front.
+[ListBullet,b] Stainless Steel Body and Splash Guards: Wipeable exterior surfaces and raised rear and side edges help contain cooking splashes.
+[ListBullet,b] Front Grease Collection Drawer: Collects residue from the plate outlet for removal during routine cleaning.
+[b] Suitable for: Dosas, uttapams, pancakes, eggs, toasted pav and shallow-fried tawa snacks.
+[b] Care & Use: Preheat and prepare the plate as instructed for the food being cooked. Use a correctly rated, earthed electrical connection. Switch off, disconnect and allow to cool before cleaning. Keep water away from controls and empty the grease drawer regularly.
+
+[Heading1] 820 Eco Electric Griddle Tawa Plate Full Plain
+[b] SKU: KKHE0120-820  |  Source product listing
+
+[] Updated model 820 image supplied by KitchenaryKart
+[b] SEO Title: 4.4 kW Electric Griddle Tawa Plate 820 | KitchenaryKart
+[b] Meta Description: Cook dosas, pancakes and tawa snacks on the KitchenaryKart 820 electric griddle, with 4.4 kW power, a full plain plate and two temperature controls.
+[Heading2] Product Description
+[b] More room for your tawa menu.
+[b] Bring breakfast and snack preparation onto one cooking surface with the KitchenaryKart 820 Electric Griddle Tawa Plate. The full plain plate provides space to spread dosas, turn pancakes and toast pav as orders come in.
+[b] With 4.4 kW rated power, two front temperature controls and a stainless steel body, this commercial electric griddle is a practical choice for restaurants, cafés and catering kitchens.
+[Heading2] Key Features
+[ListBullet,b] Full Plain Plate: An uninterrupted flat cooking surface accommodates batter-based dishes and tawa snacks.
+[ListBullet,b] 4.4 kW Rated Power: Electric heating operates on a 220 V, 50 Hz supply.
+[ListBullet,b] Two Temperature Controls: Front-mounted rotary dials provide accessible heat adjustment, with a stated setting range of 50–300°C.
+[ListBullet,b] Power and Heating Indicators: Lights beside the controls help operators check the machine status during service.
+[ListBullet,b] Stainless Steel Countertop Body: The stated overall size is 730 × 450 × 230 mm; raised splash guards surround the rear and sides.
+[ListBullet,b] Front Grease Drawer: A plate outlet and collection drawer make cooking residue accessible for cleaning.
+[b] Suitable for: Dosas, uttapams, pancakes, eggs, toasted buns, pav and flat-top snack preparation.
+[b] Care & Use: Provide a correctly rated, earthed supply suitable for the 4.4 kW load. Preheat and adjust the controls for the food being cooked. Switch off, disconnect and let the plate cool before cleaning. Empty the grease drawer and keep controls dry.
+
+[Heading1] 822 Electric Griddle Tawa Plate Plain and Grooved
+[b] SKU: KKHE0122-822  |  Source product listing
+
+[] Updated model 822 image supplied by KitchenaryKart
+[b] SEO Title: Plain and Grooved Electric Griddle 822 | KitchenaryKart
+[b] Meta Description: Prepare tawa dishes and grilled snacks with the KitchenaryKart 822 electric griddle, featuring plain and grooved sections, 4.4 kW power and twin dials.
+[Heading2] Product Description
+[b] Tawa cooking and grill marks on one plate.
+[b] Expand your menu with the KitchenaryKart 822 Plain and Grooved Electric Griddle Tawa Plate. Use the smooth section for dosas, eggs and toasted buns, and the ridged section for paneer, vegetables and patties with grill marks.
+[b] With 4.4 kW rated power, two temperature dials and a stainless steel body, it brings two cooking surfaces to restaurant counters, cafés and commercial snack kitchens.
+[Heading2] Key Features
+[ListBullet,b] Plain and Grooved Sections: Combines a smooth tawa surface with a ridged grilling area for different preparations.
+[ListBullet,b] 4.4 kW Electric Heating: Operates on a 220 V, 50 Hz supply for commercial countertop cooking.
+[ListBullet,b] Twin Temperature Dials: Two front controls offer accessible heat adjustment across a stated 50–300°C setting range.
+[ListBullet,b] Visible Status Lights: Power and heating indicators sit beside the controls for quick checks during operation.
+[ListBullet,b] Stainless Steel Body with Splash Guards: Stated overall size is 730 × 450 × 230 mm, with raised rear and side edges.
+[ListBullet,b] Front Grease Collection: The plate outlet and drawer collect residue for removal after cooking.
+[b] Suitable for: Dosas and eggs on the plain section; paneer, vegetables and patties on the grooved section.
+[b] Care & Use: Use a correctly rated, earthed supply. Set the heat for each preparation and use tools suitable for the plate. Switch off, disconnect and cool before cleaning the grooves and grease drawer. The shared plate is not a barrier against food or allergen cross-contact.
+
+[Heading1] 818H Premium Electric Griddle Tawa Plate Full Plain
+[b] SKU: KKHE0124-818H  |  Source product listing
+[b] SEO Title: 818H Premium Electric Griddle Tawa Plate | KitchenaryKart
+[b] Meta Description: Equip your breakfast counter with the KitchenaryKart 818H premium electric tawa, featuring a full plain 53 × 36 cm cooking area and 3 kW rated power.
+[Heading2] Product Description
+[b] A dedicated tawa for everyday breakfast orders.
+[b] Prepare breakfast dishes and quick snacks with the KitchenaryKart 818H Premium Electric Griddle Tawa Plate. Its full plain surface supports spreading, flipping and toasting as you cook dosas, eggs, pancakes and pav to order.
+[b] This smaller model combines 3 kW rated power with a listed 53 × 36 cm heating area, making it a practical option for cafés, small restaurants and individual cooking stations.
+[Heading2] Key Features
+[ListBullet,b] Full Plain Cooking Surface: A flat plate supports batter spreading, spatula work and direct-contact tawa cooking.
+[ListBullet,b] 53 × 36 cm Heating Area: The listed cooking area gives smaller breakfast and snack stations a defined workspace.
+[ListBullet,b] 3 kW Rated Power: Electric operation suits kitchens planning a dedicated tawa point within their available electrical capacity.
+[ListBullet,b] 15.5 kg Listed Weight: Allows the support surface and handling arrangements to be planned before installation.
+[ListBullet,b] Breakfast and Snack Use: Suitable for preparing dosas, pancakes, eggs and toasted pav on the same type of plain surface.
+[b] Suitable for: Dosas, uttapams, pancakes, eggs, pav and small-batch tawa snacks.
+[b] Care & Use: Check the actual nameplate and installation instructions before connection. Use a level, heat-resistant support and a correctly rated, earthed supply. Prepare the plate as instructed, avoid overcrowding and disconnect the machine before cleaning after it has cooled.
+
+[Heading1] 820H Premium Electric Griddle Tawa Plate Full Plain
+[b] SKU: KKHE0121-820H  |  Source product listing
+[b] SEO Title: 820H Premium Electric Griddle Tawa Plate | KitchenaryKart
+[b] Meta Description: Prepare restaurant breakfasts and snacks with the KitchenaryKart 820H premium electric griddle, with 4.4 kW power and a full plain 71 × 41 cm cooking area.
+[Heading2] Product Description
+[b] A full plain plate for a varied breakfast menu.
+[b] Organise dosa, egg and snack preparation around the KitchenaryKart 820H Premium Electric Griddle Tawa Plate. Its larger plain cooking surface gives operators room to arrange food, turn portions and finish orders at the counter.
+[b] With 4.4 kW rated power and a listed 71 × 41 cm heating area, this commercial electric tawa suits restaurant breakfast sections, hotel kitchens and catering preparation areas.
+[Heading2] Key Features
+[ListBullet,b] 71 × 41 cm Heating Area: The listed plate area accommodates multiple portions according to food size and spacing.
+[ListBullet,b] Full Plain Plate: An open, smooth surface suits dosas, uttapams, pancakes and toasted buns.
+[ListBullet,b] 4.4 kW Rated Power: Provides electric heating for a dedicated griddle station in a commercial kitchen.
+[ListBullet,b] 23.6 kg Listed Weight: Use this figure when planning a stable support surface and machine handling.
+[ListBullet,b] Flexible Portion Arrangement: The uninterrupted cooking area lets operators position and turn different-sized portions without fixed moulds.
+[b] Suitable for: Dosas, uttapams, pancakes, eggs, toasted buns, pav and shallow-fried snacks.
+[b] Care & Use: Follow the machine nameplate and installation instructions, using an earthed electrical connection rated for the load. Preheat before loading and allow space around portions. Switch off, disconnect and allow the plate to cool before removing residue and cleaning.
+
+[Heading1] 720 Gas Griddle Tawa Plate Full Plain
+[b] SKU: KKHE0125-720  |  Source product listing
+[b] SEO Title: Gas Griddle Tawa Plate 720 Full Plain | KitchenaryKart
+[b] Meta Description: Add a dedicated gas tawa station with the KitchenaryKart 720 griddle. Its full plain 71 × 41 cm cooking area suits dosas, eggs, pav and restaurant snacks.
+[Heading2] Product Description
+[b] Classic tawa cooking for your gas kitchen.
+[b] Prepare dosas, eggs, toasted pav and shallow-fried snacks with the KitchenaryKart 720 Gas Griddle Tawa Plate. Its full plain surface creates an open cooking area for spreading batter and turning food during service.
+[b] With a listed 71 × 41 cm heating area, this commercial gas griddle is a practical addition to restaurant kitchens, breakfast counters and catering setups with a suitable gas installation.
+[Heading2] Key Features
+[ListBullet,b] Gas Heated Griddle: Designed for a cooking station supplied with the gas type and pressure specified for the machine.
+[ListBullet,b] 71 × 41 cm Heating Area: The listed surface offers space to arrange portions for breakfast and snack preparation.
+[ListBullet,b] Full Plain Tawa Surface: A smooth cooking area suits dosas, eggs and flat-top foods that need direct plate contact.
+[ListBullet,b] Open Plate Access: Allows the operator to spread, turn and remove food with suitable cooking tools.
+[ListBullet,b] 24.03 kg Listed Weight: Helps plan a stable installation and handling arrangements for the griddle.
+[b] Suitable for: Dosas, uttapams, eggs, toasted pav, buns and shallow-fried tawa dishes.
+[b] Care & Use: Have a qualified technician connect the correct gas supply and regulator. Operate with suitable ventilation and follow the machine lighting instructions. Turn off the gas supply after use and allow the plate to cool before cleaning.
+
+[Heading1] Specification and image review notes
+[] For internal catalogue review. Do not paste these notes into customer-facing product descriptions.
+[Heading2] Updated image mapping
+[] The supplied graphics are labelled 818, 820 and 822. They are matched to KKHE0123-818, KKHE0120-820 and KKHE0122-822 by those printed codes. The website calls 818 and 820 Eco models; these labels are retained only to identify the existing listings. No new photo was assigned to 818H, 820H or gas model 720.
+[Heading2] 818 temperature and weight
+[] The 818 graphic states 50–300°C in the feature strip but room temperature to 180°C in its specification table. Its copy therefore says adjustable temperature without a numerical range. The updated graphic lists 15.5 kg, while the 818 webpage lists 18 kg; weight is omitted from the 818 description. Confirm both values from the current machine nameplate and manual. The 818H webpage separately lists 15.5 kg; matching weight alone does not establish that the photo belongs to 818H.
+[Heading2] Heating area and external dimensions
+[] For 820 and 822, the images state a 29 × 21 inch heating area, equivalent to approximately 736.6 × 533.4 mm, but an overall body of 730 × 450 × 230 mm. The claimed plate is larger than the stated body footprint. The 818 image similarly shows approximately 14 × 21 inches for the plate but 514 × 420 × 193 mm overall. Heating-area measurements are omitted from the three updated descriptions pending physical measurement. The 730 × 450 × 230 mm body size is retained as the stated outline size for 820 and 822, not as a cooking-area measurement.
+[Heading2] Other models need current specification confirmation
+[] 818H, 820H and 720 descriptions use their own webpage text and specifications. Their listed heating areas and weights are retained provisionally because no model-specific replacement image or conflicting specification was supplied. Confirm these values for current stock. Premium and Eco are catalogue labels; no unverified claim of thicker plate, higher steel grade, better heating or greater durability is made.
+[Heading2] Image and publishing review
+[] The three supplied graphics are embedded unchanged. Their conflicting printed labels remain visible and should be corrected before storefront publication. The 822 copy uses plain and grooved rather than an exact half-and-half split because the updated image shows unequal sections. Stainless steel body does not establish SS 304 grade or cooking-plate material. No non-stick coating, waterproofing, automatic safety cut-off, quantified energy saving or cooking-output claim is added. SEO wording uses relevant product terms naturally; no search-volume or ranking claim is made.

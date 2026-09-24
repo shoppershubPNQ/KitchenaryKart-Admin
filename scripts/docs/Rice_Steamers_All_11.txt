@@ -1,0 +1,232 @@
+[Title] Rice Steamer
+Product Descriptions
+[] Eleven English descriptions in the requested format, with individual features, SEO titles, meta descriptions and care guidance. Prepared from the KitchenaryKart listings, product gallery specifications and the two supplied images on 22 September 2026.
+[] Rice Steamer category
+[Heading2] Products included
+[TBL] Product | SKU
+[TBL] 4 Tray Electric Rice Steamer | KKHE0237-ERS4T
+[TBL] 6 Tray Electric Rice and Idli Steamer | KKHE0238-ERS6T
+[TBL] 8 Tray Electric Rice Steamer | KKHE0239-ERS8T
+[TBL] 10 Tray Electric Rice Steamer | KKHE0240-ERS10T
+[TBL] 12 Tray Electric Rice Steamer | KKHE0241-ERS12T
+[TBL] 4 Tray Gas Rice and Idli Steamer | KKHE0243-GRS4T
+[TBL] 6 Tray Gas Rice and Idli Steamer | KKHE0244-GRS6T
+[TBL] 8 Tray Gas Rice and Idli Steamer | KKHE0245-GRS8T
+[TBL] 10 Tray Gas Rice and Idli Steamer | KKHE0246-GRS10T
+[TBL] 12 Tray Gas Rice and Idli Steamer | KKHE0247-GRS12T
+[TBL] 6 Tray Electric and Gas Rice Steamer | KKHE0242-EGRS
+[Heading2] Using this copy
+[b] Each product begins on a separate page. Use Product Description, Key Features, Suitable for and Care & Use for the listing, and enter the SEO title and meta description in the website SEO fields.
+[] Photos are included in six matching entries: the electric 6-tray model and all five gas models. The gas range graphic is captioned for the relevant tray size. The final notes identify the specification sources and details still requiring nameplate or packing-list confirmation.
+
+[Heading1] 4 Tray Electric Rice Steamer
+[b] SKU: KKHE0237-ERS4T  |  Source product listing
+[b] SEO Title: KitchenaryKart 4 Tray Electric Rice Steamer | 6 kW
+[b] Meta Description: Prepare smaller rice batches with the KitchenaryKart 4 tray electric steamer, featuring 6 kW heating, a stainless steel cabinet and castor wheels.
+[Heading2] Product Description
+[b] A smaller tray capacity for measured batches.
+[b] Prepare rice for smaller meal services with the KitchenaryKart 4 Tray Electric Rice Steamer. Four tray positions let you organise batches for cafés, compact restaurant operations and catering preparation.
+[b] The electric cabinet has a listed 6 kW heating rating at 380 V. Its 78 cm height is the lowest in the listed electric range, with a 71 × 59 cm footprint and a stated weight of 19 kg.
+[Heading2] Key Features
+[ListBullet,b] Four Tray Positions: Organise smaller rice batches across four levels, leaving the spacing required for steam circulation.
+[ListBullet,b] 6 kW Electric Heating: Rated at 6 kW with a 380 V supply requirement; match the installation to the actual machine nameplate.
+[ListBullet,b] Stainless Steel Cabinet: Provides wipeable exterior surfaces for routine cleaning in a commercial kitchen.
+[ListBullet,b] 71 × 59 × 78 cm Overall Size: A vertical cabinet layout with a stated weight of 19 kg helps you plan floor space and handling.
+[ListBullet,b] Door Closure and Castor Wheels: A front handle secures the cabinet door; wheels help reposition the unit when cool, drained and disconnected.
+[b] Suitable for: Rice and other foods suitable for steaming; idlis with compatible moulds and suitable tray arrangements.
+[b] Care & Use: Maintain the water level specified in the manual and do not heat the unit dry. Use a correctly rated, earthed supply. Follow the steam-release procedure and stand clear when opening. Disconnect, cool and drain before cleaning or moving.
+
+[Heading1] 6 Tray Electric Rice and Idli Steamer
+[b] SKU: KKHE0238-ERS6T  |  Source product listing
+
+[] Supplied image for the 6-tray electric model
+[b] SEO Title: 6 Tray Electric Rice and Idli Steamer | KitchenaryKart
+[b] Meta Description: Prepare rice and steamed dishes with the KitchenaryKart 6 tray electric steamer. Includes six trays, a stainless steel body, door locks and wheels.
+[Heading2] Product Description
+[b] Rice and idli preparation, organised across six trays.
+[b] Prepare rice and steamed dishes with the KitchenaryKart 6 Tray Electric Rice and Idli Steamer. Six included trays give restaurants, canteens and catering kitchens a ready starting point for batch preparation; use compatible moulds when making idlis.
+[b] The stainless steel cabinet measures 71 × 59 × 95 cm and has a stated weight of 23 kg. Locking door handles and castor wheels support everyday loading, closure and repositioning between uses.
+[Heading2] Key Features
+[ListBullet,b] Six Trays Included: Supplied with six trays, each stated as 60 × 40 × 4.6 cm, for organising steaming batches.
+[ListBullet,b] Electric Heating: Rated at 9 kW with a 380 V supply requirement for a dedicated commercial steaming station.
+[ListBullet,b] Stainless Steel Body: Wipeable cabinet surfaces support routine cleaning after food preparation.
+[ListBullet,b] Two Locking Door Handles: Two handle closures help hold the door shut during steaming.
+[ListBullet,b] Castor Wheels: Move the cabinet more easily for cleaning or layout changes once it is cool, drained and disconnected.
+[b] Suitable for: Rice and other foods suitable for steaming; idlis with compatible moulds and suitable tray arrangements.
+[b] Care & Use: Maintain the water level specified in the manual and do not heat the unit dry. Use a correctly rated, earthed supply. Follow the steam-release procedure and stand clear when opening. Disconnect, cool and drain before cleaning or moving.
+
+[Heading1] 8 Tray Electric Rice Steamer
+[b] SKU: KKHE0239-ERS8T  |  Source product listing
+[b] SEO Title: KitchenaryKart 8 Tray Electric Rice Steamer | 9 kW
+[b] Meta Description: Organise restaurant rice preparation with the KitchenaryKart 8 tray electric steamer, featuring 9 kW heating, a stainless steel body and wheels.
+[Heading2] Product Description
+[b] Eight tray levels for your daily meal service.
+[b] Build a dedicated rice preparation station with the KitchenaryKart 8 Tray Electric Rice Steamer. Its eight-level arrangement helps kitchens organise tray loads for restaurant lunches, staff meals and catering orders.
+[b] With a listed 9 kW heating rating at 380 V, this model provides more tray positions than the six-tray version within the same listed 71 × 59 cm footprint. Overall height is 112 cm and stated weight is 27 kg.
+[Heading2] Key Features
+[ListBullet,b] Eight Tray Capacity: Provides eight loading levels for batch organisation; actual food quantity depends on tray loading and the recipe.
+[ListBullet,b] 9 kW Electric Heating: Rated at 9 kW with a 380 V supply requirement; match the installation to the actual machine nameplate.
+[ListBullet,b] Stainless Steel Cabinet: Provides wipeable exterior surfaces for routine cleaning in a commercial kitchen.
+[ListBullet,b] 71 × 59 × 112 cm Overall Size: A vertical cabinet layout with a stated weight of 27 kg helps you plan floor space and handling.
+[ListBullet,b] Door Closure and Castor Wheels: A front handle secures the cabinet door; wheels help reposition the unit when cool, drained and disconnected.
+[b] Suitable for: Rice and other foods suitable for steaming; idlis with compatible moulds and suitable tray arrangements.
+[b] Care & Use: Maintain the water level specified in the manual and do not heat the unit dry. Use a correctly rated, earthed supply. Follow the steam-release procedure and stand clear when opening. Disconnect, cool and drain before cleaning or moving.
+
+[Heading1] 10 Tray Electric Rice Steamer
+[b] SKU: KKHE0240-ERS10T  |  Source product listing
+[b] SEO Title: KitchenaryKart 10 Tray Electric Rice Steamer | 12 kW
+[b] Meta Description: Prepare catering and hotel rice batches with the KitchenaryKart 10 tray electric steamer, featuring 12 kW heating and a wheeled stainless steel cabinet.
+[Heading2] Product Description
+[b] Ten levels to organise larger meal batches.
+[b] Plan rice preparation for hotel dining and catering service with the KitchenaryKart 10 Tray Electric Rice Steamer. Its vertical tray arrangement creates room for ten loads without adding separate cooking vessels across the worktop.
+[b] The listed 12 kW, 380 V electrical rating suits a kitchen with the appropriate installed supply. The cabinet measures 71 × 59 × 129 cm and has a stated weight of 32 kg.
+[Heading2] Key Features
+[ListBullet,b] Ten Tray Positions: Organise ten tray loads within one cabinet, with portions and cooking schedules set to suit the menu.
+[ListBullet,b] 12 kW Electric Heating: Rated at 12 kW with a 380 V supply requirement; match the installation to the actual machine nameplate.
+[ListBullet,b] Stainless Steel Cabinet: Provides wipeable exterior surfaces for routine cleaning in a commercial kitchen.
+[ListBullet,b] 71 × 59 × 129 cm Overall Size: A vertical cabinet layout with a stated weight of 32 kg helps you plan floor space and handling.
+[ListBullet,b] Door Closure and Castor Wheels: A front handle secures the cabinet door; wheels help reposition the unit when cool, drained and disconnected.
+[b] Suitable for: Rice and other foods suitable for steaming; idlis with compatible moulds and suitable tray arrangements.
+[b] Care & Use: Maintain the water level specified in the manual and do not heat the unit dry. Use a correctly rated, earthed supply. Follow the steam-release procedure and stand clear when opening. Disconnect, cool and drain before cleaning or moving.
+
+[Heading1] 12 Tray Electric Rice Steamer
+[b] SKU: KKHE0241-ERS12T  |  Source product listing
+[b] SEO Title: KitchenaryKart 12 Tray Electric Rice Steamer | 12 kW
+[b] Meta Description: Choose the KitchenaryKart 12 tray electric rice steamer for organised bulk preparation, with 12 kW heating, stainless steel construction and wheels.
+[Heading2] Product Description
+[b] The largest tray count in the electric range.
+[b] Prepare rice for canteen, banquet and catering menus with the KitchenaryKart 12 Tray Electric Rice Steamer. Twelve tray positions support organised batch preparation for kitchens selecting the highest tray capacity in this electric range.
+[b] This model has a listed 12 kW heating rating at 380 V and a 71 × 59 cm footprint. At 146 cm high with a stated weight of 37 kg, it requires suitable installation space and access for tray handling.
+[Heading2] Key Features
+[ListBullet,b] Twelve Tray Capacity: Offers the highest tray count among the listed 4, 6, 8, 10 and 12-tray electric models.
+[ListBullet,b] 12 kW Electric Heating: Rated at 12 kW with a 380 V supply requirement; match the installation to the actual machine nameplate.
+[ListBullet,b] Stainless Steel Cabinet: Provides wipeable exterior surfaces for routine cleaning in a commercial kitchen.
+[ListBullet,b] 71 × 59 × 146 cm Overall Size: A vertical cabinet layout with a stated weight of 37 kg helps you plan floor space and handling.
+[ListBullet,b] Door Closure and Castor Wheels: A front handle secures the cabinet door; wheels help reposition the unit when cool, drained and disconnected.
+[b] Suitable for: Rice and other foods suitable for steaming; idlis with compatible moulds and suitable tray arrangements.
+[b] Care & Use: Maintain the water level specified in the manual and do not heat the unit dry. Use a correctly rated, earthed supply. Follow the steam-release procedure and stand clear when opening. Disconnect, cool and drain before cleaning or moving.
+
+[Heading1] 4 Tray Gas Rice and Idli Steamer
+[b] SKU: KKHE0243-GRS4T  |  Source product listing
+
+[] Supplied gas range image — this entry is the 4-tray model
+[b] SEO Title: 4 Tray Gas Rice and Idli Steamer | KitchenaryKart
+[b] Meta Description: Prepare smaller batches with the KitchenaryKart 4 tray gas rice and idli steamer, with included trays, a stainless steel cabinet and castor wheels.
+[Heading2] Product Description
+[b] Four trays for smaller gas-powered steaming batches.
+[b] Prepare rice for smaller meal services with the KitchenaryKart 4 Tray Gas Rice and Idli Steamer. The four-tray format suits kitchens that want a dedicated steaming cabinet for regular batches without choosing a taller model.
+[b] Its 70 × 67 × 96 cm cabinet has a stated weight of 26 kg. A stainless steel body, door closure and castor wheels make it practical for an installed gas cooking station with suitable ventilation.
+[Heading2] Key Features
+[ListBullet,b] 4 Trays Included: A 4-tray arrangement supports batch organisation. Standard tray size is 60 × 40 × 4.6 cm.
+[ListBullet,b] Gas Heated Steaming: Designed for a gas-fed cooking station using the fuel type and regulator specified for the machine.
+[ListBullet,b] Stainless Steel Body: Cabinet surfaces can be wiped clean after use as part of the kitchen cleaning routine.
+[ListBullet,b] Single Door Handle: One handle closure secures the four-tray cabinet door during operation.
+[ListBullet,b] Wheels for Repositioning: Castor wheels help move the cabinet for cleaning and layout changes after cooling, draining and disconnection.
+[b] Suitable for: Rice, steamed vegetables and idlis using compatible moulds. Match cooking times to each food and load.
+[b] Care & Use: Have the correct gas supply and regulator fitted by a qualified technician. Maintain the specified water level and ventilation. Follow the steam-release procedure before opening. Shut off gas, cool, drain and disconnect before moving or cleaning.
+
+[Heading1] 6 Tray Gas Rice and Idli Steamer
+[b] SKU: KKHE0244-GRS6T  |  Source product listing
+
+[] Supplied gas range image — this entry is the 6-tray model
+[b] SEO Title: 6 Tray Gas Rice and Idli Steamer | KitchenaryKart
+[b] Meta Description: Equip your kitchen with the KitchenaryKart 6 tray gas rice and idli steamer, including six trays, double handle locks, a stainless steel body and wheels.
+[Heading2] Product Description
+[b] Six trays for everyday rice and steamed-food preparation.
+[b] Organise rice preparation for restaurant meals and catering orders with the KitchenaryKart 6 Tray Gas Rice and Idli Steamer. Six included trays provide separate loading levels for planned batches, with compatible moulds needed for idlis.
+[b] Its 70 × 67 × 113 cm cabinet has a stated weight of 29 kg. A stainless steel body, door closure and castor wheels make it practical for an installed gas cooking station with suitable ventilation.
+[Heading2] Key Features
+[ListBullet,b] 6 Trays Included: A 6-tray arrangement supports batch organisation. Standard tray size is 60 × 40 × 4.6 cm.
+[ListBullet,b] Gas Heated Steaming: Designed for a gas-fed cooking station using the fuel type and regulator specified for the machine.
+[ListBullet,b] Stainless Steel Body: Cabinet surfaces can be wiped clean after use as part of the kitchen cleaning routine.
+[ListBullet,b] Double Handle Lock: Two handle closures help secure the door during steaming, as specified for the 6, 8, 10 and 12-tray gas models.
+[ListBullet,b] Wheels for Repositioning: Castor wheels help move the cabinet for cleaning and layout changes after cooling, draining and disconnection.
+[b] Suitable for: Rice, steamed vegetables and idlis using compatible moulds. Match cooking times to each food and load.
+[b] Care & Use: Have the correct gas supply and regulator fitted by a qualified technician. Maintain the specified water level and ventilation. Follow the steam-release procedure before opening. Shut off gas, cool, drain and disconnect before moving or cleaning.
+
+[Heading1] 8 Tray Gas Rice and Idli Steamer
+[b] SKU: KKHE0245-GRS8T  |  Source product listing
+
+[] Supplied gas range image — this entry is the 8-tray model
+[b] SEO Title: 8 Tray Gas Rice and Idli Steamer | KitchenaryKart
+[b] Meta Description: Organise meal preparation with the KitchenaryKart 8 tray gas rice and idli steamer, supplied with trays, double handle locks and castor wheels.
+[Heading2] Product Description
+[b] Eight trays to support a busier meal service.
+[b] Prepare rice batches for restaurant, hostel and staff-canteen menus with the KitchenaryKart 8 Tray Gas Rice and Idli Steamer. Its eight tray levels help you organise larger loads within one upright cooking cabinet.
+[b] Its 70 × 67 × 129 cm cabinet has a stated weight of 33 kg. A stainless steel body, door closure and castor wheels make it practical for an installed gas cooking station with suitable ventilation.
+[Heading2] Key Features
+[ListBullet,b] 8 Trays Included: A 8-tray arrangement supports batch organisation. Standard tray size is 60 × 40 × 4.6 cm.
+[ListBullet,b] Gas Heated Steaming: Designed for a gas-fed cooking station using the fuel type and regulator specified for the machine.
+[ListBullet,b] Stainless Steel Body: Cabinet surfaces can be wiped clean after use as part of the kitchen cleaning routine.
+[ListBullet,b] Double Handle Lock: Two handle closures help secure the door during steaming, as specified for the 6, 8, 10 and 12-tray gas models.
+[ListBullet,b] Wheels for Repositioning: Castor wheels help move the cabinet for cleaning and layout changes after cooling, draining and disconnection.
+[b] Suitable for: Rice, steamed vegetables and idlis using compatible moulds. Match cooking times to each food and load.
+[b] Care & Use: Have the correct gas supply and regulator fitted by a qualified technician. Maintain the specified water level and ventilation. Follow the steam-release procedure before opening. Shut off gas, cool, drain and disconnect before moving or cleaning.
+
+[Heading1] 10 Tray Gas Rice and Idli Steamer
+[b] SKU: KKHE0246-GRS10T  |  Source product listing
+
+[] Supplied gas range image — this entry is the 10-tray model
+[b] SEO Title: 10 Tray Gas Rice and Idli Steamer | KitchenaryKart
+[b] Meta Description: Prepare catering batches with the KitchenaryKart 10 tray gas rice and idli steamer, with included trays, stainless steel construction and double door handles.
+[Heading2] Product Description
+[b] Ten tray levels for planned catering production.
+[b] Coordinate rice preparation for catering and hotel service with the KitchenaryKart 10 Tray Gas Rice and Idli Steamer. Ten included trays let operators arrange batches vertically and plan loading around the kitchen schedule.
+[b] Its 70 × 67 × 146 cm cabinet has a stated weight of 37 kg. A stainless steel body, door closure and castor wheels make it practical for an installed gas cooking station with suitable ventilation.
+[Heading2] Key Features
+[ListBullet,b] 10 Trays Included: A 10-tray arrangement supports batch organisation. Standard tray size is 60 × 40 × 4.6 cm.
+[ListBullet,b] Gas Heated Steaming: Designed for a gas-fed cooking station using the fuel type and regulator specified for the machine.
+[ListBullet,b] Stainless Steel Body: Cabinet surfaces can be wiped clean after use as part of the kitchen cleaning routine.
+[ListBullet,b] Double Handle Lock: Two handle closures help secure the door during steaming, as specified for the 6, 8, 10 and 12-tray gas models.
+[ListBullet,b] Wheels for Repositioning: Castor wheels help move the cabinet for cleaning and layout changes after cooling, draining and disconnection.
+[b] Suitable for: Rice, steamed vegetables and idlis using compatible moulds. Match cooking times to each food and load.
+[b] Care & Use: Have the correct gas supply and regulator fitted by a qualified technician. Maintain the specified water level and ventilation. Follow the steam-release procedure before opening. Shut off gas, cool, drain and disconnect before moving or cleaning.
+
+[Heading1] 12 Tray Gas Rice and Idli Steamer
+[b] SKU: KKHE0247-GRS12T  |  Source product listing
+
+[] Supplied gas range image — this entry is the 12-tray model
+[b] SEO Title: 12 Tray Gas Rice and Idli Steamer | KitchenaryKart
+[b] Meta Description: Plan bulk rice preparation with the KitchenaryKart 12 tray gas rice and idli steamer, including trays, double handle locks, a stainless steel body and wheels.
+[Heading2] Product Description
+[b] Twelve trays for the largest batches in this gas range.
+[b] Choose the KitchenaryKart 12 Tray Gas Rice and Idli Steamer for canteen, banquet and catering kitchens that need the highest tray count in the supplied gas range. Twelve included trays provide an organised layout for bulk rice preparation.
+[b] Its 70 × 67 × 163 cm cabinet has a stated weight of 41 kg. A stainless steel body, door closure and castor wheels make it practical for an installed gas cooking station with suitable ventilation.
+[Heading2] Key Features
+[ListBullet,b] 12 Trays Included: A 12-tray arrangement supports batch organisation. Standard tray size is 60 × 40 × 4.6 cm.
+[ListBullet,b] Gas Heated Steaming: Designed for a gas-fed cooking station using the fuel type and regulator specified for the machine.
+[ListBullet,b] Stainless Steel Body: Cabinet surfaces can be wiped clean after use as part of the kitchen cleaning routine.
+[ListBullet,b] Double Handle Lock: Two handle closures help secure the door during steaming, as specified for the 6, 8, 10 and 12-tray gas models.
+[ListBullet,b] Wheels for Repositioning: Castor wheels help move the cabinet for cleaning and layout changes after cooling, draining and disconnection.
+[b] Suitable for: Rice, steamed vegetables and idlis using compatible moulds. Match cooking times to each food and load.
+[b] Care & Use: Have the correct gas supply and regulator fitted by a qualified technician. Maintain the specified water level and ventilation. Follow the steam-release procedure before opening. Shut off gas, cool, drain and disconnect before moving or cleaning.
+
+[Heading1] 6 Tray Electric and Gas Rice Steamer
+[b] SKU: KKHE0242-EGRS  |  Source product listing
+[b] SEO Title: Electric and Gas Rice Steamer 6 Tray | KitchenaryKart
+[b] Meta Description: Choose the KitchenaryKart electric and gas rice steamer with six tray positions, a stainless steel cabinet, castor wheels and a listed 9 kW electric rating.
+[Heading2] Product Description
+[b] Electric and gas steaming options in one cabinet.
+[b] Plan your rice and steamed-food preparation around the KitchenaryKart Electric and Gas Rice Steamer. The listed six-tray cabinet offers electric and gas operating options for commercial kitchens equipped with the required connections.
+[b] The listed specifications are a 9 kW electric rating at 380 V, a 70 × 67 × 113 cm body and a stated weight of 30 kg. The stainless steel cabinet provides a dedicated steaming station for restaurants, hotels and caterers.
+[Heading2] Key Features
+[ListBullet,b] Electric and Gas Options: Supports the two stated energy sources; select and operate the required mode according to the machine instructions.
+[ListBullet,b] Six Tray Positions: Provides six loading levels for batch preparation using suitable trays and food containers.
+[ListBullet,b] 9 kW Electric Rating: The electric heating system has a stated 380 V supply requirement for installation planning.
+[ListBullet,b] Stainless Steel Cabinet: A front-opening cabinet provides access for loading, unloading and cleaning.
+[ListBullet,b] Door Handle and Castor Wheels: A handle closure secures the door; wheels assist repositioning once supplies are disconnected and the unit is cool and drained.
+[b] Suitable for: Rice and other steamed dishes; idlis with compatible moulds and the correct loading arrangement.
+[b] Care & Use: Have the electrical and gas connections installed correctly. Follow the prescribed mode-selection and water-level instructions. Use suitable ventilation, release steam as instructed before opening, and isolate both supplies before cleaning or moving.
+
+[Heading1] Specification and publishing notes
+[] For internal catalogue review. Do not paste these notes into customer-facing product descriptions.
+[Heading2] Sources and model coverage
+[] All 11 live category listings were reviewed on 22 September 2026. The supplied electric image applies to ERS6T. The supplied gas range image covers GRS4T, GRS6T, GRS8T, GRS10T and GRS12T. It is repeated with an identifying caption on those five product pages. The remaining five entries have no matching uploaded photograph; the electric 6-tray image is not used as a photo of other sizes or of the dual fuel machine.
+[Heading2] Electric specifications
+[] The website specification tables contain no power, voltage, dimensions or weight. These values were read from the electric family chart in gallery view 7 of KKHE0237-ERS4T: 4 tray 6 kW, 71 × 59 × 78 cm, 19 kg; 6 tray 9 kW, 71 × 59 × 95 cm, 23 kg; 8 tray 9 kW, 71 × 59 × 112 cm, 27 kg; 10 tray 12 kW, 71 × 59 × 129 cm, 32 kg; 12 tray 12 kW, 71 × 59 × 146 cm, 37 kg. All are marked 380 V. The supplied 6-tray image agrees on dimensions and weight, but does not state electrical ratings. Confirm the current stock nameplates, phase, frequency and installation requirements before publishing electrical specification fields.
+[Heading2] Gas specifications and door handles
+[] The supplied gas graphic provides the dimensions and weights used in the five gas descriptions. It explicitly assigns double handle locks to the 6, 8, 10 and 12-tray models; the four-tray unit is shown with a single handle. Gas type, inlet pressure, gas consumption and burner rating are not supplied, so LPG/PNG compatibility and numerical efficiency claims have not been added.
+[Heading2] Tray inclusions and idli moulds
+[] Six flat trays are explicitly included with the supplied electric 6-tray model; the gas range graphic also states trays included. Both show a standard tray size of 60 × 40 × 4.6 cm. The gas graphic gives an approximate tray weight of 780 g. Idli moulds are not shown as included. Do not interpret the tray count as an idli-piece count or kilograms of rice per batch. Included-tray quantities for the other electric variants and the dual fuel model need packing-list confirmation.
+[Heading2] Dual fuel model and claims
+[] Gallery view 3 of KKHE0242-EGRS identifies six trays, 9 kW, 380 V, 30 kg and 70 × 67 × 113 cm. It separately shows tray dimensions of 59.5 × 39.5 × 5 cm, so those are not replaced with the regular electric or gas tray measurements. The description does not promise automatic fuel switching or simultaneous operation. Steel grade, pressure rating, automatic refill, dry-heat protection, door interlocks, cooking time, food yield and energy savings are not established by the reviewed sources. Door handle locks describe mechanical closure, not an electrical safety interlock.

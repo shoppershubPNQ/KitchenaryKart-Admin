@@ -29,6 +29,24 @@ const updateSchema = z.object({
     .nullable()
     .optional()
     .transform((v) => (v === '' ? null : v)),
+  /** Per-variant SEO title and meta description; null / empty = fall back to
+   *  the parent's, then to the generated title. The limits are what Google
+   *  shows before it truncates, so a longer one is rejected here rather than
+   *  cut on the page. */
+  metaTitle: z
+    .string()
+    .trim()
+    .max(60, 'SEO title must be 60 characters or fewer')
+    .nullable()
+    .optional()
+    .transform((v) => (v === '' ? null : v)),
+  metaDescription: z
+    .string()
+    .trim()
+    .max(160, 'Meta description must be 160 characters or fewer')
+    .nullable()
+    .optional()
+    .transform((v) => (v === '' ? null : v)),
   stock: z.number().int().nonnegative().optional(),
   /** Per-variant image. The upload endpoint at /api/variants/[id]/image
    *  returns the Cloudinary URL; pass null here to clear it. */

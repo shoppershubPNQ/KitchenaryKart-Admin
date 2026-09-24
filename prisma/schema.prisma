@@ -223,6 +223,19 @@ model ProductVariant {
   /// Column added by raw SQL 2026-09-15 (scripts/add-variant-description-column.ts).
   description String?
 
+  /// Per-variant SEO title and meta description. Null = fall back to the
+  /// parent's override, and then to the generated title.
+  ///
+  /// Every size has its own url, so every size is its own search result — but
+  /// the override lived on the product row alone, and honouring it on a
+  /// sibling url would have given all of them the same title. The result was
+  /// 629 live variant urls that could not carry a written title at all: the
+  /// 10L planetary mixer served "Electric Planetary Mixer with 3 Whisk — Bowl
+  /// Capacity: 10L" with no brand, and a meta description cut mid-sentence out
+  /// of its body text. Columns added by raw SQL 2026-09-24.
+  metaTitle       String? @map("meta_title")
+  metaDescription String? @map("meta_description")
+
   /// Order lines that bought this specific variant (for stock decrement).
   orderItems OrderItem[]
 

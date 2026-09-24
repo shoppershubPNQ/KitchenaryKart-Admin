@@ -1,0 +1,634 @@
+[Title] Deep Fryer
+Product Descriptions
+[] 35 English descriptions with SEO titles, meta descriptions, key features and care guidance. Reviewed against the KitchenaryKart product pages and the supplied photographs on 21 September 2026.
+[] Deep Fryer category
+[Heading2] Fryer machines · 23 listings
+[TBL] No. | Product | SKU
+[TBL] 1 | Electric 2-in-1 fryer + noodle boiler | KKHE0085-FY8L21
+[TBL] 2 | Electric 3-in-1 fryer / boiler / donut maker | KKHE0086-FY8L31
+[TBL] 3 | 16L double head, 12 inner compartments | KKHE0087-FY82WC
+[TBL] 4 | 16L double head, horizontal single tank | KKHE0088-FY83
+[TBL] 5 | 16L single head, vertical compartment | KKHE0089-FY212
+[TBL] 6 | 35L electric standing fryer | KKHE0090-FY35L
+[TBL] 7 | 4L + 4L electric double head | KKHE0091-FY62
+[TBL] 8 | 4L electric single head | KKHE0092-FY61
+[TBL] 9 | 8L + 8L electric double head | KKHE0093-FY82
+[TBL] 10 | 8L electric fryer, black body | KKHE0094-EDF8LBB
+[TBL] 11 | 8L electric single head | KKHE0095-FY81
+[TBL] 12 | 8L single head, 9 inner compartments | KKHE0096-FY81WC
+[TBL] 13 | 14L + 14L digital standing fryer | KKHE0097-FY14LD
+[TBL] 14 | 28L digital standing fryer | KKHE0098-FY28LS
+[TBL] 15 | 20L heavy electric fryer with tap | KKHE0099-FY18L
+[TBL] 16 | 30L heavy electric fryer with tap | KKHE0100-FY25L
+[TBL] 17 | 8L premium electric fryer, FY81H | KKHE0101-FY81H
+[TBL] 18 | 8L premium FY81H, second listing | KKHE0102-FY81H
+[TBL] 19 | VERATTI 3L fryer, non-stick pan + timer | KKHE0103-VDF3L
+[TBL] 32 | Gas 2-in-1 fryer + noodle boiler | KKHE0116-GFY821
+[TBL] 33 | 12L gas standing fryer with controller + tap | KKHE0117-GFY12L
+[TBL] 34 | 8L + 8L gas double head | KKHE0118-GFY82
+[TBL] 35 | 8L gas single head | KKHE0119-GFY81
+
+[Heading1] Baskets and spare parts · 12 listings
+[TBL] No. | Product | SKU
+[TBL] 20 | Heavy fryer basket No.1 | KKHE0104-FB1
+[TBL] 21 | Heavy fryer basket No.2 | KKHE0105-FB2
+[TBL] 22 | Heavy fryer basket No.3 | KKHE0106-FB3
+[TBL] 23 | Heavy fryer basket No.4 | KKHE0107-FB4
+[TBL] 24 | Heavy fryer basket No.5 | KKHE0108-FB5
+[TBL] 25 | SS V-shaped taco basket, 4 slots | KKHE0109-TFB4S
+[TBL] 26 | SS V-shaped taco basket, 6 slots | KKHE0110-TFB6S
+[TBL] 27 | U-shaped spare frying basket | KKHE0111-DFS11
+[TBL] 28 | Basket with handle for 4L fryer | KKHE0112-DFS12
+[TBL] 29 | Basket with handle for 8L fryer | KKHE0113-DFS4
+[TBL] 30 | Basket with handle for 20L fryer | KKHE0114-DFS8
+[TBL] 31 | Basket with handle for 30L fryer | KKHE0115-DFS9
+[Heading2] Using this copy
+[b] Each SKU starts on its own page. Copy the Product Description, Key Features, Suitable for and Care & Use sections into the product page. Use the SEO title and meta description in the corresponding SEO fields.
+[] Photographs appear in 21 matching entries. Shared range images are captioned to identify the relevant model. Original graphics remain unchanged, including any printed specifications.
+[b] Editorial review needed: Some source capacities, ratings and dimensions conflict. Detailed notes at the end identify the affected SKUs. Reconcile these fields and conflicting image labels before publishing. Catalogue names are retained for product matching, except disputed basket dimensions are omitted from the copy titles.
+
+[Heading1] Electric 2 In 1 Deep Fryer + Noodle Boiler (8L + 8L)
+[TBL] SKU: KKHE0085-FY8L21 / Source product listing / SEO Title: 2-in-1 Electric Fryer & Noodle Boiler | KitchenaryKart / Meta Description: Prepare fried snacks and noodles with the KitchenaryKart electric 2-in-1 fryer and noodle boiler, featuring separate cooking sections and individual controls. | / Supplied product photograph.
+[Heading2] Product Description
+[b] Fry the snacks. Boil the noodles. Keep service moving.
+[] Bring two menu essentials together with the KitchenaryKart Electric 2-in-1 Deep Fryer + Noodle Boiler. Its separate frying and boiling sections help cafés and snack counters prepare different orders at one station.
+[] Individual controls and a 55 × 43 × 29 cm body make it a practical countertop option for restaurants, cloud kitchens and takeaway outlets.
+[Heading2] Key Features
+[ListBullet,b] Two Cooking Functions: Combines an oil-frying section with a dedicated water-boiling section.
+[ListBullet,b] Separate Controls: Adjust each heating head to suit its cooking task.
+[ListBullet,b] 2,500 W × 2 Heating: Two electric heating heads provide a combined rated load of 5,000 W.
+[ListBullet,b] Fryer and Noodle Baskets: A rectangular frying basket and round noodle baskets support different preparations.
+[ListBullet,b] Countertop Layout: Keeps both cooking functions together in one 55 × 43 × 29 cm unit.
+[b] Suitable for: Deep-fried snacks and boiled noodles in their respective cooking sections.
+[b] Care & Use: Keep oil and water in their designated tanks and follow each tank’s fill marks. Do not operate either section empty. Switch off, unplug and cool completely before draining or cleaning; keep electrical heads dry.
+
+[Heading1] Electric 3 In 1 Deep Fryer + Noodle Boiler + Donut Maker (8L + 8L + 8L)
+[TBL] SKU: KKHE0086-FY8L31 / Source product listing / SEO Title: 3-in-1 Electric Fryer, Boiler & Donut Maker | KitchenaryKart / Meta Description: Expand your snack menu with the KitchenaryKart 3-in-1 electric deep fryer, noodle boiler and donut maker, with three cooking sections and separate controls. | / Supplied product photograph.
+[Heading2] Product Description
+[b] Three cooking tasks, one organised station.
+[] Prepare fried snacks, noodles and donuts with the KitchenaryKart Electric 3-in-1 Deep Fryer + Noodle Boiler + Donut Maker. Its three-section arrangement supports a varied menu from one countertop station.
+[] With separate heating controls and an 82 × 44 × 29 cm body, it suits cafés, food courts, restaurants and cloud kitchens serving both sweet and savoury dishes.
+[Heading2] Key Features
+[ListBullet,b] Three-in-One Design: Brings frying, noodle boiling and donut preparation into one appliance.
+[ListBullet,b] Three Heating Heads: Individual controls help you manage each section for its assigned task.
+[ListBullet,b] 2,500 W × 3 Rating: Provides a combined rated electrical load of 7,500 W.
+[ListBullet,b] Dedicated Inserts: Includes the pictured frying basket, divided section and round noodle baskets.
+[ListBullet,b] Countertop Arrangement: An 82 × 44 × 29 cm body keeps the cooking sections side by side.
+[b] Suitable for: Fried snacks, boiled noodles and donut preparation using the appropriate section.
+[b] Care & Use: Use oil and water only in their designated sections. Follow tank fill marks and suitable cooking settings. Never heat an empty tank. Disconnect the supply and cool completely before cleaning; keep electrical heads dry.
+
+[Heading1] Electric Deep Fryer 16L Double Head - 12 Inner Compartments
+[b] SKU: KKHE0087-FY82WC
+[] Source product listing
+[b] SEO Title: 16L Fryer with 12 Compartments | KitchenaryKart
+[b] Meta Description: Organise snack batches with the KitchenaryKart 16L double-head electric deep fryer, featuring 12 inner compartments and two heating control heads.
+[Heading2] Product Description
+[b] Give every small batch its own space.
+[] Organise snack preparation with the KitchenaryKart 16L Double Head Electric Deep Fryer with 12 Inner Compartments. The divided interior helps keep small portions arranged during cooking.
+[] Two heating heads and a countertop body make it useful for restaurants, snack counters and catering kitchens that need a structured frying area.
+[Heading2] Key Features
+[ListBullet,b] 12 Inner Compartments: Provides separate spaces for arranging small portions within the fryer.
+[ListBullet,b] Double-Head Design: Features two heating control heads for the cooking setup.
+[ListBullet,b] 16L Listed Configuration: The catalogue identifies this model as 8L × 2; follow the actual tank fill marks.
+[ListBullet,b] Rotary Controls: Accessible temperature dials allow operators to adjust the heat setting.
+[ListBullet,b] Cover with Handle: The pictured lid covers the cooking area when appropriate for the operating instructions.
+[b] Suitable for: Portioned fried snacks and other preparations suited to the compartment size.
+[b] Care & Use: Follow the marked oil-fill limits and recommended batch sizes. Never heat an empty tank. Switch off, disconnect the supply and allow the oil to cool before moving, draining or cleaning. Keep the electrical head dry.
+
+[Heading1] Electric Deep Fryer 16L Double Head - Horizontal Compartment
+[TBL] SKU: KKHE0088-FY83 / Source product listing / SEO Title: 16L Horizontal Double-Head Fryer | KitchenaryKart / Meta Description: Prepare side-by-side batches with the KitchenaryKart FY83 electric deep fryer, featuring a wide single tank, twin baskets and two 2,500 W heating heads. | / Supplied product photograph.
+[Heading2] Product Description
+[b] More room for side-by-side frying.
+[] Prepare two baskets in a wide shared frying area with the KitchenaryKart FY83 Electric Deep Fryer. This horizontal model combines two heating heads with a single compartment for everyday snack service.
+[] Its side-by-side basket layout and combined 5,000 W rated load suit restaurants, cafés and cloud kitchens preparing multiple batches in shared oil.
+[Heading2] Key Features
+[ListBullet,b] Horizontal Single Compartment: A broad shared tank accommodates the pictured baskets side by side.
+[ListBullet,b] Twin Frying Baskets: Lift and drain each batch using its own basket handle.
+[ListBullet,b] 2,500 W × 2 Heating: Two heating heads provide a combined 5,000 W rated load.
+[ListBullet,b] Two Rotary Controls: Each head has its own temperature adjustment dial; both serve the shared tank.
+[ListBullet,b] Full-Width Lid: A handled cover spans the cooking area when the unit is not in use.
+[b] Suitable for: French fries and similar snacks cooked in shared oil; the baskets do not isolate ingredients or allergens.
+[b] Care & Use: Follow the marked oil-fill limits and recommended batch sizes. Never heat an empty tank. Switch off, disconnect the supply and allow the oil to cool before moving, draining or cleaning. Keep the electrical head dry.
+
+[Heading1] Electric Deep Fryer 16L Single Head - Vertical Compartment
+[TBL] SKU: KKHE0089-FY212 / Source product listing / SEO Title: 16L FY212 Electric Deep Fryer | KitchenaryKart / Meta Description: Cook organised batches with the KitchenaryKart FY212 16L electric deep fryer, featuring a lengthwise tank, two baskets and a 3,000 W single heating head. | / Supplied product photograph.
+[Heading2] Product Description
+[b] Two baskets, one lengthwise frying station.
+[] Arrange snack batches along a single tank with the KitchenaryKart FY212 16L Electric Deep Fryer. Its lengthwise layout positions two baskets one behind the other for convenient batch handling.
+[] A 3,000 W heating head and rotary temperature control make it a practical addition to restaurant kitchens, cafés and takeaway counters.
+[Heading2] Key Features
+[ListBullet,b] 16L Listed Capacity: A single elongated cooking tank provides space for the two-basket arrangement.
+[ListBullet,b] Two Handled Baskets: Lift and drain batches individually from the shared tank.
+[ListBullet,b] 3,000 W Heating: The single electric heating head operates on a 220 V, 50 Hz supply.
+[ListBullet,b] Adjustable Heat: A rotary dial lets the operator select a suitable cooking setting.
+[ListBullet,b] Lengthwise Layout: Positions the baskets front to back, with a lid shaped for the long tank.
+[b] Suitable for: Fries, wedges and fried snacks cooked in shared oil.
+[b] Care & Use: Follow the marked oil-fill limits and recommended batch sizes. Never heat an empty tank. Switch off, disconnect the supply and allow the oil to cool before moving, draining or cleaning. Keep the electrical head dry.
+
+[Heading1] Electric Deep Fryer 35L Single Head - Standing Model
+[TBL] SKU: KKHE0090-FY35L / Source product listing / SEO Title: 35L Electric Standing Deep Fryer | KitchenaryKart / Meta Description: Set up a dedicated frying station with the KitchenaryKart 35L electric standing deep fryer, featuring 6,000 W heating, rotary controls and a handled lid. | / Supplied product photograph.
+[Heading2] Product Description
+[b] A dedicated station for your frying menu.
+[] Make room for larger snack batches with the KitchenaryKart 35L Electric Standing Deep Fryer. The raised, freestanding format creates a dedicated cooking position in restaurant and catering kitchens.
+[] With 6,000 W rated power, a wide tank and a handled lid, it is suited to kitchens planning a permanent frying area.
+[Heading2] Key Features
+[ListBullet,b] 35L Tank Capacity: A larger tank format supports batch preparation within the marked oil-fill and loading limits.
+[ListBullet,b] 6,000 W Rated Power: Electric heating operates on the pictured 220 V, 50 Hz supply rating.
+[ListBullet,b] Standing Design: Four legs support the fryer above floor level for a dedicated work position.
+[ListBullet,b] Rotary Temperature Controls: Accessible dials allow adjustment to an appropriate frying setting.
+[ListBullet,b] Handled Cover: The wide lid helps cover the tank between uses once the unit is switched off and cooled.
+[b] Suitable for: French fries, potato wedges, pakoras, fritters and other deep-fried snacks, within the recommended batch size.
+[b] Care & Use: Follow the marked oil-fill limits and recommended batch sizes. Never heat an empty tank. Switch off, disconnect the supply and allow the oil to cool before moving, draining or cleaning. Keep the electrical head dry.
+
+[Heading1] Electric Deep Fryer 4L + 4L Double Head
+[TBL] SKU: KKHE0091-FY62 / Source product listing / SEO Title: 4L + 4L Electric Double Deep Fryer | KitchenaryKart / Meta Description: Prepare two small batches with the KitchenaryKart 4L + 4L electric double deep fryer, with separate tanks, individual controls and 2,000 W heating per head. | / Supplied range photo: this description covers the FY62 double model.
+[Heading2] Product Description
+[b] Two small batches, each under your control.
+[] Prepare different snack orders with the KitchenaryKart 4L + 4L Electric Double Head Deep Fryer. Two separate tanks give cafés and takeaway counters a practical way to organise smaller frying batches.
+[] Individual controls, baskets and lids bring convenient batch handling to a compact 44 × 30 × 28 cm countertop unit.
+[Heading2] Key Features
+[ListBullet,b] Two 4L Tanks: Separate tanks allow different foods to be cooked in separate oil baths.
+[ListBullet,b] 2,000 W × 2 Rating: Two electric heating heads provide a combined rated load of 4,000 W.
+[ListBullet,b] Individual Temperature Controls: Set each tank according to its cooking task.
+[ListBullet,b] Two Baskets and Lids: Each section has its own handled basket and cover.
+[ListBullet,b] Compact Footprint: The listed 44 × 30 × 28 cm dimensions help with countertop planning.
+[b] Suitable for: French fries, potato wedges, pakoras, fritters and other deep-fried snacks, within the recommended batch size.
+[b] Care & Use: Follow the marked oil-fill limits and recommended batch sizes. Never heat an empty tank. Switch off, disconnect the supply and allow the oil to cool before moving, draining or cleaning. Keep the electrical head dry.
+
+[Heading1] Electric Deep Fryer 4L Single Head
+[TBL] SKU: KKHE0092-FY61 / Source product listing / SEO Title: 4L Electric Single Deep Fryer | KitchenaryKart / Meta Description: Fry smaller snack batches with the KitchenaryKart 4L electric single deep fryer, featuring 2,000 W heating, a rotary control, frying basket and fitted lid. | / Supplied range photo: this description covers the FY61 single model.
+[Heading2] Product Description
+[b] Freshly fried favourites, in smaller batches.
+[] Prepare made-to-order snacks with the KitchenaryKart 4L Electric Single Head Deep Fryer. Its single-tank design suits cafés, small takeaway kitchens and food counters working with smaller batches.
+[] With 2,000 W rated power, an adjustable temperature dial and a handled basket, it keeps everyday frying straightforward.
+[Heading2] Key Features
+[ListBullet,b] 4L Tank Capacity: Provides a compact frying setup for smaller batches; follow the marked oil level.
+[ListBullet,b] 2,000 W Rated Power: Electric heating runs on the pictured 220 V, 50 Hz supply rating.
+[ListBullet,b] Rotary Temperature Dial: Allows adjustment to suit the recipe and frying oil.
+[ListBullet,b] Handled Frying Basket: Helps lift food from the tank and drain excess oil.
+[ListBullet,b] Single-Tank Countertop Design: Includes a separate lid and a compact body for a dedicated snack station.
+[b] Suitable for: French fries, potato wedges, pakoras, fritters and other deep-fried snacks, within the recommended batch size.
+[b] Care & Use: Follow the marked oil-fill limits and recommended batch sizes. Never heat an empty tank. Switch off, disconnect the supply and allow the oil to cool before moving, draining or cleaning. Keep the electrical head dry.
+
+[Heading1] Electric Deep Fryer 8L + 8L Double Head
+[TBL] SKU: KKHE0093-FY82 / Source product listing / SEO Title: 8L + 8L Electric Double Deep Fryer | KitchenaryKart / Meta Description: Manage separate frying batches with the KitchenaryKart FY82 double deep fryer, featuring two tanks, individual temperature controls and 2,500 W per head. | / Supplied product photograph.
+[Heading2] Product Description
+[b] Separate tanks for a more flexible snack menu.
+[] Prepare different fried items at the same station with the KitchenaryKart FY82 Electric Double Head Deep Fryer. Separate tanks help organise oil use and batch preparation during service.
+[] Two heating heads, individual baskets and separate lids make this countertop model useful for restaurants, cafés and cloud kitchens.
+[Heading2] Key Features
+[ListBullet,b] Two Separate Tanks: Keep two oil baths apart for different recipes or batch schedules.
+[ListBullet,b] 2,500 W × 2 Heating: Provides a combined rated electrical load of 5,000 W.
+[ListBullet,b] Individual Temperature Dials: Adjust each tank’s setting to match its cooking task.
+[ListBullet,b] Two Handled Baskets: Lift and drain each batch independently.
+[ListBullet,b] Separate Tank Covers: Each tank has its own lid for covering after use and cooling.
+[b] Suitable for: French fries, potato wedges, pakoras, fritters and other deep-fried snacks, within the recommended batch size.
+[b] Care & Use: Follow the marked oil-fill limits and recommended batch sizes. Never heat an empty tank. Switch off, disconnect the supply and allow the oil to cool before moving, draining or cleaning. Keep the electrical head dry.
+
+[Heading1] Electric Deep Fryer 8L - Black Body
+[TBL] SKU: KKHE0094-EDF8LBB / Source product listing / SEO Title: 8L Black Body Electric Deep Fryer | KitchenaryKart / Meta Description: Add a black-finish fryer to your snack counter with the KitchenaryKart 8L electric deep fryer, featuring 2,500 W heating, a rotary control, basket and lid. | / Supplied product photograph.
+[Heading2] Product Description
+[b] A smart black finish for everyday frying.
+[] Prepare crisp snack favourites with the KitchenaryKart 8L Black Body Electric Deep Fryer. Its dark exterior gives café and takeaway counters a distinct look while keeping the frying controls within reach.
+[] The supplied product label specifies 2,500 W power, with a single tank, handled basket and removable lid for routine batch preparation.
+[Heading2] Key Features
+[ListBullet,b] Black Exterior: A distinctive black body complements front-counter or kitchen setups.
+[ListBullet,b] 8L Listed Capacity: The supplied nameplate and catalogue both identify this as an 8L model.
+[ListBullet,b] 2,500 W Electric Heating: The nameplate specifies a 220 V, 50 Hz supply.
+[ListBullet,b] Adjustable Temperature Dial: Select a setting appropriate to the frying oil and recipe.
+[ListBullet,b] Basket and Lid: The handled basket supports lifting and draining; the separate lid covers the tank after use.
+[b] Suitable for: French fries, potato wedges, pakoras, fritters and other deep-fried snacks, within the recommended batch size.
+[b] Care & Use: Follow the marked oil-fill limits and recommended batch sizes. Never heat an empty tank. Switch off, disconnect the supply and allow the oil to cool before moving, draining or cleaning. Keep the electrical head dry.
+
+[Heading1] Electric Deep Fryer 8L Single Head
+[TBL] SKU: KKHE0095-FY81 / Source product listing / SEO Title: 8L FY81 Electric Single Deep Fryer | KitchenaryKart / Meta Description: Prepare café and takeaway snacks with the KitchenaryKart FY81 electric deep fryer, featuring a single tank, 2,500 W heating, a handled basket and lid. | / Supplied product photograph.
+[Heading2] Product Description
+[b] Your everyday frying station, within easy reach.
+[] Prepare freshly fried snacks with the KitchenaryKart FY81 Electric Single Head Deep Fryer. Its straightforward single-tank format is a practical fit for café menus, takeaway orders and restaurant side dishes.
+[] A 2,500 W heating head, rotary temperature control and countertop body provide a dedicated place for small-batch frying.
+[Heading2] Key Features
+[ListBullet,b] Single-Tank Format: Creates one cooking zone for an organised frying workflow.
+[ListBullet,b] 2,500 W Rated Power: Electric heating operates on the pictured 220 V, 50 Hz supply rating.
+[ListBullet,b] Rotary Temperature Control: Adjust the setting to suit the food and frying oil.
+[ListBullet,b] Handled Mesh Basket: Lift and drain the food before plating or seasoning.
+[ListBullet,b] Countertop Dimensions: The website lists a 29 × 43 × 29 cm body for installation planning.
+[b] Suitable for: French fries, potato wedges, pakoras, fritters and other deep-fried snacks, within the recommended batch size.
+[b] Care & Use: Follow the marked oil-fill limits and recommended batch sizes. Never heat an empty tank. Switch off, disconnect the supply and allow the oil to cool before moving, draining or cleaning. Keep the electrical head dry.
+
+[Heading1] Electric Deep Fryer 8L Single Head – 9 Inner Compartments
+[b] SKU: KKHE0096-FY81WC
+[] Source product listing
+[b] SEO Title: 8L Fryer with 9 Compartments | KitchenaryKart
+[b] Meta Description: Arrange small snack portions with the KitchenaryKart 8L electric fryer, featuring nine inner compartments, 2,500 W heating and a rotary temperature control.
+[Heading2] Product Description
+[b] Keep small portions neatly arranged.
+[] Bring structure to snack preparation with the KitchenaryKart 8L Electric Deep Fryer with 9 Inner Compartments. Its divided insert helps keep individual portions positioned within the cooking tank.
+[] With 2,500 W rated power and a single temperature control, it suits cafés, restaurants and snack counters working with compact portions.
+[Heading2] Key Features
+[ListBullet,b] Nine Inner Compartments: A divided insert provides nine spaces for arranging food.
+[ListBullet,b] 8L Listed Model: A single-tank format keeps the cooking area within one countertop unit.
+[ListBullet,b] 2,500 W Rated Power: Electric heating supports dedicated snack preparation.
+[ListBullet,b] Rotary Temperature Control: One dial adjusts the heat for the shared cooking tank.
+[ListBullet,b] Separate Lid: The pictured handled lid covers the tank when appropriate for the operating instructions.
+[b] Suitable for: Small fried portions suited to the divider size. Compartments do not provide separate oil baths.
+[b] Care & Use: Follow the marked oil-fill limits and recommended batch sizes. Never heat an empty tank. Switch off, disconnect the supply and allow the oil to cool before moving, draining or cleaning. Keep the electrical head dry.
+
+[Heading1] Electric Digital Deep Fryer 14L + 14L Double Head - Standing Model
+[TBL] SKU: KKHE0097-FY14LD / Source product listing / SEO Title: 14L + 14L Digital Standing Deep Fryer | KitchenaryKart / Meta Description: Equip your kitchen with the KitchenaryKart 14L + 14L digital standing deep fryer, featuring separate tanks, twin baskets and front-mounted digital controls. | / Supplied product photograph.
+[Heading2] Product Description
+[b] Two tanks for an organised frying line.
+[] Build a dedicated frying station with the KitchenaryKart 14L + 14L Electric Digital Standing Deep Fryer. Two separate 14L tanks support different batches in separate oil baths.
+[] Front-mounted digital controls and a freestanding body suit restaurant, hotel and cloud kitchen frying lines. The supplied nameplate specifies 18 kW on a 380 V, 50 Hz supply.
+[Heading2] Key Features
+[ListBullet,b] Two 14L Tanks: Separate tanks allow two oil baths at one station.
+[ListBullet,b] Digital Control Panel: Front-mounted displays and buttons make settings accessible to the operator.
+[ListBullet,b] Twin Handled Baskets: Lift and drain individual batches using the two baskets.
+[ListBullet,b] 18 kW Nameplate Rating: The supplied product label specifies 380 V, 50 Hz; arrange a matching electrical installation.
+[ListBullet,b] Standing Body: A 400 × 807 × 1,115 mm body creates a dedicated floor-standing work position.
+[b] Suitable for: Fries, fried chicken and other snack batches within the recommended loading limits.
+[b] Care & Use: Have a qualified installer verify the electrical supply against the delivered unit’s nameplate. Follow tank fill marks. Disconnect power and cool the oil before draining or cleaning; keep the control panel dry.
+
+[Heading1] Electric Digital Deep Fryer 28L Single Head - Standing Model
+[TBL] SKU: KKHE0098-FY28LS / Source product listing / SEO Title: 28L Digital Standing Deep Fryer | KitchenaryKart / Meta Description: Equip your kitchen with the KitchenaryKart 28L digital standing deep fryer, featuring a single tank, twin baskets and front-mounted digital controls. | / Supplied product photograph.
+[Heading2] Product Description
+[b] A larger shared tank with digital control.
+[] Build a dedicated frying station with the KitchenaryKart 28L Electric Digital Standing Deep Fryer. Its single 28L tank accommodates two baskets for organised batch handling in shared oil.
+[] Front-mounted digital controls and a freestanding body suit restaurant, hotel and cloud kitchen frying lines. The supplied nameplate specifies 18 kW on a 380 V, 50 Hz supply.
+[Heading2] Key Features
+[ListBullet,b] Single 28L Tank: A shared tank provides room for two basket batches.
+[ListBullet,b] Digital Control Panel: Front-mounted displays and buttons make settings accessible to the operator.
+[ListBullet,b] Twin Handled Baskets: Lift and drain individual batches using the two baskets.
+[ListBullet,b] 18 kW Nameplate Rating: The supplied product label specifies 380 V, 50 Hz; arrange a matching electrical installation.
+[ListBullet,b] Standing Body: A 400 × 807 × 1,115 mm body creates a dedicated floor-standing work position.
+[b] Suitable for: Fries, fried chicken and other snack batches within the recommended loading limits.
+[b] Care & Use: Have a qualified installer verify the electrical supply against the delivered unit’s nameplate. Follow tank fill marks. Disconnect power and cool the oil before draining or cleaning; keep the control panel dry.
+
+[Heading1] Electric Heavy Deep Fryer 20L Single Head with Tap (Net: 18L)
+[TBL] SKU: KKHE0099-FY18L / Source product listing / SEO Title: 20L Electric Deep Fryer with Tap | KitchenaryKart / Meta Description: Prepare snack batches with the KitchenaryKart 20L heavy electric deep fryer, featuring 18L listed net capacity, 4,000 W heating and an oil-drain tap. | / Supplied 20L/30L range photo; this description covers the 20L model.
+[Heading2] Product Description
+[b] Batch frying with easier oil draining.
+[] Prepare your fried-snack menu with the KitchenaryKart 20L Heavy Electric Deep Fryer with Tap. Its 20L gross and 18L listed net capacity help distinguish the tank size from the model’s stated working volume.
+[] With 4,000 W rated power and a front drain tap, it is a practical option for restaurants, cloud kitchens and catering operations that need a larger countertop frying station.
+[Heading2] Key Features
+[ListBullet,b] 20L Gross / 18L Net: The catalogue and supplied range image identify both capacity figures; always follow the marked oil level.
+[ListBullet,b] 4,000 W Rated Power: Electric heating is specified for a 220 V supply on the supplied range label.
+[ListBullet,b] Front Drain Tap: Allows controlled oil removal after the appliance has been switched off and cooled.
+[ListBullet,b] Adjustable Heat: Rotary controls let operators select a suitable cooking setting.
+[ListBullet,b] Countertop Heavy Model: A covered tank and basket arrangement support routine commercial snack preparation.
+[b] Suitable for: French fries, potato wedges, pakoras, fritters and other deep-fried snacks, within the recommended batch size.
+[b] Care & Use: Check that the drain tap is closed before filling. Follow the marked oil level and batch limit. Disconnect the power and cool the oil before draining into a suitable container. Clean and dry the tank before refilling.
+
+[Heading1] Electric Heavy Deep Fryer 30L Single Head with Tap (Net: 25L)
+[TBL] SKU: KKHE0100-FY25L / Source product listing / SEO Title: 30L Electric Deep Fryer with Tap | KitchenaryKart / Meta Description: Prepare snack batches with the KitchenaryKart 30L heavy electric deep fryer, featuring 25L listed net capacity, 4,500 W heating and an oil-drain tap. | / Supplied 20L/30L range photo; this description covers the 30L model.
+[Heading2] Product Description
+[b] More frying space, with a drain tap within reach.
+[] Prepare your fried-snack menu with the KitchenaryKart 30L Heavy Electric Deep Fryer with Tap. Its 30L gross and 25L listed net capacity help distinguish the tank size from the model’s stated working volume.
+[] With 4,500 W rated power and a front drain tap, it is a practical option for restaurants, cloud kitchens and catering operations that need a larger countertop frying station.
+[Heading2] Key Features
+[ListBullet,b] 30L Gross / 25L Net: The catalogue and supplied range image identify both capacity figures; always follow the marked oil level.
+[ListBullet,b] 4,500 W Rated Power: Electric heating is specified for a 220 V supply on the supplied range label.
+[ListBullet,b] Front Drain Tap: Allows controlled oil removal after the appliance has been switched off and cooled.
+[ListBullet,b] Adjustable Heat: Rotary controls let operators select a suitable cooking setting.
+[ListBullet,b] Countertop Heavy Model: A covered tank and basket arrangement support routine commercial snack preparation.
+[b] Suitable for: French fries, potato wedges, pakoras, fritters and other deep-fried snacks, within the recommended batch size.
+[b] Care & Use: Check that the drain tap is closed before filling. Follow the marked oil level and batch limit. Disconnect the power and cool the oil before draining into a suitable container. Clean and dry the tank before refilling.
+
+[Heading1] Electric Premium Deep Fryer 8L Single Head
+[TBL] SKU: KKHE0101-FY81H / Source product listing / SEO Title: FY81H Premium 8L Electric Deep Fryer | KitchenaryKart / Meta Description: Prepare fried snacks with the KitchenaryKart FY81H premium electric deep fryer, featuring 2,500 W rated power, a single tank and a countertop design. | / Supplied FY81H model photograph; this SKU is KKHE0101-FY81H.
+[Heading2] Product Description
+[b] A dedicated fryer for your everyday favourites.
+[] Prepare café snacks and restaurant side dishes with the KitchenaryKart FY81H Premium Electric Deep Fryer. This single-head model keeps one frying tank within easy reach of the operator.
+[] With 2,500 W rated power, a rotary temperature control and a handled basket, it suits cafés, snack counters and cloud kitchens.
+[Heading2] Key Features
+[ListBullet,b] FY81H Premium Model: A single-head countertop fryer in the KitchenaryKart premium range.
+[ListBullet,b] 2,500 W Rated Power: Provides dedicated electric heating for the frying tank.
+[ListBullet,b] Adjustable Temperature Dial: Select an appropriate cooking setting for the oil and recipe.
+[ListBullet,b] Handled Frying Basket: Helps lift food and drain excess oil before serving.
+[ListBullet,b] Tank Cover: The pictured lid covers the tank between uses after switching off and cooling.
+[b] Suitable for: French fries, potato wedges, pakoras, fritters and other deep-fried snacks, within the recommended batch size.
+[b] Care & Use: Follow the marked oil-fill limits and recommended batch sizes. Never heat an empty tank. Switch off, disconnect the supply and allow the oil to cool before moving, draining or cleaning. Keep the electrical head dry.
+
+[Heading1] Premium Electric Deep Fryer 8L - FY81H
+[TBL] SKU: KKHE0102-FY81H / Source product listing / SEO Title: Premium FY81H 8L Countertop Fryer | KitchenaryKart / Meta Description: Create a dedicated snack station with the KitchenaryKart premium FY81H electric deep fryer, featuring a single tank, rotary control, handled basket and lid. | / Supplied FY81H model photograph; this SKU is KKHE0102-FY81H.
+[Heading2] Product Description
+[b] A compact station for freshly fried snacks.
+[] Add a dedicated frying position to your counter with the KitchenaryKart Premium FY81H Electric Deep Fryer. Its single-tank arrangement suits made-to-order café snacks and takeaway side dishes.
+[] A rotary temperature dial, handled basket and matching cover keep the everyday frying workflow easy to manage in restaurant and cloud kitchens.
+[Heading2] Key Features
+[ListBullet,b] FY81H Single-Head Design: One heating head serves the cooking tank.
+[ListBullet,b] Countertop Format: A self-contained unit keeps the fryer at the preparation station.
+[ListBullet,b] Rotary Heat Adjustment: The pictured control dial lets the operator choose a cooking setting.
+[ListBullet,b] Basket with Handle: Lift batches from the tank and allow excess oil to drain.
+[ListBullet,b] Handled Lid: A separate cover protects the cooled tank between uses.
+[b] Suitable for: French fries, potato wedges, pakoras, fritters and other deep-fried snacks, within the recommended batch size.
+[b] Care & Use: Follow the marked oil-fill limits and recommended batch sizes. Never heat an empty tank. Switch off, disconnect the supply and allow the oil to cool before moving, draining or cleaning. Keep the electrical head dry.
+
+[Heading1] VERATTI Electric Deep Fryer 3L with Black Teflon Pan + Timer
+[TBL] SKU: KKHE0103-VDF3L / Source product listing / SEO Title: VERATTI 3L Deep Fryer with Timer | KitchenaryKart / Meta Description: Prepare smaller batches with the VERATTI 3L electric deep fryer from KitchenaryKart, featuring a non-stick pan, timer, viewing lid and handled frying basket. | / Supplied product photograph.
+[Heading2] Product Description
+[b] Small batches, with time and temperature in hand.
+[] Prepare freshly fried snacks with the VERATTI 3L Electric Deep Fryer from KitchenaryKart. Its compact tank and black non-stick pan suit smaller batches and made-to-order preparation.
+[] A timer, temperature dial and viewing window in the lid help you manage the cooking process at a café, snack counter or small kitchen station.
+[Heading2] Key Features
+[ListBullet,b] 3L Capacity: A compact tank for smaller batches within the marked oil-fill limit.
+[ListBullet,b] Non-Stick Frying Pan: The black coated pan supports easier cleaning when cared for with non-abrasive tools.
+[ListBullet,b] Timer Control: A dedicated timer helps operators track each batch; follow the manual for its stopping behaviour.
+[ListBullet,b] Viewing Lid: A window allows a view into the covered tank without immediately lifting the lid.
+[ListBullet,b] Handled Frying Basket: Lift and drain snacks using the basket’s extended handle.
+[b] Suitable for: French fries, potato wedges, pakoras, fritters and other deep-fried snacks, within the recommended batch size.
+[b] Care & Use: Follow the oil-fill marks and batch limits. Do not rely on the timer to make unattended frying safe. Disconnect power and cool fully before cleaning. Use a soft sponge on the non-stick pan and keep the electrical head dry.
+
+[Heading1] Heavy Fryer Basket — No.1
+[b] SKU: KKHE0104-FB1
+[] Source product listing
+[b] SEO Title: Heavy Fryer Basket No.1 | KitchenaryKart
+[b] Meta Description: Organise frying batches with the KitchenaryKart Heavy Fryer Basket No.1. A replacement or additional basket for compatible restaurant and café fryers.
+[Heading2] Product Description
+[b] A slim basket for focused batch handling.
+[] Handle snack batches with the KitchenaryKart Heavy Fryer Basket No.1. This commercial fryer accessory can be selected as a replacement basket or an additional basket for a compatible frying setup.
+[] Match the basket to your tank size and working clearance before ordering. It is a practical accessory for cafés, restaurant kitchens and takeaway snack stations.
+[Heading2] Key Features
+[ListBullet,b] No.1 Variant: Identified by SKU KKHE0104-FB1 for accurate ordering.
+[ListBullet,b] Batch Handling: Keeps a batch together while lowering, lifting and draining food.
+[ListBullet,b] Fryer Accessory: Works with a compatible fryer; it has no heating system of its own.
+[ListBullet,b] Replacement or Additional Basket: Useful when replacing a worn basket or organising a second compatible basket.
+[ListBullet,b] Fit-Based Selection: Check the actual basket dimensions and clearance against your fryer before purchase.
+[b] Suitable for: Batch frying in compatible commercial fryers; suitability depends on food size and basket fit.
+[b] Care & Use: Confirm basket dimensions, handle clearance and fryer compatibility before use. Do not overload. Lift slowly, allow oil to drain and use heat protection. Clean after cooling and dry fully before reuse.
+
+[Heading1] Heavy Fryer Basket — No.2
+[b] SKU: KKHE0105-FB2
+[] Source product listing
+[b] SEO Title: Heavy Fryer Basket No.2 | KitchenaryKart
+[b] Meta Description: Organise frying batches with the KitchenaryKart Heavy Fryer Basket No.2. A replacement or additional basket for compatible restaurant and café fryers.
+[Heading2] Product Description
+[b] Keep each snack batch easy to handle.
+[] Handle snack batches with the KitchenaryKart Heavy Fryer Basket No.2. This commercial fryer accessory can be selected as a replacement basket or an additional basket for a compatible frying setup.
+[] Match the basket to your tank size and working clearance before ordering. It is a practical accessory for cafés, restaurant kitchens and takeaway snack stations.
+[Heading2] Key Features
+[ListBullet,b] No.2 Variant: Identified by SKU KKHE0105-FB2 for accurate ordering.
+[ListBullet,b] Batch Handling: Keeps a batch together while lowering, lifting and draining food.
+[ListBullet,b] Fryer Accessory: Works with a compatible fryer; it has no heating system of its own.
+[ListBullet,b] Replacement or Additional Basket: Useful when replacing a worn basket or organising a second compatible basket.
+[ListBullet,b] Fit-Based Selection: Check the actual basket dimensions and clearance against your fryer before purchase.
+[b] Suitable for: Batch frying in compatible commercial fryers; suitability depends on food size and basket fit.
+[b] Care & Use: Confirm basket dimensions, handle clearance and fryer compatibility before use. Do not overload. Lift slowly, allow oil to drain and use heat protection. Clean after cooling and dry fully before reuse.
+
+[Heading1] Heavy Fryer Basket — No.3
+[b] SKU: KKHE0106-FB3
+[] Source product listing
+[b] SEO Title: Heavy Fryer Basket No.3 | KitchenaryKart
+[b] Meta Description: Organise frying batches with the KitchenaryKart Heavy Fryer Basket No.3. A replacement or additional basket for compatible restaurant and café fryers.
+[Heading2] Product Description
+[b] Give your next batch an organised lift.
+[] Handle snack batches with the KitchenaryKart Heavy Fryer Basket No.3. This commercial fryer accessory can be selected as a replacement basket or an additional basket for a compatible frying setup.
+[] Match the basket to your tank size and working clearance before ordering. It is a practical accessory for cafés, restaurant kitchens and takeaway snack stations.
+[Heading2] Key Features
+[ListBullet,b] No.3 Variant: Identified by SKU KKHE0106-FB3 for accurate ordering.
+[ListBullet,b] Batch Handling: Keeps a batch together while lowering, lifting and draining food.
+[ListBullet,b] Fryer Accessory: Works with a compatible fryer; it has no heating system of its own.
+[ListBullet,b] Replacement or Additional Basket: Useful when replacing a worn basket or organising a second compatible basket.
+[ListBullet,b] Fit-Based Selection: Check the actual basket dimensions and clearance against your fryer before purchase.
+[b] Suitable for: Batch frying in compatible commercial fryers; suitability depends on food size and basket fit.
+[b] Care & Use: Confirm basket dimensions, handle clearance and fryer compatibility before use. Do not overload. Lift slowly, allow oil to drain and use heat protection. Clean after cooling and dry fully before reuse.
+
+[Heading1] Heavy Fryer Basket — No.4
+[b] SKU: KKHE0107-FB4
+[] Source product listing
+[b] SEO Title: Heavy Fryer Basket No.4 | KitchenaryKart
+[b] Meta Description: Organise frying batches with the KitchenaryKart Heavy Fryer Basket No.4. A replacement or additional basket for compatible restaurant and café fryers.
+[Heading2] Product Description
+[b] From the fryer to the pass, one batch at a time.
+[] Handle snack batches with the KitchenaryKart Heavy Fryer Basket No.4. This commercial fryer accessory can be selected as a replacement basket or an additional basket for a compatible frying setup.
+[] Match the basket to your tank size and working clearance before ordering. It is a practical accessory for cafés, restaurant kitchens and takeaway snack stations.
+[Heading2] Key Features
+[ListBullet,b] No.4 Variant: Identified by SKU KKHE0107-FB4 for accurate ordering.
+[ListBullet,b] Batch Handling: Keeps a batch together while lowering, lifting and draining food.
+[ListBullet,b] Fryer Accessory: Works with a compatible fryer; it has no heating system of its own.
+[ListBullet,b] Replacement or Additional Basket: Useful when replacing a worn basket or organising a second compatible basket.
+[ListBullet,b] Fit-Based Selection: Check the actual basket dimensions and clearance against your fryer before purchase.
+[b] Suitable for: Batch frying in compatible commercial fryers; suitability depends on food size and basket fit.
+[b] Care & Use: Confirm basket dimensions, handle clearance and fryer compatibility before use. Do not overload. Lift slowly, allow oil to drain and use heat protection. Clean after cooling and dry fully before reuse.
+
+[Heading1] Heavy Fryer Basket — No.5
+[b] SKU: KKHE0108-FB5
+[] Source product listing
+[b] SEO Title: Heavy Fryer Basket No.5 | KitchenaryKart
+[b] Meta Description: Organise frying batches with the KitchenaryKart Heavy Fryer Basket No.5. A replacement or additional basket for compatible restaurant and café fryers.
+[Heading2] Product Description
+[b] A dedicated basket for your frying routine.
+[] Handle snack batches with the KitchenaryKart Heavy Fryer Basket No.5. This commercial fryer accessory can be selected as a replacement basket or an additional basket for a compatible frying setup.
+[] Match the basket to your tank size and working clearance before ordering. It is a practical accessory for cafés, restaurant kitchens and takeaway snack stations.
+[Heading2] Key Features
+[ListBullet,b] No.5 Variant: Identified by SKU KKHE0108-FB5 for accurate ordering.
+[ListBullet,b] Batch Handling: Keeps a batch together while lowering, lifting and draining food.
+[ListBullet,b] Fryer Accessory: Works with a compatible fryer; it has no heating system of its own.
+[ListBullet,b] Replacement or Additional Basket: Useful when replacing a worn basket or organising a second compatible basket.
+[ListBullet,b] Fit-Based Selection: Check the actual basket dimensions and clearance against your fryer before purchase.
+[b] Suitable for: Batch frying in compatible commercial fryers; suitability depends on food size and basket fit.
+[b] Care & Use: Confirm basket dimensions, handle clearance and fryer compatibility before use. Do not overload. Lift slowly, allow oil to drain and use heat protection. Clean after cooling and dry fully before reuse.
+
+[Heading1] SS V Shaped Taco Fry Basket — 4 Slot
+[b] SKU: KKHE0109-TFB4S
+[] Source product listing
+[b] SEO Title: 4-Slot SS Taco Fry Basket | KitchenaryKart
+[b] Meta Description: Shape taco shells with the KitchenaryKart 4-slot stainless steel V-shaped taco fry basket, designed for organised shell frying in a compatible fryer.
+[Heading2] Product Description
+[b] 4 slots for freshly fried taco shells.
+[] Prepare taco shells with the KitchenaryKart 4-Slot Stainless Steel V-Shaped Taco Fry Basket. Its shaped slots support tortillas during frying, helping create shells ready for your chosen fillings.
+[] A dedicated taco basket is a practical addition to Mexican restaurants, cafés and cloud kitchens adding crisp-shell dishes to the menu.
+[Heading2] Key Features
+[ListBullet,b] 4-Slot Design: Provides 4 positions for shaping individual taco shells.
+[ListBullet,b] V-Shaped Form: Supports the folded shell shape while the tortilla cooks.
+[ListBullet,b] Stainless Steel Construction: A stainless steel accessory for routine kitchen use and cleaning.
+[ListBullet,b] Batch Preparation: Keeps multiple shells arranged in a single fryer accessory.
+[ListBullet,b] Compatible-Fryer Use: Select a tank with adequate clearance for the basket and handle.
+[b] Suitable for: Frying and shaping taco shells from suitable tortillas in a compatible fryer.
+[b] Care & Use: Confirm basket dimensions, handle clearance and fryer compatibility before use. Do not overload. Lift slowly, allow oil to drain and use heat protection. Clean after cooling and dry fully before reuse.
+
+[Heading1] SS V Shaped Taco Fry Basket — 6 Slot
+[b] SKU: KKHE0110-TFB6S
+[] Source product listing
+[b] SEO Title: 6-Slot SS Taco Fry Basket | KitchenaryKart
+[b] Meta Description: Shape taco shells with the KitchenaryKart 6-slot stainless steel V-shaped taco fry basket, designed for organised shell frying in a compatible fryer.
+[Heading2] Product Description
+[b] 6 slots for freshly fried taco shells.
+[] Prepare taco shells with the KitchenaryKart 6-Slot Stainless Steel V-Shaped Taco Fry Basket. Its shaped slots support tortillas during frying, helping create shells ready for your chosen fillings.
+[] A dedicated taco basket is a practical addition to Mexican restaurants, cafés and cloud kitchens adding crisp-shell dishes to the menu.
+[Heading2] Key Features
+[ListBullet,b] 6-Slot Design: Provides 6 positions for shaping individual taco shells.
+[ListBullet,b] V-Shaped Form: Supports the folded shell shape while the tortilla cooks.
+[ListBullet,b] Stainless Steel Construction: A stainless steel accessory for routine kitchen use and cleaning.
+[ListBullet,b] Batch Preparation: Keeps multiple shells arranged in a single fryer accessory.
+[ListBullet,b] Compatible-Fryer Use: Select a tank with adequate clearance for the basket and handle.
+[b] Suitable for: Frying and shaping taco shells from suitable tortillas in a compatible fryer.
+[b] Care & Use: Confirm basket dimensions, handle clearance and fryer compatibility before use. Do not overload. Lift slowly, allow oil to drain and use heat protection. Clean after cooling and dry fully before reuse.
+
+[Heading1] Spare for Electric Deep Fryer - U Shaped Basket
+[b] SKU: KKHE0111-DFS11
+[] Source product listing
+[b] SEO Title: U-Shaped Electric Fryer Basket | KitchenaryKart
+[b] Meta Description: Prepare shaped fried portions with the KitchenaryKart U-shaped spare fryer basket, featuring a perforated form and extended handle for compatible fryers.
+[Heading2] Product Description
+[b] A shaped basket for a different kind of snack.
+[] Support shaped frying preparations with the KitchenaryKart U-Shaped Spare Basket for Electric Deep Fryers. Its curved, perforated form provides a dedicated moulding surface within a compatible frying tank.
+[] The extended handle helps position and lift the basket, making it a useful specialist accessory for cafés, restaurants and creative snack menus.
+[Heading2] Key Features
+[ListBullet,b] U-Shaped Form: Supports food around a curved profile for shaped frying applications.
+[ListBullet,b] Perforated Surface: Allows oil to reach the food and drain after lifting.
+[ListBullet,b] Extended Handle: Provides a handling point away from the basket itself; use suitable heat protection.
+[ListBullet,b] Spare Accessory: A separately listed basket for compatible electric fryer setups.
+[ListBullet,b] 245 g Listed Weight: A lightweight accessory that should be checked for fit before ordering.
+[b] Suitable for: Shaped fried preparations that suit the U-shaped basket and a compatible fryer.
+[b] Care & Use: Confirm basket dimensions, handle clearance and fryer compatibility before use. Do not overload. Lift slowly, allow oil to drain and use heat protection. Clean after cooling and dry fully before reuse.
+
+[Heading1] Spares for Electric Deep Fryer 4L - Basket with Handle
+[TBL] SKU: KKHE0112-DFS12 / Source product listing / SEO Title: 4L Fryer Replacement Basket with Handle | KitchenaryKart / Meta Description: Replace a worn basket with the KitchenaryKart basket and handle for compatible 4L electric deep fryers. Check tank size and handle clearance before ordering. | / Supplied spare-parts range photo: this page covers the 4L basket with handle only.
+[Heading2] Product Description
+[b] Keep your fryer ready for the next batch.
+[] Maintain your frying setup with the KitchenaryKart Replacement Basket with Handle for compatible 4L Electric Deep Fryers. It offers a replacement for an existing basket that needs changing.
+[] A correctly matched basket helps organise lifting and draining at restaurant, café and takeaway counters. The litre figure identifies the intended fryer model, not the basket’s food capacity.
+[Heading2] Key Features
+[ListBullet,b] For Compatible 4L Models: Listed as a replacement basket for the 4L electric fryer range.
+[ListBullet,b] Basket with Handle: Helps lower, lift and drain snack batches.
+[ListBullet,b] Separate Spare Part: Replaces the basket assembly without purchasing a complete fryer.
+[ListBullet,b] Batch Organisation: A spare compatible basket can help organise preparation and cleaning.
+[ListBullet,b] Fit Check Before Ordering: Confirm basket size, handle position and tank clearance against the existing appliance.
+[b] Suitable for: Replacement use in compatible 4L electric deep fryer models.
+[b] Care & Use: Confirm basket dimensions, handle clearance and fryer compatibility before use. Do not overload. Lift slowly, allow oil to drain and use heat protection. Clean after cooling and dry fully before reuse.
+
+[Heading1] Spares for Electric Deep Fryer 8L - Basket with Handle
+[TBL] SKU: KKHE0113-DFS4 / Source product listing / SEO Title: 8L Fryer Replacement Basket with Handle | KitchenaryKart / Meta Description: Replace a worn basket with the KitchenaryKart basket and handle for compatible 8L electric deep fryers. Check tank size and handle clearance before ordering. | / Supplied spare-parts range photo: this page covers the 8L basket with handle only.
+[Heading2] Product Description
+[b] Keep your fryer ready for the next batch.
+[] Maintain your frying setup with the KitchenaryKart Replacement Basket with Handle for compatible 8L Electric Deep Fryers. It offers a replacement for an existing basket that needs changing.
+[] A correctly matched basket helps organise lifting and draining at restaurant, café and takeaway counters. The litre figure identifies the intended fryer model, not the basket’s food capacity.
+[Heading2] Key Features
+[ListBullet,b] For Compatible 8L Models: Listed as a replacement basket for the 8L electric fryer range.
+[ListBullet,b] Basket with Handle: Helps lower, lift and drain snack batches.
+[ListBullet,b] Separate Spare Part: Replaces the basket assembly without purchasing a complete fryer.
+[ListBullet,b] Listed Basket Dimensions: 20 × 17.2 × 10.5 cm, with a 20 cm handle, for checking against the fryer.
+[ListBullet,b] Fit Check Before Ordering: Confirm basket size, handle position and tank clearance against the existing appliance.
+[b] Suitable for: Replacement use in compatible 8L electric deep fryer models.
+[b] Care & Use: Confirm basket dimensions, handle clearance and fryer compatibility before use. Do not overload. Lift slowly, allow oil to drain and use heat protection. Clean after cooling and dry fully before reuse.
+
+[Heading1] Spares for Electric Heavy Deep Fryer 20L - Basket with Handle
+[b] SKU: KKHE0114-DFS8
+[] Source product listing
+[b] SEO Title: 20L Fryer Replacement Basket with Handle | KitchenaryKart
+[b] Meta Description: Replace a worn basket with the KitchenaryKart basket and handle for compatible 20L electric deep fryers. Check tank size and handle clearance before ordering.
+[Heading2] Product Description
+[b] Keep your fryer ready for the next batch.
+[] Maintain your frying setup with the KitchenaryKart Replacement Basket with Handle for compatible 20L Heavy Electric Deep Fryers. It offers a replacement for an existing basket that needs changing.
+[] A correctly matched basket helps organise lifting and draining at restaurant, café and takeaway counters. The litre figure identifies the intended fryer model, not the basket’s food capacity.
+[Heading2] Key Features
+[ListBullet,b] For Compatible 20L Models: Listed as a replacement basket for the 20L heavy electric fryer range.
+[ListBullet,b] Basket with Handle: Helps lower, lift and drain snack batches.
+[ListBullet,b] Separate Spare Part: Replaces the basket assembly without purchasing a complete fryer.
+[ListBullet,b] Batch Organisation: A spare compatible basket can help organise preparation and cleaning.
+[ListBullet,b] Fit Check Before Ordering: Confirm basket size, handle position and tank clearance against the existing appliance.
+[b] Suitable for: Replacement use in compatible 20L electric deep fryer models.
+[b] Care & Use: Confirm basket dimensions, handle clearance and fryer compatibility before use. Do not overload. Lift slowly, allow oil to drain and use heat protection. Clean after cooling and dry fully before reuse.
+
+[Heading1] Spares for Electric Heavy Deep Fryer 30L - Basket with Handle
+[b] SKU: KKHE0115-DFS9
+[] Source product listing
+[b] SEO Title: 30L Fryer Replacement Basket with Handle | KitchenaryKart
+[b] Meta Description: Replace a worn basket with the KitchenaryKart basket and handle for compatible 30L electric deep fryers. Check tank size and handle clearance before ordering.
+[Heading2] Product Description
+[b] Keep your fryer ready for the next batch.
+[] Maintain your frying setup with the KitchenaryKart Replacement Basket with Handle for compatible 30L Heavy Electric Deep Fryers. It offers a replacement for an existing basket that needs changing.
+[] A correctly matched basket helps organise lifting and draining at restaurant, café and takeaway counters. The litre figure identifies the intended fryer model, not the basket’s food capacity.
+[Heading2] Key Features
+[ListBullet,b] For Compatible 30L Models: Listed as a replacement basket for the 30L heavy electric fryer range.
+[ListBullet,b] Basket with Handle: Helps lower, lift and drain snack batches.
+[ListBullet,b] Separate Spare Part: Replaces the basket assembly without purchasing a complete fryer.
+[ListBullet,b] Batch Organisation: A spare compatible basket can help organise preparation and cleaning.
+[ListBullet,b] Fit Check Before Ordering: Confirm basket size, handle position and tank clearance against the existing appliance.
+[b] Suitable for: Replacement use in compatible 30L electric deep fryer models.
+[b] Care & Use: Confirm basket dimensions, handle clearance and fryer compatibility before use. Do not overload. Lift slowly, allow oil to drain and use heat protection. Clean after cooling and dry fully before reuse.
+
+[Heading1] Gas 2 In 1 Deep Fryer + Noodle Boiler (8L + 8L)
+[TBL] SKU: KKHE0116-GFY821 / Source product listing / SEO Title: Gas 2-in-1 Fryer & Noodle Boiler | KitchenaryKart / Meta Description: Prepare fried snacks and noodles with the KitchenaryKart gas 2-in-1 fryer and noodle boiler, featuring separate tanks, front controls and round noodle baskets. | / Supplied product photograph.
+[Heading2] Product Description
+[b] Two menu essentials, powered by gas.
+[] Prepare fried snacks and boiled noodles at one station with the KitchenaryKart Gas 2-in-1 Deep Fryer + Noodle Boiler. Separate tanks keep the oil-frying and water-boiling tasks organised.
+[] The 8L + 8L listed configuration, front gas controls and 60 × 51 × 41 cm body suit restaurant kitchens, noodle counters and takeaway outlets.
+[Heading2] Key Features
+[ListBullet,b] Frying and Boiling Sections: Dedicated tanks support two different cooking tasks.
+[ListBullet,b] 8L + 8L Listed Configuration: Two sections provide a combined cooking station; follow each tank’s fill marks.
+[ListBullet,b] Gas Heating: The supplied label identifies LPG operation; use the specified regulator.
+[ListBullet,b] Fryer and Noodle Baskets: A rectangular frying basket and two round noodle baskets support the respective tasks.
+[ListBullet,b] Side Cup Holders: The supplied image shows three side-mounted cups for organising small utensils or ingredients.
+[b] Suitable for: Fried snacks and boiled noodles, prepared in their designated tanks.
+[b] Care & Use: Arrange a ventilated installation with the specified gas regulator. Keep water and oil in separate designated tanks and never heat an empty section. Turn off the gas and cool both tanks before draining or cleaning.
+
+[Heading1] Gas Deep Fryer 12L Heavy with Temperature Controller & Tap - Standing Model
+[TBL] SKU: KKHE0117-GFY12L / Source product listing / SEO Title: 12L Gas Standing Fryer with Tap | KitchenaryKart / Meta Description: Set up a gas frying station with the KitchenaryKart 12L standing deep fryer, featuring a temperature controller, handled basket and front oil-drain tap. | / Supplied product photograph.
+[Heading2] Product Description
+[b] Gas frying with temperature control close at hand.
+[] Prepare restaurant snacks with the KitchenaryKart 12L Heavy Gas Deep Fryer. The standing model combines a dedicated frying tank with an accessible temperature controller and a front oil-drain tap.
+[] Its supplied label identifies LPG heating and a 6 kW rating, making it suitable for a professionally installed gas cooking station in a restaurant or catering kitchen.
+[Heading2] Key Features
+[ListBullet,b] 12L Listed Capacity: Provides a single tank for batch frying within the marked oil level.
+[ListBullet,b] Temperature Controller: The front control helps the operator select the frying setting.
+[ListBullet,b] Oil-Drain Tap: Supports controlled emptying once the gas is off and the oil has cooled.
+[ListBullet,b] LPG Gas Heating: The supplied nameplate lists a 6 kW gas rating and 2,800 Pa rated pressure.
+[ListBullet,b] Standing Body with Basket: Raised legs support the appliance, while the handled basket helps lift and drain food.
+[b] Suitable for: French fries, potato wedges, pakoras, fritters and other deep-fried snacks, within the recommended batch size.
+[b] Care & Use: Have a qualified installer match the gas regulator and any auxiliary electrical supply to the delivered unit. Close the tap before filling. Turn off the gas and disconnect any electricity; cool the oil before draining or cleaning.
+
+[Heading1] Gas Deep Fryer 8L + 8L Double Head
+[b] SKU: KKHE0118-GFY82
+[] Source product listing
+[b] SEO Title: 8L + 8L Gas Double Deep Fryer | KitchenaryKart
+[b] Meta Description: Organise two frying batches with the KitchenaryKart 8L + 8L gas double-head deep fryer, featuring a twin-section layout for restaurant and takeaway kitchens.
+[Heading2] Product Description
+[b] Two frying sections for a flexible gas station.
+[] Prepare a varied snack menu with the KitchenaryKart 8L + 8L Gas Double Head Deep Fryer. Its twin-section design gives restaurant and takeaway teams a dedicated station for separate frying batches.
+[] With a listed 62.5 × 47 × 40.3 cm body, this model helps you plan a gas-powered frying setup within your kitchen layout.
+[Heading2] Key Features
+[ListBullet,b] 8L + 8L Listed Configuration: Two frying sections support separate batches; follow the marked oil limits.
+[ListBullet,b] Double-Head Design: Provides a twin-section arrangement in one appliance.
+[ListBullet,b] Gas Heating: Designed for a correctly installed gas supply and the specified regulator.
+[ListBullet,b] Overall Dimensions: A listed 62.5 × 47 × 40.3 cm body helps with equipment-space planning.
+[ListBullet,b] 11 kg Listed Weight: Useful for planning a stable supporting surface and handling the cooled appliance.
+[b] Suitable for: French fries, potato wedges, pakoras, fritters and other deep-fried snacks, within the recommended batch size.
+[b] Care & Use: Use the specified gas supply and regulator in a properly ventilated installation. Follow the marked oil-fill limits. Turn off the gas and let the oil cool before moving, draining or cleaning.
+
+[Heading1] Gas Deep Fryer 8L Single Head
+[b] SKU: KKHE0119-GFY81
+[] Source product listing
+[b] SEO Title: 8L Gas Single Deep Fryer | KitchenaryKart
+[b] Meta Description: Prepare fried snacks with the KitchenaryKart 8L gas single-head deep fryer, a compact 45 × 29 × 30 cm model for restaurant, café and takeaway frying stations.
+[Heading2] Product Description
+[b] A compact gas fryer for everyday snacks.
+[] Prepare freshly fried favourites with the KitchenaryKart 8L Gas Single Head Deep Fryer. Its single-section layout suits cafés, takeaway counters and restaurant kitchens adding a dedicated gas frying position.
+[] The listed 45 × 29 × 30 cm body keeps the setup compact, with an 8L model capacity for batch preparation within the recommended fill limits.
+[Heading2] Key Features
+[ListBullet,b] 8L Listed Capacity: A single frying tank for everyday snack preparation.
+[ListBullet,b] Single-Head Layout: Keeps the cooking operation focused on one frying section.
+[ListBullet,b] Gas-Powered Heating: Connect to the gas type and regulator specified for the delivered unit.
+[ListBullet,b] Compact Dimensions: The listed 45 × 29 × 30 cm size helps with counter planning.
+[ListBullet,b] 5.5 kg Listed Weight: Plan a stable supporting surface and move only after switching off and cooling.
+[b] Suitable for: French fries, potato wedges, pakoras, fritters and other deep-fried snacks, within the recommended batch size.
+[b] Care & Use: Use the specified gas supply and regulator in a properly ventilated installation. Follow the marked oil-fill limits. Turn off the gas and let the oil cool before moving, draining or cleaning.
+
+[Heading1] Editorial review notes
+[] These notes are for catalogue review and are not customer-facing product copy.
+[Heading2] Catalogue capacities versus supplied labels
+[] KKHE0085-FY8L21 and KKHE0086-FY8L31 are titled 8L per section, but supplied graphics state 6L per section. KKHE0088-FY83 is titled 16L but its graphic states 6L + 6L. KKHE0093-FY82 and KKHE0095-FY81 are also titled 8L per tank while their supplied plates state 6L. The FY81H photo for KKHE0101/0102 shows 6L against an 8L catalogue name. Existing product names are retained for matching; whether these differences represent gross/net volume or a listing error is not established. Confirm the correct capacity and fill limits before publishing capacity claims. The copy does not call these tanks 8L oil-fill capacity.
+[Heading2] Digital standing fryer power
+[] KKHE0097-FY14LD and KKHE0098-FY28LS list 1,800 W on the website. The supplied nameplates clearly state 18 kW, 380 V, 50 Hz, with matching tank layouts. The descriptions use the supplied nameplate ratings. Verify the current delivered model and correct the website specification field before publication.
+[Heading2] Per-head versus total power
+[] The website specification cards often show only one head’s power. Descriptive text and supplied labels support 2,500 W × 2 for KKHE0085, KKHE0088 and KKHE0093; 2,500 W × 3 for KKHE0086; and 2,000 W × 2 for KKHE0091. KKHE0087 has no clear total-load confirmation, so its copy omits a wattage claim.
+
+[Heading1] Editorial review notes · continued
+[Heading2] Repeated basket specifications
+[] KKHE0105–KKHE0108 have different dimensions in their product titles, but every specification table repeats 21 × 6 × 10 cm and 600 g. Titles read: No.2 23 × 11 × 14 cm; No.3 24.5 × 18.5 × 15 cm; No.4 24.5 × 14.5 × 15 cm; No.5 32 × 16 × 14.5 cm. Their copy omits dimensions and weights until corrected. The 4-slot and 6-slot taco baskets also share identical dimensions and weights on the website; these repeated measurements are omitted.
+[Heading2] Two FY81H listings
+[] KKHE0101-FY81H and KKHE0102-FY81H use the same model code and similar names. The website does not establish a functional difference. Both are included because they are separate listings; no additional feature has been invented to differentiate them. Confirm whether they are duplicates or distinct versions. The supplied FY81H image is marked as a shared model photograph.
+[Heading2] Dimensions, ratings and claims omitted where unclear
+[] The black 8L model and FY81H photo labels differ from some website dimensions, so those measurements are omitted. The VERATTI label is unclear on input power, so no wattage is stated. No blanket SS 304, rust-proof, energy-saving, automatic shutdown, overheat protection, food-output rate or allergen-isolation claim is made. Divider slots and baskets within a shared tank do not create separate oil baths.
+[Heading2] Photo use
+[] The supplied images are embedded unchanged in 21 matching product entries, including clearly captioned range photos. Fourteen entries have no confidently matched uploaded image. Some original photo graphics contain the specification conflicts noted above; check and correct those graphics before using them as final storefront artwork. Source product links are provided for every SKU.
