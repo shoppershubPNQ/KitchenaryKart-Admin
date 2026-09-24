@@ -225,7 +225,7 @@ export default function NewOrderPage() {
                     target="_blank"
                     rel="noreferrer"
                     href={`https://wa.me/91${customer.phone.replace(/\D/g, '').slice(-10)}?text=${encodeURIComponent(
-                      `Namaste ${customer.name}, your KitchenaryKart order ${createdOrder.orderNumber} is ready. Pay here: ${payLink}`,
+                      `Namaste ${customer.name}, your Kitchenary Kart order ${createdOrder.orderNumber} is ready. Pay here: ${payLink}`,
                     )}`}
                   >
                     Send on WhatsApp

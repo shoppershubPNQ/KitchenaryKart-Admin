@@ -41,7 +41,7 @@ function LoginForm() {
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-lg bg-brand text-white flex items-center justify-center font-bold text-lg">K</div>
           <div>
-            <h1 className="text-lg font-semibold">KitchenaryKart</h1>
+            <h1 className="text-lg font-semibold">Kitchenary Kart</h1>
             <p className="text-xs text-slate-500">Admin dashboard</p>
           </div>
         </div>

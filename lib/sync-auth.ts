@@ -95,7 +95,7 @@ export function withSyncKey(
       return NextResponse.json(
         {
           error:
-            'Invalid or missing sync API key. Send it as an X-Sync-Key header. Keys are issued in the KitchenaryKart admin under Sync.',
+            'Invalid or missing sync API key. Send it as an X-Sync-Key header. Keys are issued in the Kitchenary Kart admin under Sync.',
         },
         { status: 401 },
       );

@@ -38,6 +38,6 @@ export async function sendWhatsApp(to: string, body: string): Promise<{ sent: bo
 }
 
 export async function notifyOrderStatus(phone: string, orderNumber: string, status: string) {
-  const msg = `KitchenaryKart order ${orderNumber}: status updated to ${status}.`;
+  const msg = `Kitchenary Kart order ${orderNumber}: status updated to ${status}.`;
   return sendWhatsApp(phone, msg);
 }

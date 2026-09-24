@@ -44,7 +44,7 @@ async function seedAdmin() {
 
 async function seedSettings() {
   const defaults: Array<{ key: string; value: string; dataType: string }> = [
-    { key: 'company_name', value: 'KitchenaryKart', dataType: 'string' },
+    { key: 'company_name', value: 'Kitchenary Kart', dataType: 'string' },
     { key: 'company_gst', value: '18AABCT1234B1Z5', dataType: 'string' },
     { key: 'default_tax_percent', value: '18', dataType: 'number' },
     { key: 'free_shipping_above', value: '10000', dataType: 'number' },

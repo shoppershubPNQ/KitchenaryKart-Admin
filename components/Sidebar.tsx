@@ -110,7 +110,7 @@ export function Sidebar({ role }: { role: AdminRole }) {
           K
         </div>
         <div className="leading-tight">
-          <div className="font-semibold text-white text-sm">KitchenaryKart</div>
+          <div className="font-semibold text-white text-sm">Kitchenary Kart</div>
           <div className="text-[10px] text-sand/60 uppercase tracking-[0.15em]">Admin Panel</div>
         </div>
       </div>

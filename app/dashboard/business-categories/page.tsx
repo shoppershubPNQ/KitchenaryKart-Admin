@@ -282,7 +282,7 @@ export default function BusinessCategoriesPage() {
               <input className="mt-1 w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
                 placeholder="Leave blank to use the name"
                 value={form.metaTitle} onChange={(e) => setForm((f) => ({ ...f, metaTitle: e.target.value }))} />
-              <span className="text-[11px] text-slate-400">“— KitchenaryKart” is added automatically.</span>
+              <span className="text-[11px] text-slate-400">“— Kitchenary Kart” is added automatically.</span>
             </label>
             <label className="block">
               <span className="text-xs font-medium text-slate-600">Meta description (SEO)</span>

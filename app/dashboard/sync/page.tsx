@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Sync — both halves of the KitchenaryKart ↔ Hotelic Essentials link.
+ * Sync — both halves of the Kitchenary Kart ↔ Hotelic Essentials link.
  *
  *   Publish  what we expose over /api/sync/* and the keys that open it.
  *   Import   what the partner exposes, reviewed here before anything is written.

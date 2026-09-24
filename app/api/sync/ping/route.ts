@@ -2,7 +2,7 @@
  * GET /api/sync/ping
  *
  * The handshake the partner panel's "Test connection" button calls. Proves the
- * URL points at a KitchenaryKart admin, that the API key is accepted, and
+ * URL points at a Kitchenary Kart admin, that the API key is accepted, and
  * reports how many listings the feed will serve.
  */
 import { NextRequest, NextResponse } from 'next/server';

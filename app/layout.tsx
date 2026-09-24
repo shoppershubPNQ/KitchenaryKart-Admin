@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'KitchenaryKart Admin',
+  title: 'Kitchenary Kart Admin',
   description: 'B2B e-commerce admin dashboard',
 };
 

@@ -77,7 +77,7 @@ export const POST = withAuth(async (_req, { params }) => {
       customerName: order.customerName,
       customerEmail: order.customerEmail,
       customerPhone: order.customerPhone,
-      description: `KitchenaryKart order ${order.orderNumber}`,
+      description: `Kitchenary Kart order ${order.orderNumber}`,
       // 7 days to pay, then the link dies rather than lingering indefinitely.
       expireBy: Math.floor(Date.now() / 1000) + 7 * 24 * 3600,
     });

@@ -25,7 +25,7 @@ function getClient(): Resend | null {
 
 function getFromHeader(): string {
   const email = process.env.RESEND_FROM_EMAIL || 'noreply@kitchenarykart.com';
-  const name = process.env.RESEND_FROM_NAME || 'KitchenaryKart';
+  const name = process.env.RESEND_FROM_NAME || 'Kitchenary Kart';
   return `${name} <${email}>`;
 }
 

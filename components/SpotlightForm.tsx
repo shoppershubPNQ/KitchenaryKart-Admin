@@ -87,7 +87,7 @@ function SpecList({ items, onChange }: { items: Spec[]; onChange: (v: Spec[]) =>
 function WhyBuyList({ items, onChange }: { items: WhyBuy[]; onChange: (v: WhyBuy[]) => void }) {
   return (
     <div>
-      <label className="label">Why buy from KitchenaryKart</label>
+      <label className="label">Why buy from Kitchenary Kart</label>
       <p className="text-xs text-slate-500 mb-2">Short title + one-line reason each.</p>
       <div className="space-y-3">
         {items.map((it, i) => (
@@ -117,7 +117,7 @@ function ComparisonEditor({ value, onChange }: { value: Cmp; onChange: (v: Cmp) 
       <label className="label">Comparison table</label>
       <p className="text-xs text-slate-500 mb-2">
         One row per feature. The two column headers name your product vs a typical other seller — leave blank to use
-        “KitchenaryKart” / “Others”.
+        “Kitchenary Kart” / “Others”.
       </p>
       {/* Column-header labels, aligned above the value columns */}
       <div className="flex gap-2 mb-2">

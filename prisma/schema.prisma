@@ -1,4 +1,4 @@
-// KitchenaryKart Admin — Prisma schema
+// Kitchenary Kart Admin — Prisma schema
 // Ported from database-schema.sql
 
 generator client {
