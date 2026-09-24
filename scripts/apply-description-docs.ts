@@ -65,7 +65,9 @@ function parse(file: string): Section[] {
     // doc: "SKU: KKHE0085-FY8L21 / Source product listing / SEO Title: …"),
     // so take the SKU token itself, not the rest of the line.
     if (text.startsWith('SKU:')) {
-      const m = /KK-[A-Z]+-\d+|[A-Z]{2,}[A-Z0-9]*\d+-[A-Z0-9.]*[A-Z0-9]/.exec(text.slice(4));
+      // Brackets and a slash belong to some SKUs — KKHE0141-288(C06),
+      // KKSP0179-WLX1/2AF — so the token must not stop at one.
+      const m = /KK-[A-Z]+-\d+|[A-Z]{2,}[A-Z0-9]*\d+-[A-Z0-9./()]*[A-Z0-9)]/.exec(text.slice(4));
       cur.sku = (m ? m[0] : text.slice(4)).trim();
       continue;
     }
@@ -74,7 +76,10 @@ function parse(file: string): Section[] {
       // Trailing sections that belong to the doc, not to the page. In most
       // docs these are Heading1 and end the section anyway; the popcorn doc
       // makes them Heading2, which would publish the keyword list as body.
-      if (/^(SEO Keywords|Keywords|Research notes|Notes)$/i.test(text)) { cur.inDesc = false; continue; }
+      if (/^(SEO Keywords|Keywords|Search Phrases|SEO Title|Meta Description|Research notes|Notes)$/i.test(text)) {
+        cur.inDesc = false;
+        continue;
+      }
       if (!cur.inDesc) continue;
       if (/^(Suitable for|Care & Use):$/.test(text)) { cur.pendingLabel = text; continue; } // layout B
       cur.body.push(`H:${text}`);

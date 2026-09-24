@@ -17,13 +17,36 @@ const FILE = process.argv.slice(2).find((a) => !a.startsWith('--'));
 (async () => {
   if (!FILE) throw new Error('usage: apply-seo-meta-docs.ts <doc.txt> [--apply]');
   const items: Array<{ sku: string; title?: string; desc?: string }> = [];
+  /**
+   * Some documents label the two as HEADINGS with the value on the next
+   * paragraph — "[Heading2] SEO Title" then the title — rather than as
+   * "SEO Title: …" on one line. `expecting` carries that heading forward to
+   * the line that follows it.
+   */
+  let expecting: 'title' | 'desc' | null = null;
+
   for (const raw of readFileSync(FILE, 'utf8').split(/\r?\n/)) {
+    const isHeading = /^\[[^\]]*Heading\d/.test(raw);
     const t = raw.replace(/^\[[^\]]*\]\s?/, '').trim();
+
+    if (isHeading && /^SEO Title$/i.test(t)) { expecting = 'title'; continue; }
+    if (isHeading && /^Meta Description$/i.test(t)) { expecting = 'desc'; continue; }
+    if (expecting) {
+      // A blank line or another heading means the value never came.
+      if (t && !isHeading && items.length) {
+        items[items.length - 1][expecting] = t;
+        expecting = null;
+        continue;
+      }
+      if (isHeading) expecting = null;
+    }
+
     if (t.startsWith('SKU:')) {
       // The SKU can share a table cell with SEO Title and Meta (deep fryer
       // doc): "SKU: X / Source product listing / SEO Title: T | KitchenaryKart
       // / Meta Description: M | / Supplied product photograph."
-      const sku = /KK-[A-Z]+-\d+|[A-Z]{2,}[A-Z0-9]*\d+-[A-Z0-9.]*[A-Z0-9]/.exec(t.slice(4))?.[0] ?? t.slice(4).trim();
+      // Brackets and a slash belong to some SKUs — see apply-description-docs.
+      const sku = /KK-[A-Z]+-\d+|[A-Z]{2,}[A-Z0-9]*\d+-[A-Z0-9./()]*[A-Z0-9)]/.exec(t.slice(4))?.[0] ?? t.slice(4).trim();
       const item: { sku: string; title?: string; desc?: string } = { sku };
       const title = /(?:SEO|Meta) Title:\s*(.+?\|\s*KitchenaryKart)/.exec(t)?.[1];
       const desc = /Meta Description:\s*(.+?)\s*(?:\|\s*\/|\|\s*$|$)/.exec(t)?.[1];
