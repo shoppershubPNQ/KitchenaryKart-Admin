@@ -20,6 +20,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { reasonForOrder, type BuyerReason } from '@/lib/checkout-feedback-lookup';
 import { checkOrderPayment, finalizePaidOrder } from '@/lib/order-payment';
 import { sendEmail } from '@/lib/integrations/resend';
 import { adminBaseUrl, adminRecipients } from '@/lib/admin-notify';
@@ -124,7 +125,11 @@ export async function GET(req: NextRequest) {
         }
 
         // 3. Tell the team. Only mark alerted once the email actually went.
-        const mail = buildAlertEmail(latest, attempts.length);
+        // What they said on the way out, if they answered the exit popup —
+        // the difference between a cold call and one that opens with the
+        // objection already known.
+        const reason = await reasonForOrder(latest.orderNumber);
+        const mail = buildAlertEmail(latest, attempts.length, reason);
         const sent = await sendEmail({
           to: adminRecipients(),
           subject: mail.subject,
@@ -161,7 +166,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-type AlertOrder = {
+export type AlertOrder = {
   id: number;
   orderNumber: string;
   customerName: string | null;
@@ -177,12 +182,17 @@ const esc = (s: unknown) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 const inr = (n: unknown) => '₹' + Number(n ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
-function buildAlertEmail(o: AlertOrder, attempts: number) {
+/** Exported so scripts/_tmp-preview can render it without sending mail. */
+export function buildAlertEmail(o: AlertOrder, attempts: number, reason: BuyerReason | null) {
   const phone10 = last10(o.customerPhone);
   const admin = adminBaseUrl();
   const when = o.createdAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
   const name = o.customerName || 'Unknown buyer';
-  const subject = `Unpaid checkout ${inr(o.totalAmount)} — ${name}${phone10 ? ` (${phone10})` : ''}`;
+  // The reason goes in the subject too: whoever makes the call reads it in
+  // the inbox list and knows how to open, without opening the mail.
+  const subject =
+    `Unpaid checkout ${inr(o.totalAmount)} — ${name}${phone10 ? ` (${phone10})` : ''}` +
+    (reason ? ` · ${reason.label}` : '');
 
   const rows = o.items
     .map(
@@ -203,6 +213,15 @@ function buildAlertEmail(o: AlertOrder, attempts: number) {
       ${o.shippingAddress ? `<span style="color:#666">${esc(o.shippingAddress)}</span>` : ''}</p>
     <table style="border-collapse:collapse;width:100%;margin:0 0 8px">${rows}</table>
     <p style="margin:0 0 16px"><b>Total: ${inr(o.totalAmount)}</b> &nbsp;·&nbsp; started ${esc(when)} &nbsp;·&nbsp; ${attempts} attempt${attempts === 1 ? '' : 's'} &nbsp;·&nbsp; ${esc(o.orderNumber)}</p>
+    ${
+      reason
+        ? `<div style="margin:0 0 16px;padding:12px 14px;background:#fff8e1;border-left:4px solid #f0a500;border-radius:3px">
+             <p style="margin:0 0 4px;font-size:12px;color:#8a6d00;text-transform:uppercase;letter-spacing:.04em">They told us why</p>
+             <p style="margin:0;font-size:15px"><b>${esc(reason.label)}</b></p>
+             ${reason.note ? `<p style="margin:6px 0 0;color:#555">“${esc(reason.note)}”</p>` : ''}
+           </div>`
+        : ''
+    }
     <p style="margin:0 0 16px">
       <a href="${admin}/dashboard/abandoned-carts" style="background:#9b1c1c;color:#fff;padding:8px 14px;border-radius:4px;text-decoration:none">Open abandoned carts</a>
       &nbsp; <a href="${admin}/dashboard/orders/${o.id}">Open order</a>
@@ -215,6 +234,7 @@ function buildAlertEmail(o: AlertOrder, attempts: number) {
     `${name}${phone10 ? ` | +91 ${phone10}` : ''}${o.customerEmail ? ` | ${o.customerEmail}` : ''}`,
     ...o.items.map((it) => `- ${it.productName || it.productSku} x ${it.quantity} = ${inr(Number(it.unitPrice) * it.quantity)}`),
     `Total ${inr(o.totalAmount)} | started ${when} | ${attempts} attempt(s) | ${o.orderNumber}`,
+    ...(reason ? [`They told us why: ${reason.label}${reason.note ? ` — "${reason.note}"` : ''}`] : []),
     `${admin}/dashboard/abandoned-carts`,
   ].join('\n');
 

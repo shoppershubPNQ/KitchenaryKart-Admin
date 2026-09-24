@@ -23,6 +23,7 @@
  */
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
+import { reasonsForOrders } from '@/lib/checkout-feedback-lookup';
 import { withAuth } from '@/lib/auth';
 import { handleError, ok } from '@/lib/api';
 
@@ -71,6 +72,10 @@ export const GET = withAuth(async (req: NextRequest) => {
       },
     });
 
+    // What each buyer said on the way out, if they answered the exit popup.
+    // Two queries for the whole page, not two per row.
+    const reasons = await reasonsForOrders(orders.map((o) => o.orderNumber));
+
     return ok({
       cutoff: cutoff.toISOString(),
       olderThanMinutes,
@@ -86,6 +91,7 @@ export const GET = withAuth(async (req: NextRequest) => {
         subtotal: o.subtotal ? Number(o.subtotal) : null,
         createdAt: o.createdAt,
         contactedAt: o.contactedAt,
+        reason: reasons.get(o.orderNumber) ?? null,
         items: o.items.map((it) => ({
           id: it.id,
           sku: it.productSku,

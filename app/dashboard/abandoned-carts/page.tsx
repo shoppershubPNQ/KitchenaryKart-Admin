@@ -21,6 +21,8 @@ interface AbandonedOrder {
   subtotal: number | null;
   createdAt: string;
   contactedAt: string | null;
+  /** What they said on the way out, when they answered the exit popup. */
+  reason: { reason: string; label: string; note: string | null; at: string } | null;
   items: AbandonedItem[];
 }
 
@@ -294,7 +296,20 @@ export default function AbandonedCartsPage() {
                             <ClockIcon className="w-3 h-3" /> New
                           </span>
                         )}
+                        {/* Their own answer — the objection to open the call with. */}
+                        {o.reason && (
+                          <span
+                            className="rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-amber-200"
+                            title={o.reason.note ?? undefined}
+                          >
+                            {o.reason.label}
+                            {o.reason.note ? ' · see note' : ''}
+                          </span>
+                        )}
                       </div>
+                      {o.reason?.note && (
+                        <p className="mb-1 text-xs italic text-amber-800">“{o.reason.note}”</p>
+                      )}
                       <div className="text-xs text-slate-500 font-mono">
                         {o.customerPhone || '(no phone)'}
                         {o.customerEmail && ` · ${o.customerEmail}`}

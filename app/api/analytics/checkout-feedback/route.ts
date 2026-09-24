@@ -29,11 +29,45 @@ export const GET = withAuth(async (req: NextRequest) => {
     const days = Math.min(Math.max(Number(url.searchParams.get('days')) || 28, 1), 365);
     const since = new Date(Date.now() - days * 86_400_000);
 
-    const rows = await prisma.checkoutFeedback.findMany({
+    const all = await prisma.checkoutFeedback.findMany({
       where: { createdAt: { gte: since } },
       orderBy: { createdAt: 'desc' },
       select: { id: true, reason: true, note: true, cartValue: true, itemCount: true, createdAt: true, sessionId: true },
     });
+
+    /*
+     * Staff testing the checkout answers this popup too, and their answers
+     * would sit in the counts as if a customer had given them — the same way
+     * test checkouts inflated the lost-cart numbers before. The feedback row
+     * holds no email (deliberately), so the test is found by following its
+     * session to the order that visit created.
+     */
+    const sessions = all.map((r) => r.sessionId).filter((s): s is string => !!s);
+    const staffSessions = new Set<string>();
+    if (sessions.length) {
+      const events = await prisma.analyticsEvent.findMany({
+        where: { sessionId: { in: sessions }, orderNumber: { not: null } },
+        select: { sessionId: true, orderNumber: true },
+      });
+      const byOrder = new Map<string, string>();
+      for (const e of events) if (e.orderNumber && e.sessionId) byOrder.set(e.orderNumber, e.sessionId);
+      if (byOrder.size) {
+        const orders = await prisma.order.findMany({
+          where: { orderNumber: { in: [...byOrder.keys()] } },
+          select: { orderNumber: true, customerName: true, customerEmail: true },
+        });
+        for (const o of orders) {
+          const isTest =
+            /@hotelicessentials\.com$/i.test(o.customerEmail ?? '') ||
+            /\btest\b/i.test(`${o.customerName ?? ''} ${o.customerEmail ?? ''}`);
+          const s = byOrder.get(o.orderNumber);
+          if (isTest && s) staffSessions.add(s);
+        }
+      }
+    }
+
+    const rows = all.filter((r) => !(r.sessionId && staffSessions.has(r.sessionId)));
+    const staffExcluded = all.length - rows.length;
 
     // Counted here rather than in SQL: a few hundred answers a month at most,
     // and it keeps the lost-value sum beside the count without a second query.
@@ -73,6 +107,7 @@ export const GET = withAuth(async (req: NextRequest) => {
     return ok({
       days,
       total: rows.length,
+      staffExcluded,
       lostValue: Math.round(lostValue * 100) / 100,
       reasons,
       notes,

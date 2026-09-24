@@ -31,6 +31,8 @@ interface Row {
 interface Data {
   days: number;
   total: number;
+  /** Answers given while staff were testing the checkout, left out of the counts. */
+  staffExcluded: number;
   lostValue: number;
   reasons: Reason[];
   recent: Row[];
@@ -74,7 +76,12 @@ export function WhyLost({ days }: { days: number }) {
         <div className="card p-5">
           <p className="kicker">Answers</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{data.total}</p>
-          <p className="text-xs text-slate-400">in the last {data.days} days</p>
+          <p className="text-xs text-slate-400">
+            in the last {data.days} days
+            {data.staffExcluded > 0
+              ? ` · ${data.staffExcluded} staff test${data.staffExcluded === 1 ? '' : 's'} excluded`
+              : ''}
+          </p>
         </div>
         <div className="card p-5">
           <p className="kicker">Cart value that left</p>
