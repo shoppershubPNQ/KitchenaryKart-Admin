@@ -18,6 +18,7 @@
 [ListBullet,b] PC Lid Included: Helps keep the contents covered between servings.
 [ListBullet,b] Silicon Base: Supplied with a silicon base as part of the bowl setup.
 [ListBullet,b] Small Size: Useful for smaller serving quantities and compact display arrangements.
+[ListBullet,b] Listed Weight: 417 g.
 [b] Suitable for: Buffet counters, breakfast displays, snack counters, dessert displays, catered events and food presentation setups.
 [b] Care & Use: Use on a stable serving surface. Clean the bowl, lid and base with suitable non-abrasive cleaning materials. Avoid harsh scrubbing that may mark the finish or lid. Check the lid and base before each service.
 [Heading2] SEO Title
@@ -44,6 +45,7 @@
 [ListBullet,b] PC Lid Included: Provides a cover for the bowl between servings.
 [ListBullet,b] Silicon Base: Comes with the silicon base specified for this model.
 [ListBullet,b] Medium Size: A useful middle-size option for regular buffet and display requirements.
+[ListBullet,b] Listed Weight: 417 g.
 [b] Suitable for: Buffet counters, breakfast service, snack displays, dessert counters, catered events and food presentation setups.
 [b] Care & Use: Use on a stable serving surface. Clean the bowl, lid and base with suitable non-abrasive cleaning materials. Avoid harsh scrubbing that may mark the finish or lid. Check the lid and base before each service.
 [Heading2] SEO Title
@@ -70,6 +72,7 @@
 [ListBullet,b] Oblique Bowl Design: Creates an angled presentation for buffet and serving displays.
 [ListBullet,b] PC Lid Included: Helps keep the bowl covered between servings.
 [ListBullet,b] Silicon Base: Supplied with the silicon base specified for the product.
+[ListBullet,b] Listed Weight: 417 g.
 [b] Suitable for: Larger buffet displays, breakfast counters, snack service, dessert counters, catered events and food presentation setups.
 [b] Care & Use: Use on a stable serving surface. Clean the bowl, lid and base with suitable non-abrasive cleaning materials. Avoid harsh scrubbing that may mark the finish or lid. Check the lid and base before each service.
 [Heading2] SEO Title
@@ -96,6 +99,7 @@
 [ListBullet,b] Small Size: Listed specifically for the Small bowl option.
 [ListBullet,b] Useful Spare: Lets you replace the lid separately when the existing bowl is still usable.
 [ListBullet,b] Compatibility Check: Confirm your existing bowl size before purchase.
+[ListBullet,b] Listed Weight: 98 g.
 [b] Suitable for: Replacement use with the compatible Small Golden Oblique Bowl.
 [b] Care & Use: Confirm the lid size is compatible with your existing bowl before use. Clean with a soft, non-abrasive cloth or sponge and avoid harsh scrubbing. Replace the lid if it becomes cracked or otherwise damaged.
 [Heading2] SEO Title
@@ -122,6 +126,7 @@
 [ListBullet,b] Medium Size: Listed specifically for the Medium bowl variant.
 [ListBullet,b] Replace Only What You Need: Useful when the bowl is usable and only the lid requires replacement.
 [ListBullet,b] Compatibility Check: Verify the size of your existing bowl before purchase.
+[ListBullet,b] Listed Weight: 98 g.
 [b] Suitable for: Replacement use with the compatible Medium Golden Oblique Bowl.
 [b] Care & Use: Confirm the lid size is compatible with your existing bowl before use. Clean with a soft, non-abrasive cloth or sponge and avoid harsh scrubbing. Replace the lid if it becomes cracked or otherwise damaged.
 [Heading2] SEO Title
@@ -148,6 +153,7 @@
 [ListBullet,b] Big Size: Listed specifically for the Big bowl variant.
 [ListBullet,b] Separate Spare Part: Useful when only the existing lid needs replacement.
 [ListBullet,b] Compatibility Check: Confirm the size of your existing Golden Oblique Bowl before ordering.
+[ListBullet,b] Listed Weight: 98 g.
 [b] Suitable for: Replacement use with the compatible Big Golden Oblique Bowl.
 [b] Care & Use: Confirm the lid size is compatible with your existing bowl before use. Clean with a soft, non-abrasive cloth or sponge and avoid harsh scrubbing. Replace the lid if it becomes cracked or otherwise damaged.
 [Heading2] SEO Title

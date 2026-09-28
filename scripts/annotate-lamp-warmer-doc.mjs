@@ -3,11 +3,10 @@
  *  What the document got wrong, and what this changes:
  *  - All six Rose Gold entries said "The Gold finish" and "Gold Finish:
  *    Finished in Gold" — copied from the Gold entry. Now Rose Gold.
- *  - The two tiltable double-head U-shaped lamps (#16, #17) claimed "top +
- *    bottom warming", copied from the Double Head base-heating model. Their
- *    name carries no bottom heating and the listing's power is bulb-only
- *    (the Top + Bottom models carry extra base wattage: 340 / 615 / 865 W).
- *    They now use the U-shaped family's own "focused overhead warming".
+ *  - The two tiltable double-head U-shaped lamps (#16, #17) say "top + bottom
+ *    warming". Their listing name carries no bottom heating, so this was first
+ *    changed to "overhead warming" — the owner confirmed the DOCUMENT is right
+ *    (28 Sep 2026), so it stays as written. Only the metas say so too.
  *  - 18 of 19 SEO titles ran 75-111 characters; written to fit 60.
  *  - 16 of 19 meta descriptions were cut mid-phrase ("catering and.",
  *    "hotel,."); rewritten to end cleanly within 160.
@@ -58,9 +57,9 @@ const SEO = {
     'Shop the Rose Gold tiltable U-shaped standing food lamp warmer, 86cm tall, 275W, from Kitchenary Kart. Overhead warmth for buffets and catering.'],
 
   'KKBT0115-FLWTUDHG': ['U-Shape Double Head Lamp Warmer Gold',
-    'Shop the Gold tiltable double-head U-shaped food lamp warmer with two 275W bulbs, from Kitchenary Kart. Overhead warmth for buffets and catering.'],
+    'Shop the Gold tiltable double-head U-shaped food lamp warmer with two 275W bulbs and top + bottom heating, from Kitchenary Kart. For buffets and catering.'],
   'KKBT0116-FLWTUDHRG': ['U-Shape Double Head Lamp Warmer Rose Gold',
-    'Shop the Rose Gold tiltable double-head U-shaped food lamp warmer with two 275W bulbs, from Kitchenary Kart. Overhead warmth for buffets and catering.'],
+    'Shop the Rose Gold tiltable double-head U-shaped lamp warmer with two 275W bulbs and top + bottom heating, from Kitchenary Kart. For buffets and catering.'],
 
   // The document's own bulb title and meta were already right.
   'KKSP0139-SFLW1': ['Bulb Spare for Electric Food Lamp Warmer',
@@ -104,13 +103,9 @@ for (let line of lines) {
       .replace(/\bgold heat lamp\b/, 'rose gold heat lamp');
     if (line !== before && !/heat lamp/.test(before)) edits.rose++;
   }
-  if (uDouble && line.includes('This double-head standing food warmer is designed to provide top + bottom warming')) {
-    line = line.replace(
-      'This double-head standing food warmer is designed to provide top + bottom warming',
-      'This tiltable double-head U-shaped standing food warmer is designed to provide focused overhead warming',
-    );
-    edits.heating++;
-  }
+  // Owner confirmed the document's "top + bottom warming" for the U-shaped
+  // double-head lamps, so the line is kept exactly as written.
+  if (uDouble && line.includes('top + bottom warming')) edits.heating++;
   out.push(line);
 }
 

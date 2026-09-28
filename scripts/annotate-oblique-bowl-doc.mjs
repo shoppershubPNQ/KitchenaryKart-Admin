@@ -4,10 +4,8 @@
  *  - SEO titles: the three bowls ran 63-70 characters and the Medium lid 61.
  *    Rewritten in one pattern per family so the sizes read alike.
  *  - Weight: the document gives 417 g for all three bowls and 98 g for all
- *    three lids — the parent row's figure, which every size inherits because
- *    none has its own. The Big bowl sells at 1.5x the Small, so one weight
- *    cannot be right for all three. The bullet is left out of the copy until
- *    the owner sends per-size weights (same case as the baby chairs).
+ *    three lids. It was first left out as a likely inherited figure; the
+ *    owner confirmed the document is right (28 Sep 2026), so it stays.
  *
  *  Usage: node scripts/annotate-oblique-bowl-doc.mjs
  */
@@ -50,7 +48,7 @@ for (let line of readFileSync(SRC, 'utf8').split(/\r?\n/)) {
   if (line === '[Heading2] Meta Description') expect = 'meta';
 
   if (line.startsWith('[b] Suitable For:')) { line = line.replace('Suitable For:', 'Suitable for:'); done.label++; }
-  if (/^\[ListBullet,b\] Listed Weight:/.test(line)) { done.weight++; continue; }
+  if (/^\[ListBullet,b\] Listed Weight:/.test(line)) done.weight++; // owner-confirmed, kept
   out.push(line);
 }
 
