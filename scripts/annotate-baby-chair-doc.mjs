@@ -4,10 +4,9 @@
  *    description uses (and the one apply-description-docs checks for).
  *  - Two SEO titles ran 65 and 64 characters; written to fit 60.
  *  - The Loose chair and the Carton of 2 both stated "Listed Weight: 5 kg
- *    300 g" — one chair and two chairs cannot weigh the same. Both sizes
- *    inherit that one figure from the parent row, so the bullet is left out
- *    of the copy for these two until the owner confirms which it belongs to.
- *    The wooden chair's 4 kg 600 g stays.
+ *    300 g" — one chair and two chairs cannot weigh the same. The owner
+ *    confirmed it is ONE chair, so the carton's bullet says "per chair"
+ *    (the weight fields were set by set-baby-chair-weights.ts).
  *
  *  Usage: node scripts/annotate-baby-chair-doc.mjs
  */
@@ -20,7 +19,7 @@ const TITLES = {
   'KKHRE0002-FBCL': 'ABS Fibre Baby Chair with Removable Cover | Kitchenary Kart',
   'KKHRE0001-FBC': 'ABS Baby Chair Pack of 2 for Restaurants | Kitchenary Kart',
 };
-const DROP_WEIGHT = new Set(['KKHRE0002-FBCL', 'KKHRE0001-FBC']);
+const PER_CHAIR = new Set(['KKHRE0001-FBC']);
 
 const out = [];
 let sku = '';
@@ -45,7 +44,10 @@ for (let line of readFileSync(SRC, 'utf8').split(/\r?\n/)) {
   if (line === '[Heading2] Meta Description') expectMeta = true;
 
   if (line.startsWith('[b] Suitable For:')) { line = line.replace('Suitable For:', 'Suitable for:'); done.label++; }
-  if (DROP_WEIGHT.has(sku) && /^\[ListBullet,b\] Listed Weight:/.test(line)) { done.weight++; continue; }
+  if (PER_CHAIR.has(sku) && line === '[ListBullet,b] Listed Weight: 5 kg 300 g.') {
+    line = '[ListBullet,b] Listed Weight: 5 kg 300 g per chair.';
+    done.weight++;
+  }
   out.push(line);
 }
 
@@ -59,7 +61,7 @@ for (const [s, m] of metas) {
   if (m.length > 160) throw new Error(`${s}: meta ${m.length} > 160`);
   if (!/[.!]$/.test(m)) throw new Error(`${s}: meta does not end a sentence — ${m}`);
 }
-if (done.label !== 3 || done.title !== 2 || done.weight !== 2) throw new Error(`unexpected edit counts ${JSON.stringify(done)}`);
+if (done.label !== 3 || done.title !== 2 || done.weight !== 1) throw new Error(`unexpected edit counts ${JSON.stringify(done)}`);
 
 writeFileSync(OUT, out.join('\n'));
 console.log(OUT, JSON.stringify(done));

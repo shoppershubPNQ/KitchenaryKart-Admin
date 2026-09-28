@@ -39,6 +39,7 @@
 [ListBullet,b] Removable Front Cover: The front cover can be removed as specified for this model.
 [ListBullet,b] Useful for Family Dining: Helps businesses accommodate parents visiting with young children.
 [ListBullet,b] Loose Variant: Suitable when the business needs to purchase the chair as the individual Loose variant.
+[ListBullet,b] Listed Weight: 5 kg 300 g.
 [b] Suitable for: Restaurants, hotel dining areas, cafés, family dining spaces and banquet venues that need a dedicated baby chair for young guests.
 [b] Care & Use: Place the chair on a stable, level floor before use. Make sure the removable front cover is fitted correctly before seating a child. Wipe surfaces regularly with a soft damp cloth and suitable mild cleaner. Check the chair before use and stop using it if any component is loose or damaged.
 [Heading2] SEO Title
@@ -63,6 +64,7 @@
 [ListBullet,b] Dedicated Child Seating: Provides young children with their own seating space during meals.
 [ListBullet,b] Removable Front Cover: Each chair includes the removable front cover specified for this model.
 [ListBullet,b] Useful During Busy Service: Helps staff handle multiple family tables when baby chairs are requested at the same time.
+[ListBullet,b] Listed Weight: 5 kg 300 g per chair.
 [b] Suitable for: Busy family restaurants, hotels, cafés, banquet dining areas and larger dine-in spaces that may need multiple baby chairs during service.
 [b] Care & Use: Place each chair on a stable, level floor before use. Make sure the removable front cover is fitted correctly before seating a child. Clean with a soft damp cloth and suitable mild cleaner. Inspect each chair regularly and discontinue use if any part is loose or damaged.
 [Heading2] SEO Title
