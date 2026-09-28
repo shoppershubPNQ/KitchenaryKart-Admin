@@ -25,7 +25,7 @@ import { resolve } from 'path';
 import JSZip from 'jszip';
 
 const TEMPLATE =
-  'C:/Users/Admin/Downloads/HSN Code For Category/KitchenaryKart_Cotton_Candy_Machine_Category_HSN_GST.docx';
+  'C:/Users/Admin/Downloads/KitchenaryKart_Cotton_Candy_Machine_Category_HSN_GST.docx';
 
 /** Column widths in twips, matching the template's own grid. */
 const WIDTHS = [560, 3100, 2000, 2176, 1250, 850];
