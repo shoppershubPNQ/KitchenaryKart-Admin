@@ -47,8 +47,16 @@ function consider(table: string, id: number, field: string, value: string | null
     consider('product', p.id, 'metaDescription', p.metaDescription, 160);
   }
 
-  const variants = await prisma.productVariant.findMany({ select: { id: true, description: true } });
-  for (const v of variants) consider('productVariant', v.id, 'description', v.description);
+  // Variants gained their own meta title/description the same day as the
+  // first sweep, so a re-run has to cover those too.
+  const variants = await prisma.productVariant.findMany({
+    select: { id: true, description: true, metaTitle: true, metaDescription: true },
+  });
+  for (const v of variants) {
+    consider('productVariant', v.id, 'description', v.description);
+    consider('productVariant', v.id, 'metaTitle', v.metaTitle, 60);
+    consider('productVariant', v.id, 'metaDescription', v.metaDescription, 160);
+  }
 
   const byField = new Map<string, number>();
   for (const c of changes) byField.set(`${c.table}.${c.field}`, (byField.get(`${c.table}.${c.field}`) ?? 0) + 1);

@@ -33,7 +33,7 @@ function skusIn(file: string): string[] {
       continue;
     }
     if (text.startsWith('SKU:')) {
-      const s = /KK-[A-Z]+-\d+|\b[A-Z]{2,}-[A-Z0-9]+(?:-[A-Z0-9]+)+\b|[A-Z]{2,}[A-Z0-9]*\d+-[A-Z0-9./()-]*[A-Z0-9)]/.exec(text.slice(4));
+      const s = /KK-[A-Z]+-\d+|\b[A-Z]{2,}-[A-Z0-9]+(?:-[A-Z0-9]+)+\b|[A-Z]{2,}[A-Z0-9]*\d+-[A-Za-z0-9./()-]*[A-Za-z0-9)]/.exec(text.slice(4));
       if (s) out.push(s[0]);
     }
   }

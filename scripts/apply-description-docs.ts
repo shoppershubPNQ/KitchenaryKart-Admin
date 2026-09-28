@@ -27,12 +27,21 @@ import { basename } from 'path';
 import { prisma } from '../lib/db';
 
 const APPLY = process.argv.includes('--apply');
+/**
+ * A short Key Features list normally means the parser missed the bullets, so
+ * fewer than three blocks the whole batch. Some documents are simply written
+ * thin — the trolley one gives most products a single feature line — and there
+ * the count is a fact about the document, not a parsing failure. This flag
+ * says "I checked, the document really is like that": the count still prints,
+ * it just stops being a reason to refuse.
+ */
+const ALLOW_THIN = process.argv.includes('--allow-thin');
 const FILES = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 
 // Mirrors web/components/ProductDescription.tsx, to report labels that would
 // not render bold.
 const LABEL = /^([A-Z0-9][A-Za-z0-9 &/'’.-]{1,30}):\s+(.+)$/;
-const BULLET_LABEL = /^([A-Z0-9][A-Za-z0-9 &/'’.,×–+-]{1,59}):\s+(.+)$/;
+const BULLET_LABEL = /^([A-Z0-9][A-Za-z0-9 &/'’.,×–+%-]{1,59}):\s+(.+)$/;
 
 type Section = { file: string; sku: string; title: string; body: string[] };
 
@@ -70,7 +79,7 @@ function parse(file: string): Section[] {
       // alternative is for partner-style SKUs with letters before the first
       // hyphen (HE-JDCW-16X2), which the last one cannot reach: it wants
       // digits immediately before the hyphen.
-      const m = /KK-[A-Z]+-\d+|\b[A-Z]{2,}-[A-Z0-9]+(?:-[A-Z0-9]+)+\b|[A-Z]{2,}[A-Z0-9]*\d+-[A-Z0-9./()-]*[A-Z0-9)]/.exec(text.slice(4));
+      const m = /KK-[A-Z]+-\d+|\b[A-Z]{2,}-[A-Z0-9]+(?:-[A-Z0-9]+)+\b|[A-Z]{2,}[A-Z0-9]*\d+-[A-Za-z0-9./()-]*[A-Za-z0-9)]/.exec(text.slice(4));
       cur.sku = (m ? m[0] : text.slice(4)).trim();
       continue;
     }
@@ -93,7 +102,7 @@ function parse(file: string): Section[] {
     // "the product name/SKU supplied for this category was used as the factual
     // basis", "the page does not list a temperature range, so it was not
     // added". They sit inside the description block but must not be published.
-    if (/^(Research|Important|Catalogue|Editor'?s) Note:/i.test(text)) continue;
+    if (/^(Research|Important|Catalogue|Product|Editor'?s) Note:/i.test(text)) continue;
     if (cur.pendingLabel) { cur.body.push(`P:${cur.pendingLabel} ${text}`); cur.pendingLabel = ''; continue; }
     if (tags.includes('ListBullet')) { cur.body.push(`B:${text}`); continue; }
     if (/^[•*]\s+/.test(text)) { cur.body.push(`B:${text.replace(/^[•*]\s+/, '')}`); continue; }
@@ -104,11 +113,19 @@ function parse(file: string): Section[] {
 }
 
 /** House format: blank line between blocks, consecutive bullets as "• " lines. */
+/**
+ * The brand is two words (owner, 24 Sep 2026), but most documents on file
+ * still say "KitchenaryKart" — 709 times across scripts/docs. Normalising here
+ * means a document never brings the old spelling back. The domain is
+ * lowercase, so the case-sensitive match leaves kitchenarykart.com alone.
+ */
+const brand = (t: string) => t.replace(/KitchenaryKart(?!\.com)/g, 'Kitchenary Kart');
+
 function build(body: string[]): string {
   let s = '';
   body.forEach((line, i) => {
     const kind = line.slice(0, 2);
-    const t = line.slice(2);
+    const t = brand(line.slice(2));
     if (kind === 'B:') s += (i > 0 && body[i - 1].startsWith('B:') ? '\n' : s ? '\n\n' : '') + `• ${t}`;
     else s += (s ? '\n\n' : '') + t;
   });
@@ -144,7 +161,7 @@ function build(body: string[]): string {
     const where = v ? `variant #${v.id}` : p ? `product #${p.id}${p._count.variants ? ` (HAS ${p._count.variants} variants!)` : ''}` : 'NOT FOUND';
 
     const flags = [
-      bullets.length < 3 ? `only ${bullets.length} bullets` : '',
+      bullets.length < 3 && !ALLOW_THIN ? `only ${bullets.length} bullets` : '',
       !hasSuitable ? 'no Suitable for' : '',
       !hasCare ? 'no Care & Use' : '',
       leaks.length ? `LEAK ${leaks.join('/')}` : '',

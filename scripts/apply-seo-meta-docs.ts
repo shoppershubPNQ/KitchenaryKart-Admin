@@ -17,6 +17,8 @@ import { prisma } from '../lib/db';
 
 const APPLY = process.argv.includes('--apply');
 const FILE = process.argv.slice(2).find((a) => !a.startsWith('--'));
+/** See apply-description-docs: the brand is two words; the domain is untouched. */
+const brand = (t: string) => t.replace(/KitchenaryKart(?!\.com)/g, 'Kitchenary Kart');
 
 (async () => {
   if (!FILE) throw new Error('usage: apply-seo-meta-docs.ts <doc.txt> [--apply]');
@@ -50,9 +52,9 @@ const FILE = process.argv.slice(2).find((a) => !a.startsWith('--'));
       // doc): "SKU: X / Source product listing / SEO Title: T | KitchenaryKart
       // / Meta Description: M | / Supplied product photograph."
       // Brackets and a slash belong to some SKUs — see apply-description-docs.
-      const sku = /KK-[A-Z]+-\d+|\b[A-Z]{2,}-[A-Z0-9]+(?:-[A-Z0-9]+)+\b|[A-Z]{2,}[A-Z0-9]*\d+-[A-Z0-9./()-]*[A-Z0-9)]/.exec(t.slice(4))?.[0] ?? t.slice(4).trim();
+      const sku = /KK-[A-Z]+-\d+|\b[A-Z]{2,}-[A-Z0-9]+(?:-[A-Z0-9]+)+\b|[A-Z]{2,}[A-Z0-9]*\d+-[A-Za-z0-9./()-]*[A-Za-z0-9)]/.exec(t.slice(4))?.[0] ?? t.slice(4).trim();
       const item: { sku: string; title?: string; desc?: string } = { sku };
-      const title = /(?:SEO|Meta) Title:\s*(.+?\|\s*KitchenaryKart)/.exec(t)?.[1];
+      const title = /(?:SEO|Meta) Title:\s*(.+?\|\s*Kitchenary ?Kart)/.exec(t)?.[1];
       const desc = /Meta Description:\s*(.+?)\s*(?:\|\s*\/|\|\s*$|$)/.exec(t)?.[1];
       if (title) item.title = title.trim();
       if (desc) item.desc = desc.trim();
@@ -69,6 +71,10 @@ const FILE = process.argv.slice(2).find((a) => !a.startsWith('--'));
   const tooLong: string[] = [];
   for (const it of items) {
     if (!it.title || !it.desc) throw new Error(`${it.sku}: missing title or meta description`);
+    // Two words (owner, 24 Sep 2026); most documents on file still use the old
+    // spelling. Done before the length checks, since it adds a character.
+    it.title = brand(it.title);
+    it.desc = brand(it.desc);
     if (it.title.length > 60) { tooLong.push(`${it.sku}: title ${it.title.length} — ${it.title}`); continue; }
     if (it.desc.length > 160) { tooLong.push(`${it.sku}: meta ${it.desc.length} — ${it.desc}`); continue; }
 
