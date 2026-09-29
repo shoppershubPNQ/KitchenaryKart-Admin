@@ -1,5 +1,7 @@
-/** Read-only check, run after any description work: size pages with NO description of their own
- *  house-format copy — those pages show a SIBLING's text (another size or colour). */
+/** Read-only check, run after any description work: size pages with NO description of
+ *  their own whose parent carries house-format copy — those pages show a SIBLING's text
+ *  (another size or colour), because the PDP falls back to the parent's description.
+ *  Usage: npx tsx scripts/audit-sibling-fallback.ts */
 import { prisma } from '../lib/db';
 (async () => {
   const parents = await prisma.product.findMany({
