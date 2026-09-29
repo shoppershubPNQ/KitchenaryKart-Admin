@@ -14,8 +14,8 @@
  *  - 36 soap metas at 170-213 characters: the shared tail "for organised,
  *    refillable soap and toiletry use in …" shortened to fit 160
  *
- *  The LED, hand dryer and kettle documents carry no Care & Use line at all;
- *  apply them with --allow-no-care rather than inventing one.
+ *  The LED, hand dryer and kettle documents first had no Care & Use line; the
+ *  owner's corrected versions (29 Sep) added one per document — see CARE.
  *
  *  Usage: node scripts/annotate-housekeeping-batch2.mjs
  */
@@ -124,6 +124,39 @@ const DOCS = [
   },
 ];
 
+/**
+ * Care & Use, from the owner's corrected documents (29 Sep 2026). Each of those
+ * gave ONE line to a whole document; applied as written it told a marker set
+ * to "disconnect power", a PC carafe and a gas stove to keep "electrical
+ * components" dry, and an LED standee (filed under hand dryers) to "keep air
+ * openings clear". Each product keeps only the sentences that apply to it,
+ * checked against its listing (power field, material, name).
+ */
+const HAND = 'Install and operate according to the product instructions. Keep the unit away from direct water exposure and disconnect the power before cleaning or maintenance. Wipe the exterior with a soft cloth and keep air openings clear.';
+const LED_UNIT = 'Use in a suitable indoor location and follow the product instructions for setup and operation. Keep electrical parts away from direct water exposure. Switch off and disconnect power before cleaning or moving the unit.';
+const LED_BOARD = `${LED_UNIT} Use compatible markers and clean the writing surface as recommended.`;
+const HEATED = 'Follow the product instructions for setup and operation. Use only with a compatible power supply. Switch off and allow heated parts to cool before cleaning, and keep electrical components away from direct water exposure.';
+const POWERED = 'Follow the product instructions for setup and operation. Use only with a compatible power supply. Switch off before cleaning, and keep electrical components away from direct water exposure.';
+const CARE = {
+  // hand dryers — the document's line as written
+  'KKHRE0035-HNDDRY1200W': HAND, 'KKHRE0036-HNDRY1900W': HAND, 'KKHRE0037-HNDDRY1800S': HAND, 'KKHRE0038-HNDDRY1800B': HAND,
+  // the A2 LED standee sits in the hand dryer document but is a lit standee: no air openings
+  'KKHRE0039-MSLEDDBA2': LED_UNIT,
+  // screens and standee: no writing surface
+  'KKHRE0061-AS43': LED_UNIT, 'KKHRE0062-AS55': LED_UNIT, 'KKHRE0063-MSLEDDBA1': LED_UNIT,
+  // LED writing boards: lit, with a button controller, and a marker surface
+  'KKHRE0065-MSLEDWB5070': LED_BOARD, 'KKHRE0066-WLEDWB4060': LED_BOARD, 'KKHRE0067-WLEDWB4060L': LED_BOARD, 'KKHRE0068-WLEDWB5070': LED_BOARD,
+  // the marker set is not electrical
+  'KKHRE0069-MRKLEDWB8PP': 'Use with compatible LED writing boards and clean the writing surface as recommended. Replace the caps after use.',
+  // heated: 160 W decanter warmer, 2000 W Minimax, 1500 W Honeyson, 1355 W Marado
+  'KKHRE0054-BHP': HEATED, 'KKHRE0055-MHP': HEATED, 'KKHRE0056-HOK1.2L': HEATED, 'KKHRE0058-MK1.2L': HEATED,
+  // electrical, no heating stated: the socket tray and the grinder / filter maker
+  'KKHRE0053-ABTR': POWERED, 'KKHRE0057-PFCM': POWERED,
+  // not electrical
+  'KKHRE0059-CC1.8L': 'Follow the product instructions for use. Allow the carafe to cool before cleaning, and heat it only on a compatible induction surface.',
+  'KKHRE0060-PGS': 'Follow the product instructions for setup and operation. Use only with compatible gas cans or tank cylinders. Switch off and allow the burner to cool before cleaning or packing it into the carry case.',
+};
+
 const BRAND = ' | Kitchenary Kart';
 const SOAP_TAIL = / for organised, refillable soap and toiletry use in hotel bathrooms, guest rooms, offices and commercial wash areas\.$/;
 const SOAP_ENDINGS = [
@@ -149,9 +182,17 @@ for (const doc of DOCS) {
   const lines = text.split('\n');
   let sku = '';
   let titled = 0;
+  let cared = 0;
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];
     if (l.startsWith('[b] SKU:')) sku = l.replace('[b] SKU:', '').trim();
+    // The owner's corrected documents (29 Sep) add one Care & Use line per
+    // document; CARE holds it tailored per product. Inserted after "Suitable for".
+    if (l.startsWith('[b] Suitable for:') && CARE[sku]) {
+      if (lines.slice(i + 1, i + 3).some((x) => /Care & Use:/.test(x))) throw new Error(`${sku}: already has Care & Use`);
+      lines.splice(i + 1, 0, `[b] Care & Use: ${CARE[sku]}`);
+      cared++;
+    }
     if (l === '[Heading2] SEO Title') {
       if (doc.titles[sku]) { lines[i + 1] = `[] ${doc.titles[sku]}${BRAND}`; titled++; }
       const t = lines[i + 1].slice(3);
@@ -174,6 +215,6 @@ for (const doc of DOCS) {
   }
   if (titled !== Object.keys(doc.titles).length) throw new Error(`${doc.src}: set ${titled} of ${Object.keys(doc.titles).length} titles`);
   writeFileSync(D + doc.out, lines.join('\n'));
-  console.log(`${doc.out} · ${titled} titles rewritten`);
+  console.log(`${doc.out} · ${titled} titles rewritten · ${cared} Care & Use lines`);
 }
 console.log(`${allTitles.size} titles, all unique and <= 60`);
