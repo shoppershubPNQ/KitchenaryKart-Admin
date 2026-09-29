@@ -69,6 +69,12 @@ const brand = (t: string) => t.replace(/KitchenaryKart(?!\.com)/g, 'Kitchenary K
   const changes: Change[] = [];
   const skipped: string[] = [];
   const tooLong: string[] = [];
+  // Two queries for the whole document: one lookup per SKU outlived the Neon
+  // connection on the 105-SKU polyrattan document (29 Sep 2026).
+  const skuList = items.map((it) => it.sku);
+  const productRows = await prisma.product.findMany({ where: { sku: { in: skuList } }, select: { id: true, sku: true, metaTitle: true, metaDescription: true } });
+  const variantRows = await prisma.productVariant.findMany({ where: { skuSuffix: { in: skuList } }, select: { id: true, skuSuffix: true, metaTitle: true, metaDescription: true } });
+
   for (const it of items) {
     if (!it.title || !it.desc) throw new Error(`${it.sku}: missing title or meta description`);
     // Two words (owner, 24 Sep 2026); most documents on file still use the old
@@ -81,8 +87,8 @@ const brand = (t: string) => t.replace(/KitchenaryKart(?!\.com)/g, 'Kitchenary K
     // A parent whose own SKU doubles as its first variant SKU is matched by
     // BOTH lookups. It is written as a product, because the parent url is the
     // one the parent row's meta is read on.
-    const p = await prisma.product.findUnique({ where: { sku: it.sku }, select: { id: true, metaTitle: true, metaDescription: true } });
-    const v = p ? null : await prisma.productVariant.findFirst({ where: { skuSuffix: it.sku }, select: { id: true, metaTitle: true, metaDescription: true } });
+    const p = productRows.find((x) => x.sku === it.sku) ?? null;
+    const v = p ? null : variantRows.find((x) => x.skuSuffix === it.sku) ?? null;
     const row = p ?? v;
     if (!row) { skipped.push(`${it.sku} — no product or variant with this SKU`); continue; }
     const target = p ? 'product' : 'variant';
@@ -102,17 +108,18 @@ const brand = (t: string) => t.replace(/KitchenaryKart(?!\.com)/g, 'Kitchenary K
   if (APPLY && changes.length) {
     const file = `backup-seo-meta-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
     writeFileSync(file, JSON.stringify(changes, null, 2));
-    for (const c of changes) {
-      if (c.target === 'product') await prisma.product.update({ where: { id: c.id }, data: { [c.field]: c.to } });
-      else await prisma.productVariant.update({ where: { id: c.id }, data: { [c.field]: c.to } });
-    }
+    // One transaction: all fields land or none do — a dropped connection half way
+    // through a long document can no longer leave it partly applied.
+    await prisma.$transaction(changes.map((c) => c.target === 'product'
+      ? prisma.product.update({ where: { id: c.id }, data: { [c.field]: c.to } })
+      : prisma.productVariant.update({ where: { id: c.id }, data: { [c.field]: c.to } })));
+    const pIds = changes.filter((c) => c.target === 'product').map((c) => c.id);
+    const vIds = changes.filter((c) => c.target === 'variant').map((c) => c.id);
+    const after = new Map<string, { metaTitle: string | null; metaDescription: string | null }>();
+    for (const r of await prisma.product.findMany({ where: { id: { in: pIds } }, select: { id: true, metaTitle: true, metaDescription: true } })) after.set(`product:${r.id}`, r);
+    for (const r of await prisma.productVariant.findMany({ where: { id: { in: vIds } }, select: { id: true, metaTitle: true, metaDescription: true } })) after.set(`variant:${r.id}`, r);
     let ok = 0;
-    for (const c of changes) {
-      const r = c.target === 'product'
-        ? await prisma.product.findUnique({ where: { id: c.id }, select: { metaTitle: true, metaDescription: true } })
-        : await prisma.productVariant.findUnique({ where: { id: c.id }, select: { metaTitle: true, metaDescription: true } });
-      if (r?.[c.field] === c.to) ok++;
-    }
+    for (const c of changes) if (after.get(`${c.target}:${c.id}`)?.[c.field] === c.to) ok++;
     console.log(`\nbackup: ${file} · verified ${ok}/${changes.length}`);
   } else if (!APPLY) console.log('\nDRY RUN — re-run with --apply');
   await prisma.$disconnect();

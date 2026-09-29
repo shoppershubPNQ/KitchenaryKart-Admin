@@ -151,6 +151,14 @@ function build(body: string[]): string {
   const plan: Array<{ file: string; sku: string; target: 'variant' | 'product'; id: number; old: string | null; text: string }> = [];
   const problems: string[] = [];
 
+  // Two queries for the whole run instead of one or two per SKU — a long
+  // document outlived the Neon connection that way (29 Sep 2026).
+  const skuList = sections.map((s) => s.sku);
+  const variantRows = await prisma.productVariant.findMany({ where: { skuSuffix: { in: skuList } }, select: { id: true, skuSuffix: true, description: true }, orderBy: { id: 'asc' } });
+  const productRows = await prisma.product.findMany({
+    where: { sku: { in: skuList } }, select: { id: true, sku: true, description: true, status: true, _count: { select: { variants: true } } },
+  });
+
   for (const s of sections) {
     const text = build(s.body);
     const lines = text.split('\n');
@@ -161,10 +169,8 @@ function build(body: string[]): string {
     const hasSuitable = lines.some((l) => l.startsWith('Suitable for: ') && LABEL.test(l));
     const hasCare = lines.some((l) => l.startsWith('Care & Use: ') && LABEL.test(l));
 
-    const v = await prisma.productVariant.findFirst({ where: { skuSuffix: s.sku }, select: { id: true, description: true } });
-    const p = v ? null : await prisma.product.findUnique({
-      where: { sku: s.sku }, select: { id: true, description: true, status: true, _count: { select: { variants: true } } },
-    });
+    const v = variantRows.find((x) => x.skuSuffix === s.sku) ?? null;
+    const p = v ? null : productRows.find((x) => x.sku === s.sku) ?? null;
     const where = v ? `variant #${v.id}` : p ? `product #${p.id}${p._count.variants ? ` (HAS ${p._count.variants} variants!)` : ''}` : 'NOT FOUND';
 
     const flags = [
@@ -194,15 +200,15 @@ function build(body: string[]): string {
   } else if (APPLY) {
     const file = `backup-descriptions-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
     writeFileSync(file, JSON.stringify(plan.map(({ sku, target, id, old }) => ({ sku, target, id, old })), null, 2));
-    for (const x of plan) {
-      if (x.target === 'variant') await prisma.productVariant.update({ where: { id: x.id }, data: { description: x.text } });
-      else await prisma.product.update({ where: { id: x.id }, data: { description: x.text } });
-    }
+    // One transaction: every description lands or none does.
+    await prisma.$transaction(plan.map((x) => x.target === 'variant'
+      ? prisma.productVariant.update({ where: { id: x.id }, data: { description: x.text } })
+      : prisma.product.update({ where: { id: x.id }, data: { description: x.text } })));
+    const vAfter = await prisma.productVariant.findMany({ where: { id: { in: plan.filter((x) => x.target === 'variant').map((x) => x.id) } }, select: { id: true, description: true } });
+    const pAfter = await prisma.product.findMany({ where: { id: { in: plan.filter((x) => x.target === 'product').map((x) => x.id) } }, select: { id: true, description: true } });
     let ok = 0;
     for (const x of plan) {
-      const row = x.target === 'variant'
-        ? await prisma.productVariant.findUnique({ where: { id: x.id }, select: { description: true } })
-        : await prisma.product.findUnique({ where: { id: x.id }, select: { description: true } });
+      const row = (x.target === 'variant' ? vAfter : pAfter).find((r) => r.id === x.id);
       if (row?.description === x.text) ok++;
     }
     console.log(`\nbackup: ${file} · verified ${ok}/${plan.length}`);
