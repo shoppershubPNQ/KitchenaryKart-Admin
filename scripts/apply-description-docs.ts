@@ -36,6 +36,13 @@ const APPLY = process.argv.includes('--apply');
  * it just stops being a reason to refuse.
  */
 const ALLOW_THIN = process.argv.includes('--allow-thin');
+/**
+ * The "Human Tone" documents (LED boards, hand dryers, kettles — 28 Sep 2026)
+ * have no Care & Use line at all, by design. Care & Use is not written here:
+ * safety text for a gas stove or a hot plate is not something to invent. This
+ * flag says the missing line was checked and is the document's own choice.
+ */
+const ALLOW_NO_CARE = process.argv.includes('--allow-no-care');
 const FILES = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 
 // Mirrors web/components/ProductDescription.tsx, to report labels that would
@@ -163,7 +170,7 @@ function build(body: string[]): string {
     const flags = [
       bullets.length < 3 && !ALLOW_THIN ? `only ${bullets.length} bullets` : '',
       !hasSuitable ? 'no Suitable for' : '',
-      !hasCare ? 'no Care & Use' : '',
+      !hasCare && !ALLOW_NO_CARE ? 'no Care & Use' : '',
       leaks.length ? `LEAK ${leaks.join('/')}` : '',
       !v && !p ? 'NOT FOUND' : '',
       p && p._count.variants ? 'parent with variants, no matching variant' : '',
