@@ -29,6 +29,14 @@ const APPLY = process.argv.includes('--apply');
     if (p.variants.some((v) => v.skuSuffix === p.sku)) continue; // sync-parent-descriptions covers these
     if (p.description?.includes('Key Features')) continue;
     if (!p.variants.some((v) => v.description?.includes('Key Features'))) continue;
+    // A size with no description of its own shows the PARENT's. Copying one
+    // size's text up would put it on that sibling's page — the 25L salad
+    // spinner showed "12 L Capacity" on 29 Sep. Wait until every size has copy.
+    const bare = p.variants.filter((v) => !v.description?.trim());
+    if (bare.length) {
+      console.log(`  skip ${p.sku}: ${bare.map((v) => v.skuSuffix).join(', ')} would show another size's text`);
+      continue;
+    }
     const first = p.variants[0];
     if (!first.description?.includes('Key Features')) {
       console.log(`  skip ${p.sku}: first size ${first.skuSuffix} has no new copy yet`);
