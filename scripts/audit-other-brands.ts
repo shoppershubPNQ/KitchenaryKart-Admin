@@ -5,9 +5,9 @@
  */
 import { prisma } from '../lib/db';
 
-const BRANDS = ['Zwilling', 'Farberware', 'Millionparcel', 'Brasaovens', 'Ansemy', 'KTJ', 'Parkoo', 'Lensoul', 'Cntronic', 'Citronic', 'Clatronic', 'Zapata',
+const BRANDS = ['Honest', 'Burnomatic', 'Minimax', 'Honeyson', 'Marado', 'Zwilling', 'Farberware', 'Millionparcel', 'Brasaovens', 'Ansemy', 'KTJ', 'Parkoo', 'Lensoul', 'Cntronic', 'Citronic', 'Clatronic', 'Zapata',
   'Prestige', 'Hawkins', 'Pigeon', 'Philips', 'Bosch', 'Borosil', 'Milton', 'Cello', 'Tupperware', 'Wonderchef', 'Bajaj', 'Usha', 'Havells', 'Morphy Richards',
-  'Kenstar', 'Inalsa', 'Butterfly', 'Preethi', 'Sujata', 'Maharaja', 'Kent', 'Kitchenaid', 'KitchenAid', 'Nestle', 'Hamilton', 'Victorinox', 'Wusthof', 'Henckels',
+  'Kenstar', 'Inalsa', 'Preethi', 'Sujata', 'Maharaja', 'Kent', 'Kitchenaid', 'KitchenAid', 'Nestle', 'Hamilton', 'Victorinox', 'Wusthof', 'Henckels',
   'Tefal', 'Vinod', 'Meyer', 'Signoraware', 'Solimo', 'AmazonBasics', 'Ikea', 'IKEA', 'Oxo', 'OXO', 'Weber', 'Winco', 'Vollrath', 'Cambro', 'Rubbermaid', 'Hobart', 'Robot Coupe', 'Waring', 'Vitamix', 'Blendtec', 'Nutribullet'];
 const re = new RegExp(`\\b(${BRANDS.map((b) => b.replace(/ /g, '\\s+')).join('|')})\\b`, 'i');
 
