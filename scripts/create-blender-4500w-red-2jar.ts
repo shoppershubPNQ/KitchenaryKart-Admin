@@ -59,7 +59,7 @@ const metaKeywords = 'electric, commercial, blender, 4500w, 2l, 700ml, two jars,
   const dupTitle = await prisma.product.findFirst({ where: { OR: [{ name }, { metaTitle }] } });
   if (dupTitle) throw new Error('name/title already used by ' + dupTitle.sku);
 
-  const data = {
+  const data: Prisma.ProductUncheckedCreateInput = {
     sku: SKU, name, description,
     category: parent.category, subcategory: parent.subcategory, leafCategory: parent.leafCategory,
     price, mrp, costPrice: null, taxPercent: parent.taxPercent, discountPercent: parent.discountPercent,
