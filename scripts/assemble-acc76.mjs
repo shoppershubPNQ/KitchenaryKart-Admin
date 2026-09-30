@@ -14,8 +14,9 @@
  */
 import { readFileSync, writeFileSync } from 'fs';
 
-const SRC = 'scripts/docs/Kitchenary_Kart_76_Accessories_Separate_Product_Descriptions.txt';
 const args = process.argv.slice(2);
+// --src=<doc.txt> for other documents drafted the same way (41-product doc, …).
+const SRC = args.find((a) => a.startsWith('--src='))?.slice(6) ?? 'scripts/docs/Kitchenary_Kart_76_Accessories_Separate_Product_Descriptions.txt';
 const HOLD = new Set((args.find((a) => a.startsWith('--hold='))?.slice(7) ?? '').split(',').filter(Boolean));
 const [OUT, ...JSONS] = args.filter((a) => !a.startsWith('--'));
 const BRAND = ' | Kitchenary Kart';
