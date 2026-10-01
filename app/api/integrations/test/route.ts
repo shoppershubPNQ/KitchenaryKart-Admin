@@ -10,8 +10,8 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { fail, handleError, ok } from '@/lib/api';
-import { setVerified, providerEnabled } from '@/lib/integration-credentials';
-import { testShiprocket } from '@/lib/integrations/shiprocket';
+import { setVerified, providerEnabled, LOGIN_FAILED_PREFIX } from '@/lib/integration-credentials';
+import { testShiprocket, ShiprocketAuthError } from '@/lib/integrations/shiprocket';
 import { testDelhivery } from '@/lib/integrations/delhivery';
 
 const schema = z.object({ provider: z.enum(['shiprocket', 'delhivery']) });
@@ -55,7 +55,13 @@ export const POST = withAuth(async (req) => {
       // The courier's own words are the useful part ("pickup location not
       // found", "invalid token") — store and return those, not a generic 500.
       const message = e instanceof Error ? e.message : 'Connection failed';
-      await setVerified(provider, message.slice(0, 500));
+      // A paused login made no attempt: keep the stored error (and its pause
+      // clock) as it is. A real login failure keeps its marker so automatic
+      // retries pause too.
+      if (!(e instanceof ShiprocketAuthError && e.paused)) {
+        const stored = e instanceof ShiprocketAuthError ? `${LOGIN_FAILED_PREFIX}${message}` : message;
+        await setVerified(provider, stored.slice(0, 500));
+      }
       return ok({ ok: false, provider, detail: message });
     }
   } catch (e) {

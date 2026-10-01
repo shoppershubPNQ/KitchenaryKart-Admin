@@ -185,14 +185,71 @@ export function mapDelhiveryStatus(
   status: string | null | undefined,
   statusType?: string | null,
   reverseInTransit?: boolean | null,
+  statusCode?: string | null,
 ): ShipmentStatus | null {
   const type = (statusType ?? '').toUpperCase().trim();
   const words = (status ?? '').toLowerCase().replace(/[^a-z]/g, '');
+  // A seller cancellation keeps the words "Not Picked"; only the code says
+  // cancelled (seen live 2026-10-01: DTUP-210, "Seller cancelled the order").
+  if ((statusCode ?? '').toUpperCase().trim() === 'DTUP-210') return 'cancelled';
   if (type === 'RT' || type === 'RTO' || reverseInTransit === true || words.startsWith('rto')) return 'rto';
   // "Delivered" only counts as delivered on a DL scan — never inferred.
   if (words === 'delivered') return type === 'DL' || type === '' ? 'delivered' : null;
   if (words === 'notpicked') return 'pickup_scheduled';
   return mapCourierStatus(status);
+}
+
+/**
+ * Shiprocket SHIPMENT status codes (tracking_data.shipment_status, a scan's
+ * "sr-status", a webhook's shipment_status_id) → ours. Mapped on the NUMBER:
+ * the two official tables spell the labels differently ("RTO_NDR" / "RTO NDR"),
+ * and Shiprocket's separate ORDER status table reuses the same numbers for
+ * other meanings (order 18 = Cancellation Requested, shipment 18 = In Transit)
+ * — a webhook's current_status_id is from that order table and is never read.
+ *
+ * Deliberately unmapped (null — recorded, the order is left alone): 11 Pending,
+ * 12 Lost, 13 Pickup Error, 16 Cancellation Requested (it can sit there for
+ * days; only 8/45 are final), 20 Pickup Exception, 23 Partially Delivered,
+ * 24 Destroyed, 25 Damaged, 47 QC Failed, 76 Untraceable — each wants a
+ * person (a claim, a re-ship), not an automatic move. Lost/damaged must not
+ * end up looking like a "failed booking" that is no longer polled.
+ */
+const SHIPROCKET_CODE: Record<number, ShipmentStatus> = {
+  1: 'awb_assigned', 2: 'awb_assigned', 5: 'awb_assigned', 52: 'awb_assigned',
+  3: 'pickup_scheduled', 4: 'pickup_scheduled', 15: 'pickup_scheduled', 19: 'pickup_scheduled', 27: 'pickup_scheduled',
+  6: 'in_transit', 18: 'in_transit', 21: 'in_transit', 22: 'in_transit', 38: 'in_transit', 39: 'in_transit',
+  42: 'in_transit', 48: 'in_transit', 51: 'in_transit', 77: 'in_transit',
+  17: 'out_for_delivery',
+  7: 'delivered',
+  8: 'cancelled', 45: 'cancelled',
+  9: 'rto', 10: 'rto', 14: 'rto', 40: 'rto', 41: 'rto', 44: 'rto', 46: 'rto', 75: 'rto', 78: 'rto',
+};
+
+export function mapShiprocketStatus(code: unknown, label?: string | null): ShipmentStatus | null {
+  const n = typeof code === 'number' ? code : /^\d+$/.test(String(code ?? '').trim()) ? Number(code) : NaN;
+  if (Number.isFinite(n)) return SHIPROCKET_CODE[n] ?? null;
+  // No usable number ("NA", absent): fall back to the words, but never infer
+  // "delivered" from words alone, and treat any RTO wording as a return.
+  const words = String(label ?? '').toLowerCase().replace(/[^a-z]/g, '');
+  if (!words || words === 'na') return null;
+  if (words.startsWith('rto')) return 'rto';
+  if (words === 'delivered' || words === 'lost' || words === 'damaged' || words === 'destroyed') return null;
+  return mapCourierStatus(label);
+}
+
+/**
+ * Shiprocket times carry no zone and are IST. Two layouts occur:
+ * "2026-10-01 11:28:15" (tracking, scans) and "01 10 2026 11:28:15" (a
+ * webhook's current_timestamp, day first). Sentinels ("", "NA",
+ * "0000-00-00 00:00:00") are null.
+ */
+export function shiprocketTime(raw: string | null | undefined): Date | null {
+  const s = String(raw ?? '').trim();
+  if (!s || s === 'NA' || s.startsWith('0000-00-00')) return null;
+  const dmy = s.match(/^(\d{2}) (\d{2}) (\d{4}) (\d{2}:\d{2}(?::\d{2})?)$/);
+  if (dmy) return delhiveryTime(`${dmy[3]}-${dmy[2]}-${dmy[1]}T${dmy[4]}`);
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(s)) return delhiveryTime(s);
+  return null;
 }
 
 /**
@@ -256,7 +313,8 @@ export function orderStatusFor(s: ShipmentStatus): OrderStatus | null {
 
 /** Public tracking page for the customer, mirrored onto Order.trackingUrl. */
 export function trackingUrlFor(provider: ShipmentProvider, awb: string): string {
+  // Shiprocket: the shape its own tracking responses return as track_url.
   return provider === 'shiprocket'
-    ? `https://www.shiprocket.in/shipment-tracking/?awb=${encodeURIComponent(awb)}`
+    ? `https://shiprocket.co/tracking/${encodeURIComponent(awb)}`
     : `https://www.delhivery.com/track/package/${encodeURIComponent(awb)}`;
 }

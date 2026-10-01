@@ -1,8 +1,8 @@
 /**
  * POST /api/shipments/:id  — { action: 'label' | 'pickup' | 'cancel' | 'refresh', when? }
  *
- * Everything after a booking. 'cancel' only works before pickup; after that
- * it is a return and belongs in Delhivery One.
+ * Everything after a booking, either courier. 'cancel' only works before
+ * pickup; after that it is a return and belongs in the courier's own panel.
  */
 import { z } from 'zod';
 import { withAuth } from '@/lib/auth';
@@ -11,6 +11,7 @@ import {
   shipmentLabel, schedulePickup, cancelShipment, refreshShipment, ShipmentError,
 } from '@/lib/shipments';
 import { DelhiveryError } from '@/lib/integrations/delhivery';
+import { ShiprocketError } from '@/lib/integrations/shiprocket';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -44,7 +45,7 @@ export const POST = withAuth(async (req, { params, user }) => {
         return ok(await refreshShipment(id));
     }
   } catch (e) {
-    if (e instanceof ShipmentError || e instanceof DelhiveryError) return fail(e.message, 422);
+    if (e instanceof ShipmentError || e instanceof DelhiveryError || e instanceof ShiprocketError) return fail(e.message, 422);
     return handleError(e);
   }
 }, ['admin', 'staff']);

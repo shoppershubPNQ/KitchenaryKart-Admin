@@ -101,6 +101,38 @@ export async function setCachedToken(
   });
 }
 
+/** Stored on the row when a courier login fails; marks the failure as a
+ *  LOGIN failure (other test failures do not pause logins). */
+export const LOGIN_FAILED_PREFIX = 'Login failed: ';
+const LOGIN_PAUSE_MS = 30 * 60 * 1000;
+
+/**
+ * Couriers lock an account after a few failed logins (Shiprocket: 30 min,
+ * then 2 h). After one failure, automatic retries — the hourly poll, a Refresh
+ * click — would only extend the lock, so logins pause for 30 minutes.
+ * Saving the credentials again clears the stored error and lifts the pause.
+ * Returns the reason while paused, else null.
+ */
+export async function loginPausedReason(provider: ShipmentProvider): Promise<string | null> {
+  const row = await prisma.integrationCredential.findUnique({
+    where: { provider },
+    select: { lastError: true, updatedAt: true },
+  });
+  if (!row?.lastError?.startsWith(LOGIN_FAILED_PREFIX)) return null;
+  const left = LOGIN_PAUSE_MS - (Date.now() - row.updatedAt.getTime());
+  if (left <= 0) return null;
+  return `${row.lastError.slice(LOGIN_FAILED_PREFIX.length)} — logins paused for ${Math.ceil(left / 60000)} more min so the account is not locked. Fix the API user in Integrations and Save (that lifts the pause).`;
+}
+
+/** A login just worked: drop a stale "Login failed" marker so the pages stop
+ *  showing it (other stored errors, e.g. a Test result, are left alone). */
+export async function clearLoginFailure(provider: ShipmentProvider): Promise<void> {
+  await prisma.integrationCredential.updateMany({
+    where: { provider, lastError: { startsWith: LOGIN_FAILED_PREFIX } },
+    data: { lastError: null },
+  });
+}
+
 export async function getWebhookSecret(provider: ShipmentProvider): Promise<string | null> {
   const row = await prisma.integrationCredential.findUnique({
     where: { provider },

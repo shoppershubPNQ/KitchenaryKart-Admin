@@ -17,8 +17,8 @@ interface Integration {
 }
 
 const LABELS: Record<string, string> = {
-  email: 'Login email',
-  password: 'Password',
+  email: 'API user email',
+  password: 'API user password',
   apiToken: 'API token',
   clientName: 'Client name',
   pickupLocation: 'Pickup location name',
@@ -34,7 +34,7 @@ const FIELDS: Record<string, string[]> = {
 
 const HELP: Record<string, string> = {
   shiprocket:
-    'Your Shiprocket panel login. The pickup location must match one already registered in Shiprocket — the API rejects an unknown name.',
+    'NOT your Shiprocket panel login — that answers "Invalid email and password combination". Shiprocket needs a separate API user: in Shiprocket open Settings → API → Add New API User (older screens: Configure → Create an API user). Its email must be different from your Shiprocket login email. Give it the order, courier / AWB, pickup, label, tracking and cancel modules, and Buyer’s Details Access = Allowed. Pickup location name is the nickname under Settings → Pickup Addresses, typed exactly — Test connection lists the ones your account has. Shiprocket locks the account for 30 minutes after a few wrong passwords, so check the password before pressing Test again.',
   delhivery:
     'The API token from Delhivery One (Settings → API). Client name is the registered client, and the pickup location must already exist in your Delhivery account (Settings → Pickup Locations) — type its name exactly. Pickup pincode is the pincode of that warehouse, used for rates and delivery times.',
 };
@@ -257,7 +257,7 @@ function ProviderCard({
           <p className="text-[11px] text-slate-500">
             Add this in the {name} panel so shipment status flows back automatically.
             {row.provider === 'shiprocket'
-              ? ' Paste the secret as the Token. Any Auth Token Type works — Authorization and x-api-key are both accepted.'
+              ? ' In Shiprocket: Settings → API → Webhooks — add this URL, switch it on, and paste the secret as the security token (Shiprocket sends it as x-api-key).'
               : ' Give Delhivery this URL and ask them to send the secret in an Authorization or x-api-key header.'}
           </p>
           {/* Shiprocket refuses a URL containing its own name, so the path

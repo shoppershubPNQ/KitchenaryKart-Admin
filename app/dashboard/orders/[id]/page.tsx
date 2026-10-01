@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { api, inr, dateShort } from '@/lib/fetch';
 import { computeOrderSummary } from '@/lib/order-summary';
 import { MarkPaidOffline } from '@/components/MarkPaidOffline';
-import { ShipWithDelhivery } from '@/components/ShipWithDelhivery';
+import { ShipOrder } from '@/components/ShipOrder';
 
 interface OrderItem {
   id: number;
@@ -214,7 +214,7 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
         </div>
       )}
 
-      <ShipWithDelhivery orderId={order.id} orderNumber={order.orderNumber} onChanged={load} />
+      <ShipOrder orderId={order.id} orderNumber={order.orderNumber} onChanged={load} />
 
       <TrackingCard order={order} onSaved={load} />
 

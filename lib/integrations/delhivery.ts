@@ -347,7 +347,16 @@ export async function delhiveryLabel(awb: string): Promise<string | null> {
 }
 
 export async function delhiveryTrack(awb: string): Promise<TrackResult> {
-  const r = await call<any>(`/api/v1/packages/json/?waybill=${encodeURIComponent(awb)}`);
+  // Read-only, so it may give up: a hung tracking call must not eat the
+  // hourly poll's 60 s (and with it the other courier's turn).
+  let r: any;
+  try {
+    r = await call<any>(`/api/v1/packages/json/?waybill=${encodeURIComponent(awb)}`, { signal: AbortSignal.timeout(15_000) });
+  } catch (e) {
+    const name = (e as { name?: string })?.name;
+    if (name === 'TimeoutError' || name === 'AbortError') throw new DelhiveryError('Delhivery tracking did not answer within 15 s — timed out');
+    throw e;
+  }
   const s = r?.ShipmentData?.[0]?.Shipment;
   if (!s) throw new DelhiveryError(r?.Error ? String(r.Error) : `No tracking data for ${awb}`);
   const st = s.Status ?? {};
@@ -355,12 +364,12 @@ export async function delhiveryTrack(awb: string): Promise<TrackResult> {
   return {
     awb,
     currentStatus: String(st.Status ?? ''),
-    mapped: mapDelhiveryStatus(st.Status, st.StatusType, s.ReverseInTransit),
+    mapped: mapDelhiveryStatus(st.Status, st.StatusType, s.ReverseInTransit, st.StatusCode),
     events: scans.map((sc: any) => {
       const d = sc?.ScanDetail ?? {};
       return {
         status: String(d.Scan ?? ''),
-        mapped: mapDelhiveryStatus(d.Scan, d.ScanType),
+        mapped: mapDelhiveryStatus(d.Scan, d.ScanType, null, d.StatusCode),
         detail: d.Instructions ?? null,
         location: d.ScannedLocation ?? null,
         occurredAt: delhiveryTime(d.ScanDateTime ?? d.StatusDateTime) ?? new Date(),
