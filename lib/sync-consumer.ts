@@ -116,12 +116,16 @@ export interface ImportOptions {
   skus?: string[];
   all?: boolean;
   onlyNew?: boolean;
-  /** Apply to UPDATES only — a create always takes every field. */
+  /**
+   * Apply to UPDATES only — a create always takes every field. There is no
+   * switch for details: an update never replaces our name, description, HSN,
+   * GST rate, reorder point or specs, nor a variant's type, value and weight.
+   * Those are written or confirmed by hand here, and the partner's copies would
+   * undo that work (owner, 2026-10-01).
+   */
   updatePrice?: boolean;
   updateStock?: boolean;
   updateImages?: boolean;
-  /** Name, description, HSN, GST rate, reorder point, specs; a variant's type, value and weight. */
-  updateDetails?: boolean;
   /** Published / draft / discontinued. */
   updateStatus?: boolean;
   /**
@@ -602,8 +606,15 @@ export async function diff(sku: string) {
     });
   };
 
-  add('name', 'Name', product?.name, mapped.name);
-  add('description', 'Description', product?.description, mapped.description);
+  // On a product we already have, these are never replaced by an import (see
+  // ImportOptions), so they are shown but not flagged as about to change. On a
+  // new one they are what it will be created with, and compare as normal.
+  const kept = product
+    ? { informational: true, note: 'Kept as it is here — sync never replaces this.' }
+    : undefined;
+
+  add('name', 'Name', product?.name, mapped.name, kept);
+  add('description', 'Description', product?.description, mapped.description, kept);
   add('category', 'Category', product?.category, remote.category_path[0] ?? null, {
     informational: true,
     note: 'Each site keeps its own categories — sync never changes this.',
@@ -630,17 +641,17 @@ export async function diff(sku: string) {
   add('mrp', 'MRP', product?.mrp != null ? Number(product.mrp) : null, mapped.mrp, {
     note: pricingNote(remote.tax_percent, rule),
   });
-  add('taxPercent', 'GST rate', product ? Number(product.taxPercent) : null, mapped.taxPercent);
+  add('taxPercent', 'GST rate', product ? Number(product.taxPercent) : null, mapped.taxPercent, kept);
   add('stock', 'Stock', product?.stock, mapped.stock);
-  add('reorderPoint', 'Reorder point', product?.reorderPoint, mapped.reorderPoint);
+  add('reorderPoint', 'Reorder point', product?.reorderPoint, mapped.reorderPoint, kept);
   add('status', 'Status', product?.status, mapped.status);
-  add('hsnCode', 'HSN code', product?.hsnCode, mapped.hsnCode);
-  add('weight', 'Weight', product?.weight, mapped.weight);
-  add('dimensions', 'Dimensions', product?.dimensions, mapped.dimensions);
-  add('power', 'Power', product?.power, mapped.power);
-  add('color', 'Colour', product?.color, mapped.color);
-  add('capacity', 'Capacity', product?.capacity, mapped.capacity);
-  add('material', 'Material', product?.material, mapped.material);
+  add('hsnCode', 'HSN code', product?.hsnCode, mapped.hsnCode, kept);
+  add('weight', 'Weight', product?.weight, mapped.weight, kept);
+  add('dimensions', 'Dimensions', product?.dimensions, mapped.dimensions, kept);
+  add('power', 'Power', product?.power, mapped.power, kept);
+  add('color', 'Colour', product?.color, mapped.color, kept);
+  add('capacity', 'Capacity', product?.capacity, mapped.capacity, kept);
+  add('material', 'Material', product?.material, mapped.material, kept);
   // Counts alone hide a replaced picture; the URLs are compared as an ordered
   // list, and both galleries travel so the Compare modal can show them.
   const hereImages = galleryOf(product);
@@ -818,7 +829,8 @@ async function resolveSkus(options: ImportOptions): Promise<string[]> {
  * Money is re-priced for retail on the way in — the markup and GST rule in
  * lib/sync-pricing.ts — because the partner prices for the trade. Both the
  * import and the review diff come through here, so what the operator previews
- * is exactly what gets written.
+ * is exactly what gets written — except the details an update never replaces
+ * (see ImportOptions), which the diff shows as kept.
  */
 function mapProduct(remote: RemoteProduct, rule: PricingRule) {
   // HE ex-GST x markup x GST, then MRP. See lib/sync-pricing.ts — the same
@@ -943,19 +955,8 @@ async function importOne(
       renamedFrom = existing.sku;
     }
 
-    if (options.updateDetails !== false) {
-      data.name = mapped.name;
-      data.description = mapped.description;
-      data.taxPercent = mapped.taxPercent;
-      data.reorderPoint = mapped.reorderPoint;
-      data.hsnCode = mapped.hsnCode;
-      data.dimensions = mapped.dimensions;
-      data.power = mapped.power;
-      data.capacity = mapped.capacity;
-      data.weight = mapped.weight;
-      data.material = mapped.material;
-      data.color = mapped.color;
-    }
+    // Name, description, HSN, GST, reorder point and specs are never replaced
+    // on an existing product — see ImportOptions.
     if (options.updateStatus !== false) data.status = mapped.status;
 
     if (options.updatePrice !== false) {
@@ -1093,14 +1094,9 @@ async function syncVariants(
     const data: Prisma.ProductVariantUpdateInput = {
       externalId: rv.external_id ?? match.externalId ?? null,
     };
-    // The child SKU is identity, like the parent's: it follows the partner
-    // even when details are held back.
+    // The child SKU is identity, like the parent's: it follows the partner.
+    // Its type, value and weight are details and stay ours.
     if ((match.skuSuffix ?? '') !== suffix) data.skuSuffix = suffix;
-    if (options.updateDetails !== false) {
-      data.variantType = base.variantType;
-      data.variantValue = base.variantValue;
-      data.weight = base.weight;
-    }
     if (options.updatePrice !== false) {
       data.price = applyPricingRule(rv.price, rate, rule);
       data.mrp = rv.mrp != null ? applyPricingRule(rv.mrp, rate, rule) : null;

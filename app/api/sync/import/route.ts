@@ -5,10 +5,11 @@
  * or `all` for everything still pending.
  *
  * The update flags apply to UPDATES only — a newly created product always takes
- * every field, since there is nothing here to preserve. Price, stock, images,
- * details (name, description, HSN, GST, specs) and status can each be held
- * back, so what comes across is chosen rather than everything. A SKU rename
- * always comes across: it is the listing's identity, not a field.
+ * every field, since there is nothing here to preserve. Price, stock, images
+ * and status can each be held back. Details (name, description, HSN, GST,
+ * specs) are never replaced on an existing product and have no flag; an old
+ * client still sending `updateDetails` has it stripped by the schema. A SKU
+ * rename always comes across: it is the listing's identity, not a field.
  */
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
@@ -26,7 +27,6 @@ const schema = z.object({
   updatePrice: z.boolean().optional(),
   updateStock: z.boolean().optional(),
   updateImages: z.boolean().optional(),
-  updateDetails: z.boolean().optional(),
   updateStatus: z.boolean().optional(),
   /** Where new products land here; blank means "match the partner's shelf". */
   category: z.string().trim().max(120).optional(),

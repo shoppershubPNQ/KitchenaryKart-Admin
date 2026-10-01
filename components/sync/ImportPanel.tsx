@@ -94,14 +94,13 @@ export default function ImportPanel() {
   const [updatePrice, setUpdatePrice] = useState(true);
   const [updateStock, setUpdateStock] = useState(true);
   const [updateImages, setUpdateImages] = useState(true);
-  const [updateDetails, setUpdateDetails] = useState(true);
   const [updateStatus, setUpdateStatus] = useState(true);
   const [fieldsOpen, setFieldsOpen] = useState(false);
 
   /** Where new products land. Blank = match the partner's own shelf to ours. */
   const [fileInto, setFileInto] = useState('');
 
-  const fields = { updatePrice, updateStock, updateImages, updateDetails, updateStatus };
+  const fields = { updatePrice, updateStock, updateImages, updateStatus };
 
   const loadConn = useCallback(async () => {
     try {
@@ -295,14 +294,11 @@ export default function ImportPanel() {
                   <Check label="Price" checked={updatePrice} onChange={setUpdatePrice} />
                   <Check label="Stock" checked={updateStock} onChange={setUpdateStock} />
                   <Check label="Images" checked={updateImages} onChange={setUpdateImages} />
-                  <Check
-                    label="Details (name, description, HSN, GST, specs)"
-                    checked={updateDetails}
-                    onChange={setUpdateDetails}
-                  />
                   <Check label="Status" checked={updateStatus} onChange={setUpdateStatus} />
                   <span className="text-slate-400">
-                    A new product always takes every field. SKU renames always come across.
+                    A new product always takes every field. On an existing product, our name,
+                    description, HSN, GST and specs are never replaced. SKU renames always come
+                    across.
                   </span>
                 </div>
               )}

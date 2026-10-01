@@ -37,7 +37,7 @@ export default function DiffModal({ sku, onClose }: { sku: string; onClose: () =
             <>
               <p className="text-sm text-slate-500">
                 {data.exists_here
-                  ? `${data.changed_fields} field(s) differ. Importing replaces "Here" with "Hotelic Essentials".`
+                  ? `${data.changed_fields} field(s) differ. Importing replaces the highlighted ones with "Hotelic Essentials" (for each box ticked under "On update, replace…"). Name, description, HSN, GST and specs always stay as they are here.`
                   : 'Not in this catalogue yet — importing creates it with these values.'}
               </p>
               <table className="table-mini">
