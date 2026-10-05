@@ -26,8 +26,12 @@ function rowsOf(file: string): Row[] {
     if (!line.startsWith('[TBL] ')) continue;
     const cells = line.slice(6).split('|').map((c) => c.trim());
     if (cells.length < 6) continue;
-    const [, name, sku, , hsn, gst] = cells;
-    if (!/^[A-Z]{2}/.test(sku)) continue; // header row
+    // Product names can themselves contain "|" ("Eco Induction - 3000W |
+    // Square | Flat Base"), which is also the column separator. The LAST four
+    // columns are fixed (SKU, Category, HSN, GST), so read from the right.
+    const [sku, , hsn, gst] = cells.slice(-4);
+    const name = cells.slice(1, -4).join(' | ');
+    if (!/^[A-Z]{2,}[A-Z0-9-]*\d/.test(sku)) continue; // header row ("SKU")
     out.push({ file: basename(file), sku, name, hsn, gst });
   }
   return out;
@@ -44,6 +48,17 @@ function rowsOf(file: string): Row[] {
   const notFound: Row[] = [];
   const suspect: string[] = [];
 
+  // Two queries for the whole catalogue instead of two per row.
+  const sel = { id: true, sku: true, hsnCode: true, taxPercent: true } as const;
+  const products = await prisma.product.findMany({ select: sel });
+  const variants = await prisma.productVariant.findMany({ select: { skuSuffix: true, product: { select: sel } } });
+  const productBySku = new Map(products.map((p) => [p.sku, p]));
+  const parentByVariantSku = new Map(variants.map((v) => [v.skuSuffix, v.product]));
+
+  // One decision per PRODUCT: a listing's sizes may appear as separate rows
+  // (and a SKU in two documents); they must agree, or nothing is written.
+  const wanted = new Map<number, { hsn: string; gst: number; from: string[] }>();
+
   for (const r of rows) {
     if (!/^\d{4,8}$/.test(r.hsn)) { suspect.push(`${r.sku}: HSN "${r.hsn}" is not 4-8 digits`); continue; }
     const gstNum = Number(r.gst.replace('%', ''));
@@ -51,16 +66,30 @@ function rowsOf(file: string): Row[] {
 
     // The HSN and the GST rate live on the PRODUCT row; a variant SKU means
     // its parent, because a variant has no tax fields of its own.
-    let p = await prisma.product.findUnique({ where: { sku: r.sku }, select: { id: true, sku: true, hsnCode: true, taxPercent: true } });
-    if (!p) {
-      const v = await prisma.productVariant.findFirst({ where: { skuSuffix: r.sku }, select: { product: { select: { id: true, sku: true, hsnCode: true, taxPercent: true } } } });
-      p = v?.product ?? null;
-    }
+    const p = productBySku.get(r.sku) ?? parentByVariantSku.get(r.sku) ?? null;
     if (!p) { notFound.push(r); continue; }
     const wasGst = Number(p.taxPercent);
+
+    // Only a full 8-digit HSN is ever written. A short code that our stored
+    // 8-digit code already starts with is agreement, not a change.
+    if (!/^\d{8}$/.test(r.hsn)) {
+      if (/^\d{8}$/.test(p.hsnCode ?? '') && p.hsnCode!.startsWith(r.hsn) && wasGst === gstNum) { same.push(r); continue; }
+      suspect.push(`${r.sku}: HSN "${r.hsn}" is only ${r.hsn.length} digits (stored ${p.hsnCode ?? '—'}) — not written`);
+      continue;
+    }
+    const prev = wanted.get(p.id);
+    if (prev && (prev.hsn !== r.hsn || prev.gst !== gstNum)) {
+      suspect.push(`${p.sku}: rows disagree — ${prev.from.join(', ')} say ${prev.hsn}/${prev.gst}%, ${r.sku} says ${r.hsn}/${gstNum}% — not written`);
+      prev.hsn = '__conflict__';
+      continue;
+    }
+    if (prev) { prev.from.push(r.sku); continue; }
+    wanted.set(p.id, { hsn: r.hsn, gst: gstNum, from: [r.sku] });
     if ((p.hsnCode ?? '') === r.hsn && wasGst === gstNum) same.push(r);
     else changes.push({ ...r, id: p.id, wasHsn: p.hsnCode, wasGst, gstNum });
   }
+  // Drop any product whose rows turned out to conflict.
+  for (let i = changes.length - 1; i >= 0; i--) if (wanted.get(changes[i].id)?.hsn === '__conflict__') changes.splice(i, 1);
 
   console.log(`unchanged : ${same.length}`);
   console.log(`CHANGED   : ${changes.length}`);
