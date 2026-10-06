@@ -166,7 +166,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export type AlertOrder = {
+type AlertOrder = {
   id: number;
   orderNumber: string;
   customerName: string | null;
@@ -182,8 +182,9 @@ const esc = (s: unknown) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 const inr = (n: unknown) => '₹' + Number(n ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
-/** Exported so scripts/_tmp-preview can render it without sending mail. */
-export function buildAlertEmail(o: AlertOrder, attempts: number, reason: BuyerReason | null) {
+/** Not exported: a Next.js route file may only export its handlers and route config
+ *  (an extra export fails `next build`). Move it to lib/ if a preview script needs it. */
+function buildAlertEmail(o: AlertOrder, attempts: number, reason: BuyerReason | null) {
   const phone10 = last10(o.customerPhone);
   const admin = adminBaseUrl();
   const when = o.createdAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
