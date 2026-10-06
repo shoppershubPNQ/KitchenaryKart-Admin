@@ -15,7 +15,7 @@
     "postinstall": "prisma generate && node scripts/embed-font.cjs && node scripts/embed-stamp.cjs"
   },
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
