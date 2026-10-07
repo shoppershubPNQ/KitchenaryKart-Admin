@@ -28,6 +28,8 @@ const updateSchema = z.object({
   metaTitle: z.string().nullable().optional(),
   metaDescription: z.string().nullable().optional(),
   metaKeywords: z.string().nullable().optional(),
+  // ALT words — other names customers search the product by (comma-separated).
+  searchAliases: z.string().max(2000).nullable().optional(),
   status: z.enum(['active', 'draft', 'discontinued']).optional(),
   imageUrl: z.string().url().nullable().optional(),
   images: z.array(z.string().url()).optional(),

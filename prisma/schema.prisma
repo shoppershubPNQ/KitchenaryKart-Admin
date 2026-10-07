@@ -153,6 +153,10 @@ model Product {
   metaTitle       String? @map("meta_title")
   metaDescription String? @map("meta_description")
   metaKeywords    String? @map("meta_keywords")
+  /// ALT words: other names customers search this product by ("daru, दारू,
+  /// peg measure"), comma-separated, any script. The storefront search finds
+  /// the product by any of them (web/lib/search.ts). Edited in admin.
+  searchAliases   String? @map("search_aliases")
 
   createdById Int?       @map("created_by")
   createdBy   AdminUser? @relation("CreatedBy", fields: [createdById], references: [id])

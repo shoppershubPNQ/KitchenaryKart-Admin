@@ -29,6 +29,8 @@ export interface ProductDraft {
   metaTitle?: string | null;
   /** Hand-written Google snippet. Blank = generated from the description. */
   metaDescription?: string | null;
+  /** ALT words: other names customers search it by, comma-separated, any script. */
+  searchAliases?: string | null;
   status?: 'active' | 'draft' | 'discontinued';
   isBestseller?: boolean;
   isNewArrival?: boolean;
@@ -245,6 +247,24 @@ export function ProductForm({ initial, isNew }: { initial: ProductDraft; isNew: 
           <label className="label">Weight</label>
           <input className="input" value={form.weight || ''} onChange={e => update('weight', e.target.value)} />
         </div>
+      </fieldset>
+
+      <fieldset className="space-y-2">
+        <legend className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-2">
+          ALT words — other names customers search
+        </legend>
+        <p className="-mt-1 text-[11px] leading-relaxed text-slate-500">
+          Words a customer might type or say instead of the product name — Hindi, Hinglish or English,
+          separated by commas. The website search (and voice search) shows this product for any of them.
+          Example for a beer tower: <em>daru, दारू, sharab, beer dispenser, bar</em>.
+        </p>
+        <textarea
+          className="input"
+          rows={2}
+          value={form.searchAliases || ''}
+          onChange={(e) => update('searchAliases', e.target.value)}
+          placeholder="e.g. daru, दारू, sharab, beer dispenser"
+        />
       </fieldset>
 
       <fieldset className="space-y-4">

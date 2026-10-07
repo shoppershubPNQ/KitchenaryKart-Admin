@@ -102,6 +102,7 @@ export const POST = withAuth(async (req, { params, user }) => {
           metaTitle: source.metaTitle,
           metaDescription: source.metaDescription,
           metaKeywords: source.metaKeywords,
+          searchAliases: source.searchAliases,
           createdById: user.id,
         },
       });

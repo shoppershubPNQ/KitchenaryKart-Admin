@@ -61,6 +61,8 @@ const createSchema = z.object({
   metaTitle: z.string().optional(),
   metaDescription: z.string().optional(),
   metaKeywords: z.string().optional(),
+  // ALT words — other names customers search the product by (comma-separated).
+  searchAliases: z.string().max(2000).nullable().optional(),
   status: z.enum(['active', 'draft', 'discontinued']).optional(),
   imageUrl: z.string().url().optional(),
   images: z.array(z.string().url()).optional(),

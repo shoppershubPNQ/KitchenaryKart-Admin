@@ -60,6 +60,7 @@ export default async function EditProductPage({ params }: { params: { id: string
           hsnCode: p.hsnCode,
           metaTitle: p.metaTitle,
           metaDescription: p.metaDescription,
+          searchAliases: p.searchAliases,
           status: p.status as any,
           isBestseller: p.isBestseller,
           isNewArrival: p.isNewArrival,
