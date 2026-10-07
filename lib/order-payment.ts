@@ -6,6 +6,21 @@ import { ensureInvoiceNumber } from '@/lib/invoice-serial';
 import { adminBaseUrl, adminRecipients } from '@/lib/admin-notify';
 import { fetchRazorpayOrderPayments, fetchRazorpayPaymentLink } from '@/lib/integrations/razorpay';
 
+const IST = 'Asia/Kolkata';
+/** Calendar day in India, "YYYY-MM-DD" — compares as a string. */
+const istDay = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: IST });
+/** "7 Oct 2026, 10:44 am IST" for audit notes. */
+const istStamp = (d: Date) =>
+  `${d.toLocaleString('en-IN', { timeZone: IST, day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })} IST`;
+
+/** How the team email labels an offline payment's reference (methods from MarkPaidOffline). */
+const REF_LABEL: Record<string, string> = {
+  bank_transfer: 'Bank transfer ref',
+  upi_direct: 'UPI ref',
+  cash: 'Cash receipt',
+  cheque: 'Cheque no.',
+};
+
 export interface CapturedPayment {
   paymentId: string;
   amountPaise: number | null;
@@ -81,11 +96,29 @@ export async function finalizePaidOrder(
 ): Promise<{ order: { id: number; paymentStatus: string }; alreadyProcessed: boolean } | null> {
   const existing = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { id: true, paymentStatus: true, internalNotes: true },
+    select: { id: true, paymentStatus: true, internalNotes: true, createdAt: true },
   });
   if (!existing) return null;
   if (existing.paymentStatus === 'completed') {
     return { order: existing, alreadyProcessed: true };
+  }
+
+  // An order counts on the day it is PAID (owner, 7 Oct 2026). One paid on a
+  // later day than it was placed — a bank transfer or payment link that came
+  // in days after, an auto-cancelled order paid late — takes the payment time
+  // as its order date: it shows as that day's order, its revenue lands in that
+  // day/month, and its GST invoice (dated from the order date) follows the
+  // invoices issued before it. Same-day payments keep their own date.
+  const paidAt = new Date();
+  const notes: string[] = [];
+  // Who recorded an offline payment, how, and with what reference — the
+  // only audit trail there is, since no gateway saw this money.
+  if (opts.offline) notes.push(opts.offline.note);
+  const redate = istDay(existing.createdAt) < istDay(paidAt);
+  if (redate) {
+    notes.push(
+      `[${istStamp(paidAt)}] Order date moved from ${istStamp(existing.createdAt)} (placed) to ${istStamp(paidAt)} (paid) — an order counts on the day it is paid.`,
+    );
   }
 
   const order = await prisma.order.update({
@@ -96,14 +129,9 @@ export async function finalizePaidOrder(
       orderStatus: 'processing',
       paymentMethod: opts.offline ? opts.offline.method : 'razorpay',
       paymentReference: opts.offline ? opts.offline.reference : opts.razorpayPaymentId ?? null,
-      // Who recorded an offline payment, how, and with what reference — the
-      // only audit trail there is, since no gateway saw this money.
-      ...(opts.offline
-        ? {
-            internalNotes: existing.internalNotes
-              ? `${existing.internalNotes}\n${opts.offline.note}`
-              : opts.offline.note,
-          }
+      ...(redate ? { createdAt: paidAt } : {}),
+      ...(notes.length
+        ? { internalNotes: [existing.internalNotes, ...notes].filter(Boolean).join('\n') }
         : {}),
       payments: {
         create: {
@@ -200,6 +228,7 @@ export async function finalizePaidOrder(
       discountAmount: Number(order.discountAmount || 0),
       couponCode: order.couponCode,
       paymentReference: order.paymentReference,
+      paymentLabel: opts.offline ? REF_LABEL[opts.offline.method] ?? 'Payment ref' : 'Razorpay',
       items: order.items.map((it) => ({
         name: it.productName || '',
         sku: it.productSku || '',

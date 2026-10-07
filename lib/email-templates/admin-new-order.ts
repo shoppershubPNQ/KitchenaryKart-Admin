@@ -12,6 +12,8 @@ export interface AdminNewOrderInput {
   discountAmount?: number | null;
   couponCode?: string | null;
   paymentReference?: string | null;
+  /** What the reference is — "Razorpay" (default), "Bank transfer ref", "UPI ref", "Cheque no." … */
+  paymentLabel?: string;
   items: Array<{ name: string; sku: string; quantity: number; lineTotal: number }>;
   /** Deep link to the order in the admin dashboard. */
   adminOrderUrl: string;
@@ -64,7 +66,7 @@ export function buildAdminNewOrderEmail(o: AdminNewOrderInput) {
       ${o.customerName || '—'}<br>
       ${o.customerPhone ? `📞 ${o.customerPhone}<br>` : ''}
       ${o.customerEmail ? `✉️ ${o.customerEmail}<br>` : ''}
-      ${o.paymentReference ? `<span style="color:#888;font-size:12px;">Razorpay: ${o.paymentReference}</span>` : ''}
+      ${o.paymentReference ? `<span style="color:#888;font-size:12px;">${o.paymentLabel ?? 'Razorpay'}: ${o.paymentReference}</span>` : ''}
     </div>
 
     <a href="${o.adminOrderUrl}" style="display:inline-block;background:#A01818;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;font-weight:bold;">View order in dashboard →</a>
