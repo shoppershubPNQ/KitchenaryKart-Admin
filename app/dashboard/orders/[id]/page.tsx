@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { api, inr, dateShort } from '@/lib/fetch';
 import { computeOrderSummary } from '@/lib/order-summary';
 import { MarkPaidOffline } from '@/components/MarkPaidOffline';
+import { ResendConfirmation } from '@/components/ResendConfirmation';
 import { ShipOrder } from '@/components/ShipOrder';
 
 interface OrderItem {
@@ -123,6 +124,9 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
               <span className="inline-block px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 mr-1">B2B</span>
               GSTIN: {order.customerGstin}
             </div>
+          )}
+          {order.paymentStatus === 'completed' && order.customerEmail && (
+            <ResendConfirmation orderId={order.id} customerEmail={order.customerEmail} />
           )}
         </div>
       </div>
