@@ -33,11 +33,20 @@ function fail(message: string): CouponValidationResult {
 }
 
 /**
- * Round to whole rupees. We never charge paise-level discounts —
- * keeps the invoice + Razorpay amount clean.
+ * Round to whole rupees (messages only).
  */
 function roundRupees(n: number): number {
   return Math.round(n);
+}
+
+/**
+ * The discount itself keeps its paise: rounding 10% of ₹1,457.30 (₹145.73) up to
+ * ₹146 made every summary and invoice read "Discount (10.02%)" (owner 2026-10-09).
+ * The amount charged is still whole rupees — checkout rounds the payable total and
+ * the invoice shows the paise as Round Off.
+ */
+function roundPaise(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
 export async function validateCoupon(opts: {
@@ -104,7 +113,7 @@ export async function validateCoupon(opts: {
   }
 
   // Never discount more than the subtotal (free items, not negative totals).
-  discount = roundRupees(Math.min(discount, subtotal));
+  discount = roundPaise(Math.min(discount, subtotal));
 
   if (discount <= 0) return fail('This coupon gives no discount on your cart.');
 
