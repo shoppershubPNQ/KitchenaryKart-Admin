@@ -7,31 +7,91 @@ import { handleError, ok, paging } from '@/lib/api';
 import { rankItems } from '@/lib/search';
 import { getAdminSearchIndex, invalidateAdminSearchIndex, codeKey } from '@/lib/product-search-index';
 import { partnerPricesFor } from '@/lib/sync-consumer';
+import { heSizePrice, isKept, readHeSizes } from '@/lib/he-price-watch';
 
 /**
  * Hang what Hotelic Essentials charges off each row, so the list can show
- * their price beside ours. Read from the last scan's snapshot — no call to
- * them — and `drifted` marks a row whose price here is no longer what their
- * price plus the markup would give, which is how a stale price shows itself.
+ * their price beside ours. No call to them on a page load.
+ *
+ * Per SIZE (owner, 16 Oct 2026): the nightly scan keeps one price per HE
+ * listing, but HE prices each colour/size separately — the Triple Head lamp
+ * warmer showed HE ₹15,750 against our ₹26,462 Silver and an amber "→ ₹24,161"
+ * although every size matched HE exactly. So each size is compared with ITS
+ * own HE price from the daily HE price check (lib/he-price-watch.ts), and the
+ * row shows the HE price of the size that shares the listing's SKU.
+ *
+ * `drifted` now means only "HE's rule price is above ours" on at least one
+ * size — the case the owner acts on. HE being lower is deliberate (prices are
+ * only ever raised, never lowered) and no longer flagged.
  */
-async function withPartnerPrice<T extends { sku: string; price: unknown; taxPercent?: unknown }>(
+async function withPartnerPrice<T extends { id: number; sku: string; price: unknown; taxPercent?: unknown }>(
   products: T[],
 ) {
   if (products.length === 0) return products;
   const gstBySku = new Map(
     products.map((p) => [p.sku, p.taxPercent == null ? 18 : Number(p.taxPercent)]),
   );
-  const prices = await partnerPricesFor(
-    products.map((p) => p.sku),
-    gstBySku,
-  );
+  const [prices, heSizes, variants] = await Promise.all([
+    partnerPricesFor(products.map((p) => p.sku), gstBySku),
+    readHeSizes(),
+    prisma.productVariant.findMany({
+      where: { productId: { in: products.map((p) => p.id) } },
+      select: { productId: true, skuSuffix: true, price: true, priceModifier: true },
+    }),
+  ]);
+  const sizesOf = new Map<number, { sku: string; ours: number }[]>();
+  const byId = new Map(products.map((p) => [p.id, p]));
+  for (const v of variants) {
+    const p = byId.get(v.productId);
+    if (!p || !v.skuSuffix) continue;
+    // The price the customer is charged: an absolute size price wins over parent + modifier.
+    const ours = v.price != null ? Number(v.price) : Number(p.price) + Number(v.priceModifier ?? 0);
+    const list = sizesOf.get(v.productId) ?? [];
+    list.push({ sku: v.skuSuffix, ours });
+    sizesOf.set(v.productId, list);
+  }
+
   return products.map((p) => {
-    const partner = prices.get(p.sku);
-    if (!partner) return { ...p, partner: null };
-    const ours = Number(p.price);
-    const drifted =
-      partner.landed_price !== null && Math.abs(ours - partner.landed_price) > 1;
-    return { ...p, partner: { ...partner, drifted } };
+    const linked = prices.get(p.sku) ?? null;
+    const gst = gstBySku.get(p.sku) ?? 18;
+    const rows = sizesOf.get(p.id) ?? [{ sku: p.sku, ours: Number(p.price) }];
+    const matched = heSizes
+      ? rows
+          .map((r) => ({ ...r, he: heSizePrice(heSizes.sizes[r.sku.toUpperCase()], gst, r.ours, isKept(r.sku, p.sku)) }))
+          .filter((r): r is typeof r & { he: NonNullable<typeof r.he> } => r.he !== null)
+      : [];
+
+    if (!matched.length) {
+      // No per-size HE price (before the first daily check, HE's GST differs from ours, or HE does not list
+      // it): keep showing the scan's figure, but only flag a single-price listing — a listing-level HE price
+      // says nothing reliable about a product sold in sizes.
+      if (!linked) return { ...p, partner: null };
+      const drifted = rows.length === 1 && linked.landed_price !== null && linked.landed_price - Number(p.price) > 1;
+      return { ...p, partner: { ...linked, drifted, below_sizes: drifted ? 1 : 0, sizes_compared: drifted ? 1 : 0 } };
+    }
+
+    const own = matched.find((r) => r.sku.toUpperCase() === p.sku.toUpperCase()) ?? matched[0];
+    const below = matched.filter((r) => r.he.below);
+    // The amber line shows the size furthest below HE's rule price.
+    const worst = below.sort((a, b) => b.he.target - b.ours - (a.he.target - a.ours))[0];
+    const show = worst ?? own;
+    return {
+      ...p,
+      partner: {
+        sku: linked?.sku ?? p.sku,
+        price: own.he.heIncl,
+        price_ex_gst: own.he.heEx,
+        marked_ex_gst: show.he.marked,
+        chain_mrp: Math.round(show.he.target * 2 * 100) / 100,
+        chain_note: `${show.sku}: HE ₹${show.he.heEx} ex-GST × 1.30 = ₹${show.he.marked} + ${gst}% GST = ₹${show.he.target}`,
+        landed_price: show.he.target,
+        stock: linked?.stock ?? null,
+        drifted: below.length > 0,
+        below_sizes: below.length,
+        sizes_compared: matched.length,
+        scanned_at: heSizes?.checkedAt ?? linked?.scanned_at ?? null,
+      },
+    };
   });
 }
 

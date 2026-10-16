@@ -44,7 +44,11 @@ interface Product {
     chain_note: string | null;
     landed_price: number | null;
     stock: number | null;
+    /** HE's rule price is above ours on at least one size. */
     drifted: boolean;
+    /** How many sizes are below HE's rule price, out of how many HE prices were compared. */
+    below_sizes?: number;
+    sizes_compared?: number;
   } | null;
 }
 
@@ -59,6 +63,8 @@ interface Variant {
   price: number | string | null;
   stock: number;
   imageUrl: string | null;
+  /** HE's own price for this size from the daily HE price check; absent when HE does not list it. */
+  he?: { heEx: number; heIncl: number; target: number; below: boolean } | null;
 }
 
 // Admin runs on :3000 but images are served by the website on :5500.
@@ -137,8 +143,8 @@ export default function ProductsPage() {
     if ((p._count?.variants ?? 0) > 0 && !variantsById[p.id]) {
       setVariantsLoading((prev) => new Set(prev).add(p.id));
       try {
-        const data = await api<{ variants: Variant[] }>(`/api/products/${p.id}/variants`);
-        setVariantsById((prev) => ({ ...prev, [p.id]: data.variants }));
+        const data = await api<{ variants: Variant[]; he?: Record<number, Variant['he']> }>(`/api/products/${p.id}/variants`);
+        setVariantsById((prev) => ({ ...prev, [p.id]: data.variants.map((v) => ({ ...v, he: data.he?.[v.id] ?? null })) }));
       } catch {
         setVariantsById((prev) => ({ ...prev, [p.id]: [] }));
       } finally {
@@ -547,20 +553,26 @@ function ProductRow({
             <div className="text-[11px] text-slate-400 line-through">{inr(p.mrp)}</div>
           )}
         </td>
-        {/* What Hotelic Essentials charges, from the last sync scan. Shown
-            EX-GST, because their published figure includes it. The faint line
-            is that same published figure; the amber one appears only when our
-            price is no longer theirs plus the markup — a price of theirs that
-            moved without ours following. */}
+        {/* What Hotelic Essentials charges for the size that shares this
+            listing's SKU, from the daily HE price check. Shown EX-GST, because
+            their published figure includes it; the faint line is that same
+            published figure. The amber line appears only when HE's price plus
+            the markup is ABOVE ours on some size (we sell below HE's rule) —
+            it shows the size furthest below, and how many sizes are. HE being
+            lower is deliberate and not flagged. */}
         <td className="px-4 py-2.5 text-right">
           {p.partner ? (
             <span title={p.partner.chain_note ?? undefined}>
               <div className="text-slate-600">{inrExact(p.partner.price_ex_gst)}</div>
               <div className="text-[11px] text-slate-400">{inr(p.partner.price)} inc</div>
-              {/* The chain, only where it disagrees with what we charge. */}
               {p.partner.drifted && p.partner.landed_price != null && (
                 <div className="text-[11px] text-amber-600">
                   → {inr(p.partner.marked_ex_gst)} → {inr(p.partner.landed_price)}
+                  {(p.partner.sizes_compared ?? 0) > 1 && (
+                    <span className="block">
+                      {p.partner.below_sizes} of {p.partner.sizes_compared} sizes below HE
+                    </span>
+                  )}
                 </div>
               )}
             </span>
@@ -699,6 +711,9 @@ function VariantsPanel({
               <th className="px-3 py-2 text-right font-medium">Net (ex-GST)</th>
               <th className="px-3 py-2 text-right font-medium">GST</th>
               <th className="px-3 py-2 text-right font-medium">Price (incl.)</th>
+              <th className="px-3 py-2 text-right font-medium" title="HE's price for this size × 1.30 + GST, from the daily HE price check">
+                HE rule price
+              </th>
               <th className="px-3 py-2 text-right font-medium">Stock</th>
             </tr>
           </thead>
@@ -748,6 +763,21 @@ function VariantsPanel({
                       <span className={`ml-1 text-[11px] ${mod > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                         ({mod > 0 ? '+' : ''}{inr(mod)})
                       </span>
+                    )}
+                  </td>
+                  {/* HE's own price for THIS size through the owner's rule. Amber only when it is above what we
+                      charge (we would be selling below HE's rule); equal or lower is normal. */}
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {v.he ? (
+                      <span
+                        className={v.he.below ? 'font-medium text-amber-600' : 'text-slate-500'}
+                        title={`HE ₹${v.he.heEx} ex-GST (₹${v.he.heIncl} incl) × 1.30 + GST`}
+                      >
+                        {inrExact(v.he.target)}
+                        {v.he.below && <span className="ml-1 text-[10px]">below HE</span>}
+                      </span>
+                    ) : (
+                      <span className="text-slate-300">—</span>
                     )}
                   </td>
                   <td className="px-3 py-2 text-right">

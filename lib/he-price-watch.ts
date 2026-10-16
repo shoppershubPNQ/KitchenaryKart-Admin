@@ -18,6 +18,8 @@ export { HE_WATCH_ROLES } from '@/lib/he-price-watch-shared';
 export const HE_WATCH_KEY = 'he_price_watch';
 /** Starts with HE_WATCH_KEY on purpose: one prefix covers every row this feature owns. */
 export const HE_WATCH_SEEN_PREFIX = 'he_price_watch_seen:';
+/** HE's price for EVERY matched size (not only rises), for the products list's per-size comparison. */
+export const HE_WATCH_SIZES_KEY = 'he_price_watch_sizes';
 
 const MARGIN = 1.3;
 /** A jump this large is more often a feed mistake than a real rise — the owner checks with HE first. */
@@ -74,6 +76,38 @@ export interface HeWatchSnapshot {
   gstDiffers: number;
   /** Sizes found in the HE feed and compared. */
   examined: number;
+  /** HE's GST-inclusive price and GST rate per matched SKU (upper-case). Saved in its own settings row by
+   *  saveHeWatch and never stored in, or sent with, the pop-up snapshot. */
+  sizes?: Record<string, [number, number]>;
+}
+
+/** HE's price for one size run through the owner's rule, for display beside ours. */
+export interface HeSizePrice {
+  heIncl: number;
+  heTax: number;
+  heEx: number;
+  /** heEx × 1.30, before GST goes back on. */
+  marked: number;
+  /** What we would list it at: heEx × 1.30 × (1 + our GST). */
+  target: number;
+  /** True when HE's rule price is more than ₹1 above what we charge — the case the owner acts on. */
+  below: boolean;
+}
+
+/** HE's price for a size against ours, or null when HE has no price for it or its GST differs from ours.
+ *  `kept` (an owner-fixed price, see KEEP) is never reported as below HE — same as the pop-up. */
+export function heSizePrice(entry: [number, number] | undefined, ourGst: number, ours: number, kept = false): HeSizePrice | null {
+  if (!entry) return null;
+  const [heIncl, heTax] = entry;
+  if (heTax !== ourGst) return null;
+  const heEx = r2(heIncl / (1 + heTax / 100));
+  const target = targetPrice(heEx, ourGst);
+  return { heIncl, heTax, heEx, marked: r2(heEx * MARGIN), target, below: !kept && target - ours > MIN_DIFF };
+}
+
+/** True for an owner-fixed price (by size SKU or its listing's SKU). */
+export function isKept(sku: string, listingSku: string): boolean {
+  return Boolean(KEEP[sku.toUpperCase()] ?? KEEP[listingSku.toUpperCase()]);
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -138,6 +172,7 @@ export async function computeHeIncreases(): Promise<HeWatchSnapshot> {
   });
 
   const items: HeIncrease[] = [];
+  const sizes: Record<string, [number, number]> = {};
   let gstDiffers = 0;
   let examined = 0;
   for (const p of listings) {
@@ -154,6 +189,7 @@ export async function computeHeIncreases(): Promise<HeWatchSnapshot> {
       const h = he.get(r.sku.toUpperCase());
       if (!h) continue;
       examined++;
+      sizes[r.sku.toUpperCase()] = [h.incl, h.tax];
       if (h.tax !== gst) { gstDiffers++; continue; }
       if (KEEP[r.sku.toUpperCase()] ?? KEEP[p.sku.toUpperCase()]) continue;
       const heEx = r2(h.incl / (1 + h.tax / 100));
@@ -168,7 +204,7 @@ export async function computeHeIncreases(): Promise<HeWatchSnapshot> {
 
   if (examined === 0) throw new Error('No listing matched the HE feed — keeping the last check.');
   items.sort((a, b) => b.diff - a.diff);
-  return { checkedAt: new Date().toISOString(), items: items.slice(0, MAX_STORED), total: items.length, gstDiffers, examined };
+  return { checkedAt: new Date().toISOString(), items: items.slice(0, MAX_STORED), total: items.length, gstDiffers, examined, sizes };
 }
 
 export async function saveHeWatch(snapshot: HeWatchSnapshot): Promise<void> {
@@ -178,12 +214,33 @@ export async function saveHeWatch(snapshot: HeWatchSnapshot): Promise<void> {
       `HE feed matched only ${snapshot.examined} sizes (${prev.examined} last time) — not saved, the last check is kept.`
     );
   }
-  const value = JSON.stringify(snapshot);
+  const { sizes, ...main } = snapshot;
+  const value = JSON.stringify(main);
   await prisma.setting.upsert({
     where: { key: HE_WATCH_KEY },
     create: { key: HE_WATCH_KEY, value, dataType: 'json' },
     update: { value, dataType: 'json' },
   });
+  if (sizes) {
+    const sizesValue = JSON.stringify({ checkedAt: snapshot.checkedAt, sizes });
+    await prisma.setting.upsert({
+      where: { key: HE_WATCH_SIZES_KEY },
+      create: { key: HE_WATCH_SIZES_KEY, value: sizesValue, dataType: 'json' },
+      update: { value: sizesValue, dataType: 'json' },
+    });
+  }
+}
+
+/** HE's price per size from the last daily check; null before the first check or if the row is unreadable. */
+export async function readHeSizes(): Promise<{ checkedAt: string; sizes: Record<string, [number, number]> } | null> {
+  const row = await prisma.setting.findUnique({ where: { key: HE_WATCH_SIZES_KEY } });
+  if (!row?.value) return null;
+  try {
+    const s = JSON.parse(row.value);
+    return s && s.sizes && typeof s.sizes === 'object' ? s : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Tolerant read — a missing or broken row is "not checked yet", never an error. */

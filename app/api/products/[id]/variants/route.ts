@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { fail, handleError, ok } from '@/lib/api';
+import { heSizePrice, isKept, readHeSizes, type HeSizePrice } from '@/lib/he-price-watch';
 
 const createSchema = z.object({
   variantType: z.string().min(1),
@@ -33,11 +34,27 @@ const createSchema = z.object({
 export const GET = withAuth(async (_req, { params }) => {
   try {
     const productId = parseInt(params.id);
-    const variants = await prisma.productVariant.findMany({
-      where: { productId },
-      orderBy: [{ variantType: 'asc' }, { variantValue: 'asc' }, { id: 'asc' }],
-    });
-    return ok({ variants });
+    const [variants, product, heSizes] = await Promise.all([
+      prisma.productVariant.findMany({
+        where: { productId },
+        orderBy: [{ variantType: 'asc' }, { variantValue: 'asc' }, { id: 'asc' }],
+      }),
+      prisma.product.findUnique({ where: { id: productId }, select: { sku: true, price: true, taxPercent: true } }),
+      readHeSizes(),
+    ]);
+    // HE's own price for each size, from the daily HE price check — keyed by variant id; a size HE does not
+    // list (or prices at a different GST) is simply absent. Display only.
+    const he: Record<number, HeSizePrice> = {};
+    if (product && heSizes) {
+      const gst = product.taxPercent == null ? 18 : Number(product.taxPercent);
+      for (const v of variants) {
+        if (!v.skuSuffix) continue;
+        const ours = v.price != null ? Number(v.price) : Number(product.price) + Number(v.priceModifier ?? 0);
+        const h = heSizePrice(heSizes.sizes[v.skuSuffix.toUpperCase()], gst, ours, isKept(v.skuSuffix, product.sku));
+        if (h) he[v.id] = h;
+      }
+    }
+    return ok({ variants, he });
   } catch (e) {
     return handleError(e);
   }
