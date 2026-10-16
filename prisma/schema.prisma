@@ -1248,3 +1248,104 @@ model CheckoutFeedback {
   @@index([sessionId])
   @@map("checkout_feedback")
 }
+
+/// One website chatbot conversation (one browser chat). Written only by the
+/// public chat route (app/api/public/chat); read by admin → Chatbot → Chat logs.
+/// `id` is also the browser's chat token (random UUID v4), so it must stay
+/// unguessable. Tables created by raw SQL (scripts/create-chatbot-tables.ts):
+/// the build-time `db push` refuses this schema because of unrelated drift.
+model ChatSession {
+  id                String    @id @default(uuid()) @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  /// Model fixed when the chat started: an admin model switch applies only to
+  /// new chats (thinking blocks and the prompt cache are model-bound).
+  model             String    @db.VarChar(40)
+  /// SHA-256 (hex) of the chat token only the widget holds; a chat continues
+  /// only with {sessionId, chatToken}. Null = cannot be continued.
+  tokenHash         String?   @map("token_hash") @db.VarChar(64)
+  /// Hash of SYSTEM_PROMPT + TOOLS. A chat started under another prompt is
+  /// not replayed - a new session starts instead (lib/chatbot/claude.ts).
+  promptVersion     String    @map("prompt_version") @db.VarChar(16)
+  /// HMAC of the client IP - never the IP itself.
+  ipHash            String?   @map("ip_hash") @db.VarChar(64)
+  userAgent         String?   @map("user_agent") @db.VarChar(300)
+  /// Page path the chat started on (untrusted, capped).
+  startPath         String?   @map("start_path") @db.VarChar(300)
+  /// web/lib/track.ts currentSessionId(), to read the chat beside the visit.
+  trackingSessionId String?   @map("tracking_session_id") @db.VarChar(40)
+  /// Customer messages accepted in this chat (the per-chat cap counts these).
+  userMessageCount  Int       @default(0) @map("user_message_count")
+  inputTokens       Int       @default(0) @map("input_tokens")
+  outputTokens      Int       @default(0) @map("output_tokens")
+  cacheReadTokens   Int       @default(0) @map("cache_read_tokens")
+  cacheWriteTokens  Int       @default(0) @map("cache_write_tokens")
+  /// Approximate USD spend (lib/chatbot/pricing.ts).
+  costUsd           Decimal   @default(0) @map("cost_usd") @db.Decimal(10, 6)
+  /// Inquiry created by save_lead (plain id, no FK: Inquiry stays untouched).
+  leadInquiryId     Int?      @map("lead_inquiry_id")
+  orderLookups      Int       @default(0) @map("order_lookups")
+  handoffShown      Boolean   @default(false) @map("handoff_shown")
+  /// One turn at a time per chat: set while a reply is being generated.
+  busyUntil         DateTime? @map("busy_until")
+  /// Set when the chat must not continue (e.g. a history error); the next
+  /// message starts a new session.
+  closedAt          DateTime? @map("closed_at")
+  lastError         String?   @map("last_error") @db.VarChar(500)
+
+  messages ChatMessage[]
+
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([ipHash, createdAt])
+  @@index([leadInquiryId])
+  @@map("chat_sessions")
+}
+
+/// One Anthropic message in a chat, append-only. `content` is the exact block
+/// array sent to / received from Claude and is replayed byte-for-byte on later
+/// turns, so it is stored as `json` (keeps key order), NOT `jsonb`.
+model ChatMessage {
+  id               BigInt      @id @default(autoincrement())
+  sessionId        String      @map("session_id") @db.Uuid
+  session          ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  /// 'user' | 'assistant'
+  role             String      @db.VarChar(12)
+  /// 'customer' | 'tool_call' | 'tool_result' | 'reply' | 'guard'
+  kind             String      @db.VarChar(16)
+  /// false = never sent to Claude again (refused / failed turn, kept for the log).
+  replay           Boolean     @default(true)
+  content          Json        @db.Json
+  /// Plain text for the log view (customer text, visible reply, tool summary).
+  text             String?
+  /// Summarised tool calls/results for the log: [{name, input?, ok?, summary}].
+  toolCalls        Json?       @map("tool_calls")
+  /// Model that produced an assistant row (may be a server-side fallback model).
+  model            String?     @db.VarChar(40)
+  /// 'end_turn' | 'tool_use' | 'max_tokens' | 'refusal:<category>' | 'error:<code>' | 'guard_rejected'
+  stopReason       String?     @map("stop_reason") @db.VarChar(40)
+  inputTokens      Int         @default(0) @map("input_tokens")
+  outputTokens     Int         @default(0) @map("output_tokens")
+  cacheReadTokens  Int         @default(0) @map("cache_read_tokens")
+  cacheWriteTokens Int         @default(0) @map("cache_write_tokens")
+  costUsd          Decimal     @default(0) @map("cost_usd") @db.Decimal(10, 6)
+  createdAt        DateTime    @default(now()) @map("created_at")
+
+  @@index([sessionId, id])
+  @@index([createdAt])
+  @@index([kind, createdAt])
+  @@map("chat_messages")
+}
+
+/// Fixed-window counters for the public chat route (the admin app has no
+/// Redis). Keys: 'global', 'ip:<hash>', 'day:<YYYY-MM-DD IST>',
+/// 'trk:ord:<order>', 'trk:ip:<hash>', 'lead:ip:<hash>', 'lead:day:<YYYY-MM-DD IST>'.
+model ChatRateLimit {
+  key         String   @id @db.VarChar(100)
+  windowStart DateTime @map("window_start")
+  count       Int      @default(0)
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([updatedAt])
+  @@map("chat_rate_limits")
+}

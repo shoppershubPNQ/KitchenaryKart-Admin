@@ -4,18 +4,23 @@ import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { fail, handleError, ok } from '@/lib/api';
 import { HE_WATCH_KEY } from '@/lib/he-price-watch';
+import { CHATBOT_SETTING_PREFIX } from '@/lib/chatbot/models'; // 'chatbot_' (no-deps module)
 
 // Rows owned by their own pages, kept off this plain key/value editor: the HE API key (lib/sync-connection.ts,
-// only ever shown masked on the Sync page) and the HE price-watch snapshot + per-user "seen" rows, which a
-// hand edit would break.
+// only ever shown masked on the Sync page), the HE price-watch snapshot + per-user "seen" rows, which a
+// hand edit would break, and the website chatbot's rows (encrypted Anthropic key + its settings -
+// lib/chatbot/config.ts, edited only on Dashboard → Chatbot).
 const HE_API_KEY = 'sync_he_api_key';
-const isManagedElsewhere = (key: string) => key === HE_API_KEY || key.startsWith(HE_WATCH_KEY);
+const isManagedElsewhere = (key: string) =>
+  key === HE_API_KEY || key.startsWith(HE_WATCH_KEY) || key.startsWith(CHATBOT_SETTING_PREFIX);
 
 // Admin only: the Settings page is the only caller, and its link is admin-only.
 export const GET = withAuth(async () => {
   try {
     const rows = await prisma.setting.findMany({
-      where: { NOT: [{ key: HE_API_KEY }, { key: { startsWith: HE_WATCH_KEY } }] },
+      where: {
+        NOT: [{ key: HE_API_KEY }, { key: { startsWith: HE_WATCH_KEY } }, { key: { startsWith: CHATBOT_SETTING_PREFIX } }],
+      },
       orderBy: { key: 'asc' },
     });
     return ok({ settings: rows });

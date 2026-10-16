@@ -34,6 +34,7 @@ export type IconName =
   | 'sync'
   | 'integrations'
   | 'processing'
+  | 'chat'
   | 'chevron';
 
 // Each entry is the inner markup of a 24×24 viewBox icon. Strokes only, so
@@ -196,6 +197,8 @@ const PATHS: Record<IconName, JSX.Element> = {
       <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
     </>
   ),
+  // A speech bubble — the website chatbot.
+  chat: (<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />),
   chevron: <path d="M9 6l6 6-6 6" />,
 };
 

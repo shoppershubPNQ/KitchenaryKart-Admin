@@ -90,6 +90,7 @@ const SECTIONS: NavSection[] = [
       { href: '/dashboard/sync', label: 'Sync', icon: 'sync', roles: ['admin'] },
       { href: FULL_LIST_HREF, label: 'HE price rises', icon: 'analytics', roles: HE_WATCH_ROLES },
       { href: '/dashboard/integrations', label: 'Integrations', icon: 'integrations', roles: ['admin'] },
+      { href: '/dashboard/chatbot', label: 'Chatbot', icon: 'chat', roles: ['admin'] },
       { href: '/dashboard/users', label: 'Admin users', icon: 'users', roles: ['admin'] },
       { href: '/dashboard/settings', label: 'Settings', icon: 'settings', roles: ['admin'] },
     ],
