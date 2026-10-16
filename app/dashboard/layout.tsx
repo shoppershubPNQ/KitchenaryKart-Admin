@@ -2,6 +2,8 @@ import { getServerSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { Sidebar } from '@/components/Sidebar';
 import { Topbar } from '@/components/Topbar';
+import { HePriceWatchPopup } from '@/components/HePriceWatchPopup';
+import { HE_WATCH_ROLES } from '@/lib/he-price-watch-shared';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = getServerSession();
@@ -14,6 +16,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Topbar user={user} />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
+      {HE_WATCH_ROLES.includes(user.role) && <HePriceWatchPopup />}
     </div>
   );
 }

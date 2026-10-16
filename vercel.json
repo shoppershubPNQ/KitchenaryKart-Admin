@@ -24,6 +24,10 @@
     {
       "path": "/api/cron/partner-scan",
       "schedule": "45 1 * * *"
+    },
+    {
+      "path": "/api/cron/he-price-watch",
+      "schedule": "15 2 * * *"
     }
   ]
 }
