@@ -25,7 +25,9 @@ import {
   isBadRequest,
   MAX_TOKENS,
   MAX_TOKENS_RETRY,
+  PhotoRejected,
   sanitizeAssistantContent,
+  scrubSecrets,
   stripThinking,
   TurnFailure,
   TurnTimeout,
@@ -49,9 +51,13 @@ export interface TurnInput {
   model: ChatModel;
   /** replay=true rows, exactly as stored. */
   history: MsgParam[];
-  /** [context block?] + the customer's text block. */
+  /** [photo + photo context?] + [page context?] + the customer's text block
+   *  (no text block for a photo-only message). */
   userContent: ContentBlockParam[];
   customerText: string;
+  /** Stored as the customer row's tool_calls (photo metadata for the admin
+   *  log and the per-chat photo count). Customer rows have no tool calls. */
+  customerMeta?: unknown;
   ctx: ToolCtx;
   /** Epoch ms. */
   deadline: number;
@@ -234,7 +240,14 @@ export async function runChatTurn(input: TurnInput, deps: TurnDeps): Promise<Tur
   const MSG = messagesFor(input.hindi);
   const messages: MsgParam[] = [...input.history, { role: 'user', content: input.userContent }];
   const rows: TurnRow[] = [
-    { role: 'user', kind: 'customer', replay: true, content: input.userContent, text: input.customerText },
+    {
+      role: 'user',
+      kind: 'customer',
+      replay: true,
+      content: input.userContent,
+      text: input.customerText,
+      ...(input.customerMeta !== undefined ? { toolCalls: input.customerMeta } : {}),
+    },
   ];
   const forget = () => rows.forEach((r) => (r.replay = false));
 
@@ -243,6 +256,10 @@ export async function runChatTurn(input: TurnInput, deps: TurnDeps): Promise<Tur
   let guardUsed = false;
   let retriedMaxTokens = false;
   let strippedHistory = false;
+  /** The customer sent a photo with this message. */
+  const turnHasImage = input.userContent.some((b) => b.type === 'image');
+  /** Claude has answered at least one request of this turn (so it accepted the photo). */
+  let gotResponse = false;
   let turnCost = 0;
   let bindingDrops = 0;
   let bindingNote: string | undefined;
@@ -269,19 +286,35 @@ export async function runChatTurn(input: TurnInput, deps: TurnDeps): Promise<Tur
       try {
         res = await deps.callClaude(params, Math.min(25_000, deadline - deps.now()));
       } catch (e) {
-        // A 400 on a request whose only variable part is the replayed history
-        // (e.g. a thinking signature that no longer verifies, always a 400
-        // whatever drop_block says): the documented one-time recovery is to
-        // strip every thinking block from the history and retry once. A second
-        // 400 is classified below and closes the chat.
+        // A 400 before Claude answered anything in a turn that carries a NEW
+        // photo (a file with a valid header but broken image data, an odd
+        // encoding, a model without image input): only this photo failed, so
+        // answer photo_invalid and keep the chat (the turn's rows are stored
+        // with replay=false, so the history stays append-only and the photo is
+        // not counted as answered). With a history, the replayed-history
+        // retry below runs first - the 400 may be the history's fault, and
+        // stripping it then lets the photo through; if the retry is refused
+        // too, it is the photo. A new chat has no history to blame.
+        if (isBadRequest(e) && turnHasImage && !gotResponse && (strippedHistory || input.history.length === 0)) {
+          throw new PhotoRejected(scrubSecrets(e instanceof Error ? e.message : String(e)));
+        }
+        // A 400 on a request whose only other variable part is the replayed
+        // history (e.g. a thinking signature that no longer verifies, always
+        // a 400 whatever drop_block says): the documented one-time recovery is
+        // to strip every thinking block from the history and retry once. A
+        // second 400 is classified below and closes the chat (or, in a photo
+        // turn, is answered as photo_invalid above).
         if (!strippedHistory && input.history.length > 0 && isBadRequest(e)) {
           strippedHistory = true;
           messages.splice(0, messages.length, ...stripThinking(messages));
-          console.warn(`[chatbot] 400 on a replayed history - retrying once without thinking blocks (session ${ctx.sessionId})`);
+          console.warn(
+            `[chatbot] 400 on a replayed history${turnHasImage && !gotResponse ? ' (this message has a photo, which may be the cause)' : ''} - retrying once without thinking blocks (session ${ctx.sessionId})`,
+          );
           continue;
         }
         throw e;
       }
+      gotResponse = true;
 
       const raw = usageOf(res, model);
       turnCost += raw.costUsd;

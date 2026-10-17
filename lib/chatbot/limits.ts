@@ -88,10 +88,28 @@ export function normalizeIp(raw: string): string | null {
   return h ? `${h.slice(0, 4).join(':')}::/64` : ip.toLowerCase();
 }
 
+let warnedUnsigned = false;
+/** Logged once per cold start in production (never a value): without a signed
+ *  IP, a request through the /admin-api rewrite may carry the storefront
+ *  proxy's address, so every shopper would share one per-visitor limit (and
+ *  one photo limit). Fix: CHATBOT_PROXY_SECRET, 32+ characters, the same value
+ *  in BOTH Vercel projects (Dashboard -> Chatbot shows whether it is set). */
+function noteUnsignedIp(): void {
+  if (warnedUnsigned || process.env.NODE_ENV !== 'production') return;
+  warnedUnsigned = true;
+  console.warn(
+    chatProxySecret()
+      ? '[chatbot] a chat request without a valid signed visitor IP (missing, stale or bad x-kk-client-sig) - using proxy headers'
+      : '[chatbot] CHATBOT_PROXY_SECRET is not set - visitor IPs come from proxy headers and may all be the storefront proxy',
+  );
+}
+
 /** The visitor network for rate limits: storefront-signed IP first, then
  *  x-forwarded-for / x-real-ip (same order as web/lib/rate-limit.ts). */
 export function clientIp(req: NextRequest): string | null {
-  const raw = signedProxyIp(req) ?? (req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip'))?.split(',')[0]?.trim();
+  const signed = signedProxyIp(req);
+  if (!signed) noteUnsignedIp();
+  const raw = signed ?? (req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip'))?.split(',')[0]?.trim();
   return raw ? normalizeIp(raw) : null;
 }
 

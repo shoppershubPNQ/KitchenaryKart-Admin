@@ -18,11 +18,12 @@ import {
   saveSettings,
   setApiKey,
   setKeyStatus,
+  setPhotosEnabled,
   type ChatbotConfig,
   type ChatbotSettings,
 } from './config';
-import { PROMPT_VERSION, scrubSecrets, testKey } from './claude';
-import { getSessionTranscript, listSessions, usageSummary, type SessionFilter } from './store';
+import { PROMPT_VERSION, scrubSecrets, testKey, type KeyTestResult } from './claude';
+import { chatLogBytes, getCustomerPhoto, getSessionTranscript, listSessions, usageSummary, type SessionFilter } from './store';
 
 /** Handler result: a JSON body with a status, or an error message. */
 export type AdminResult = { ok: true; body: unknown; status?: number } | { ok: false; error: string; status: number };
@@ -39,6 +40,11 @@ function keyObject(cfg: ChatbotConfig) {
   };
 }
 
+/** A successful Test also records whether the model accepts photos. */
+async function notePhotos(t: KeyTestResult): Promise<void> {
+  if (t.status === 'ok' && typeof t.photos === 'boolean') await setPhotosEnabled(t.photos);
+}
+
 /** GET /api/chatbot body (also returned by PUT). */
 export async function chatbotStatus() {
   const cfg = await loadChatbotConfig();
@@ -52,6 +58,8 @@ export async function chatbotStatus() {
     usageError = 'Usage is unavailable - have the chat tables been created (scripts/create-chatbot-tables.ts)?';
     console.error('[chatbot] usage query failed:', scrubSecrets(e instanceof Error ? e.message : String(e)).slice(0, 200));
   }
+  // Database space of the chat log (customer photos are kept with their chat).
+  const logBytes = usage ? await chatLogBytes().catch(() => null) : null;
   return {
     encryptionAvailable,
     key: keyObject(cfg),
@@ -75,9 +83,16 @@ export async function chatbotStatus() {
       maxLeadsPerChat: LIMITS.maxLeadsPerSession,
       /** CHATBOT_PROXY_SECRET is set: the visitor IP is signed by the website. */
       visitorIpSigned: chatProxySecret() !== null,
+      maxPhotosPerChat: LIMITS.maxPhotosPerChat,
+      maxPhotosPerIpPerHour: LIMITS.maxPhotosPerIpPerHour,
+      maxPhotosPerDay: LIMITS.maxPhotosPerDay,
+      /** False when the last Test found the model takes no image input. */
+      photosEnabled: cfg.photosEnabled,
     },
     usage,
     usageError,
+    /** Bytes of the chat_messages table (with indexes), or null when unknown. */
+    chatLogBytes: logBytes,
     promptVersion: PROMPT_VERSION,
   };
 }
@@ -124,7 +139,8 @@ export async function updateChatbotSettings(raw: unknown): Promise<AdminResult> 
   const b = parsed.data;
   const cfg = await loadChatbotConfig();
   const partial: Partial<ChatbotSettings> = {};
-  let modelTested = false;
+  /** The Test of a new model (it passed), or null. */
+  let modelTested: KeyTestResult | null = null;
 
   if (b.model && b.model !== cfg.model) {
     if (cfg.keyState === 'present') {
@@ -132,7 +148,7 @@ export async function updateChatbotSettings(raw: unknown): Promise<AdminResult> 
       if (!key) return { ok: false, error: 'The saved key cannot be decrypted - please re-enter it.', status: 409 };
       const t = await testKey(key, b.model);
       if (t.status !== 'ok') return { ok: false, error: `The key could not use ${b.model}: ${t.detail}`, status: 400 };
-      modelTested = true;
+      modelTested = t;
     } else if (cfg.keyState === 'unreadable') {
       return { ok: false, error: 'The saved key cannot be decrypted - please re-enter it.', status: 409 };
     }
@@ -161,7 +177,10 @@ export async function updateChatbotSettings(raw: unknown): Promise<AdminResult> 
   }
 
   await saveSettings(partial);
-  if (modelTested) await setKeyStatus('ok', null);
+  if (modelTested) {
+    await setKeyStatus('ok', null);
+    await notePhotos(modelTested);
+  }
   return { ok: true, body: await chatbotStatus() };
 }
 
@@ -218,9 +237,10 @@ export async function chatbotKeyAction(raw: unknown, adminEmail: string): Promis
     // cannot make the chat worse; the status shows what is wrong).
     await setApiKey(key, adminEmail);
     await setKeyStatus(t.status, t.status === 'ok' ? null : t.detail);
+    await notePhotos(t);
     return {
       ok: true,
-      body: { key: keyObject(await loadChatbotConfig()), test: { ok: t.status === 'ok', status: t.status, detail: t.detail } },
+      body: { key: keyObject(await loadChatbotConfig()), test: { ok: t.status === 'ok', status: t.status, detail: t.detail, photos: t.photos } },
     };
   }
 
@@ -231,9 +251,10 @@ export async function chatbotKeyAction(raw: unknown, adminEmail: string): Promis
   if (!key) return { ok: false, error: 'The saved key cannot be decrypted - please re-enter it.', status: 409 };
   const t = await testKey(key, cfg.model);
   await setKeyStatus(t.status, t.status === 'ok' ? null : t.detail);
+  await notePhotos(t);
   return {
     ok: true,
-    body: { key: keyObject(await loadChatbotConfig()), test: { ok: t.status === 'ok', status: t.status, detail: t.detail } },
+    body: { key: keyObject(await loadChatbotConfig()), test: { ok: t.status === 'ok', status: t.status, detail: t.detail, photos: t.photos } },
   };
 }
 
@@ -254,6 +275,23 @@ export async function chatbotTranscript(id: string): Promise<AdminResult> {
   const t = await getSessionTranscript(id);
   if (!t) return { ok: false, error: 'Chat not found.', status: 404 };
   return { ok: true, body: t };
+}
+
+/**
+ * GET /api/chatbot/sessions/[id]/photos/[messageId] - a customer's chat photo
+ * for the admin log thumbnail (admin role only, never public). The bytes come
+ * from the stored image block of that one customer row and are re-checked
+ * against the allow-listed formats before they are served.
+ */
+export async function chatbotPhoto(
+  sessionId: string,
+  messageId: string,
+): Promise<{ ok: true; mediaType: string; bytes: Buffer } | { ok: false; error: string; status: number }> {
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return { ok: false, error: 'Invalid session id.', status: 400 };
+  if (!/^[1-9][0-9]{0,17}$/.test(messageId)) return { ok: false, error: 'Invalid message id.', status: 400 };
+  const photo = await getCustomerPhoto(sessionId, BigInt(messageId));
+  if (!photo) return { ok: false, error: 'Photo not found.', status: 404 };
+  return { ok: true, mediaType: photo.mediaType, bytes: photo.bytes };
 }
 
 /** Error text for an admin chatbot route: scrubbed, short, logged without

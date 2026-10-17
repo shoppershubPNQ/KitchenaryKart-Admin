@@ -42,6 +42,9 @@ export const KEYS = {
   ipLimit: 'chatbot_ip_limit',
   dailyCostCapUsd: 'chatbot_daily_cost_cap_usd',
   greeting: 'chatbot_greeting',
+  /** 'false' when the last successful key Test found that the model takes no
+   *  image input (testKey -> photos); no row = photos on. */
+  photosEnabled: 'chatbot_photos_enabled',
 } as const;
 
 /** The seven key rows `clear` deletes. */
@@ -80,6 +83,9 @@ export interface ChatbotSettings {
 }
 
 export interface ChatbotConfig extends ChatbotSettings {
+  /** Customer photos accepted (the model takes image input). Not admin-edited:
+   *  set by every successful key Test. */
+  photosEnabled: boolean;
   keyState: KeyState;
   keyHint: string | null;
   keyStatus: KeyStatus | null;
@@ -129,6 +135,7 @@ export async function loadChatbotConfig(): Promise<ChatbotConfig> {
       DEFAULTS.dailyCostCapUsd,
     ),
     greeting: greeting ? greeting.slice(0, SETTING_RANGES.greetingMaxChars) : DEFAULTS.greeting,
+    photosEnabled: get(KEYS.photosEnabled) !== 'false',
     keyState,
     keyHint: keyState === 'none' ? null : nonBlank(get(KEYS.apiKeyHint)),
     keyStatus: keyState === 'none' ? null : KEY_STATUSES.includes(status as KeyStatus) ? (status as KeyStatus) : 'unverified',
@@ -182,6 +189,13 @@ export async function setKeyStatus(status: KeyStatus, error: string | null): Pro
   } else {
     await prisma.$transaction([status_, checked, prisma.setting.deleteMany({ where: { key: KEYS.apiKeyLastError } })]);
   }
+}
+
+/** After a successful Test: whether the model accepts photos (testKey ->
+ *  photos). The widget hides its camera and the route refuses photos while
+ *  this is false. */
+export async function setPhotosEnabled(on: boolean): Promise<void> {
+  await upsert(KEYS.photosEnabled, on ? 'true' : 'false', 'boolean');
 }
 
 /** Upsert the admin-editable settings that are present in `partial`. */

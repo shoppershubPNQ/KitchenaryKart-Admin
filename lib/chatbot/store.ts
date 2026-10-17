@@ -12,6 +12,7 @@ import { prisma } from '../db';
 import { isChatModel, LIMITS, type ChatModel } from './models';
 import { PROMPT_VERSION, scrubSecrets, type MsgParam } from './claude';
 import { istDayStartUtc } from './limits';
+import { isCustomerPhotoMeta, storedPhoto } from './photo';
 import type { TurnOutcome, TurnRow } from './turn';
 
 export interface SessionRow {
@@ -66,9 +67,12 @@ export async function findReusableSession(sessionId: string, chatToken: string):
 }
 
 /** Claim an existing chat for one turn: per-chat cap + one turn at a time,
- *  atomically. Returns the new customer-message count, or null when the chat
- *  is at its cap or a reply is still being generated. */
-export async function claimSession(sessionId: string, sessionCap: number): Promise<number | null> {
+ *  atomically. With `photoCap` > 0 (the message carries a photo) the chat must
+ *  also hold fewer than that many answered photos - checked in the same
+ *  statement, so a photo turn that finishes just before this claim is
+ *  counted. Returns the new customer-message count, or null when the chat is
+ *  at a cap or a reply is still being generated. */
+export async function claimSession(sessionId: string, sessionCap: number, photoCap = 0): Promise<number | null> {
   const claimed = await prisma.$queryRaw<Array<{ user_message_count: number }>>`
     UPDATE chat_sessions
        SET user_message_count = user_message_count + 1,
@@ -78,6 +82,13 @@ export async function claimSession(sessionId: string, sessionCap: number): Promi
        AND closed_at IS NULL
        AND user_message_count < ${sessionCap}
        AND (busy_until IS NULL OR busy_until < (now() AT TIME ZONE 'UTC'))
+       AND (${photoCap}::int = 0 OR (
+             SELECT count(*) FROM chat_messages m
+              WHERE m.session_id = ${sessionId}::uuid
+                AND m.kind = 'customer'
+                AND m.replay = true
+                AND m.tool_calls -> 'photo' IS NOT NULL
+           ) < ${photoCap}::int)
     RETURNING user_message_count`;
   return claimed[0] ? Number(claimed[0].user_message_count) : null;
 }
@@ -112,19 +123,65 @@ export async function createSession(d: {
 
 /** The replayable history (replay=true rows, in order, exactly as stored) and
  *  every earlier customer text (save_lead accepts only a phone number the
- *  customer typed). */
+ *  customer typed). Two queries, so `content` (which may hold a photo) is
+ *  read only for the rows that are replayed - never for a refused or failed
+ *  turn's rows. */
 export async function loadHistory(sessionId: string): Promise<{ history: MsgParam[]; priorCustomerTexts: string[] }> {
-  const rows = await prisma.chatMessage.findMany({
-    where: { sessionId },
-    orderBy: { id: 'asc' },
-    select: { role: true, kind: true, replay: true, content: true, text: true },
-  });
+  const [replayed, customer] = await Promise.all([
+    prisma.chatMessage.findMany({
+      where: { sessionId, replay: true },
+      orderBy: { id: 'asc' },
+      select: { role: true, content: true },
+    }),
+    prisma.chatMessage.findMany({
+      where: { sessionId, kind: 'customer' },
+      orderBy: { id: 'asc' },
+      select: { text: true },
+    }),
+  ]);
   return {
-    history: rows
-      .filter((r) => r.replay)
-      .map((r) => ({ role: r.role as 'user' | 'assistant', content: r.content as unknown as MsgParam['content'] })),
-    priorCustomerTexts: rows.filter((r) => r.kind === 'customer' && r.text).map((r) => r.text as string),
+    history: replayed.map((r) => ({ role: r.role as 'user' | 'assistant', content: r.content as unknown as MsgParam['content'] })),
+    priorCustomerTexts: customer.filter((r) => r.text).map((r) => r.text as string),
   };
+}
+
+/** Photos answered in this chat: replayed customer rows with photo metadata
+ *  (photo.ts CustomerPhotoMeta in tool_calls, jsonb - the image itself is not
+ *  read). A photo whose turn failed or was refused (replay=false) does not
+ *  count; the per-network and daily photo counters still do. Read only - the
+ *  binding check is in claimSession. */
+export async function countChatPhotos(sessionId: string): Promise<number> {
+  const rows = await prisma.$queryRaw<Array<{ n: bigint | number }>>`
+    SELECT count(*) AS n
+      FROM chat_messages
+     WHERE session_id = ${sessionId}::uuid
+       AND kind = 'customer'
+       AND replay = true
+       AND tool_calls -> 'photo' IS NOT NULL`;
+  return Number(rows[0]?.n ?? 0);
+}
+
+/** The log text of a customer message that was only a photo (public-chat.ts). */
+export const PHOTO_ONLY_TEXT = '(photo)';
+
+/** The customer's latest typed text in this chat (not a photo-only message's
+ *  "(photo)" placeholder) - for the reply language of a photo sent without
+ *  words. Read only. */
+export async function lastCustomerText(sessionId: string): Promise<string | null> {
+  const m = await prisma.chatMessage.findFirst({
+    where: { sessionId, kind: 'customer', NOT: { text: PHOTO_ONLY_TEXT } },
+    orderBy: { id: 'desc' },
+    select: { text: true },
+  });
+  return m?.text ?? null;
+}
+
+/** Database space used by the chat log (chat_messages with its indexes and
+ *  TOAST - customer photos are the largest part), in bytes. Read only. */
+export async function chatLogBytes(): Promise<number> {
+  const rows = await prisma.$queryRaw<Array<{ n: bigint | number | null }>>`
+    SELECT pg_total_relation_size('chat_messages') AS n`;
+  return Number(rows[0]?.n ?? 0);
 }
 
 const dec = (n: number | undefined) => new Prisma.Decimal((n ?? 0).toFixed(6));
@@ -306,7 +363,8 @@ export async function listSessions(o: { offset: number; limit: number; filter: S
 }
 
 /** One transcript for the admin log. Never returns `content` (thinking
- *  signatures and raw blocks). */
+ *  signatures, raw blocks, photo bytes): a customer photo is flagged from the
+ *  row's metadata and fetched separately (getCustomerPhoto, admin only). */
 export async function getSessionTranscript(id: string) {
   const s = await prisma.chatSession.findUnique({
     where: { id },
@@ -330,6 +388,28 @@ export async function getSessionTranscript(id: string) {
   });
   return {
     session: listRow(s),
-    messages: messages.map((m) => ({ ...m, id: Number(m.id), costUsd: Number(m.costUsd) })),
+    messages: messages.map((m) => {
+      const meta = m.kind === 'customer' && isCustomerPhotoMeta(m.toolCalls) ? m.toolCalls : null;
+      const used = meta && Array.isArray(meta.photoHints?.used) ? meta.photoHints.used.filter((x) => typeof x === 'string') : [];
+      return {
+        ...m,
+        id: Number(m.id),
+        costUsd: Number(m.costUsd),
+        photo: meta
+          ? { mediaType: meta.photo.mediaType, bytes: Number(meta.photo.bytes) || 0, width: Number(meta.photo.width) || 0, height: Number(meta.photo.height) || 0, hints: used }
+          : null,
+      };
+    }),
   };
+}
+
+/** The photo of one customer row, for the admin-only photo route. Selects
+ *  `content` of that single row only; null when the row is not a customer
+ *  message of this chat or holds no valid image. */
+export async function getCustomerPhoto(sessionId: string, messageId: bigint) {
+  const m = await prisma.chatMessage.findFirst({
+    where: { id: messageId, sessionId, kind: 'customer' },
+    select: { content: true },
+  });
+  return m ? storedPhoto(m.content) : null;
 }

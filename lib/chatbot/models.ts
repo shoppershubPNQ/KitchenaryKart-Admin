@@ -44,11 +44,29 @@ export const LIMITS = {
   maxLookupsPerIpPerHour: 10,
   sessionIdleHours: 12,
   turnBudgetMs: 52_000,
+  /** Customer photos: one per message (the request shape); at most this many
+   *  ANSWERED photos per chat (replayed customer rows - a photo whose turn
+   *  failed does not use one up); and photo requests that reach Claude per
+   *  visitor network per hour and per IST day for the whole website (these two
+   *  bound retries and abuse, and the database growth: each photo is kept with
+   *  its chat, about 0.4 MB, and nothing deletes chat rows yet). A photo message
+   *  also counts as one message in every message cap, and its image tokens in
+   *  the daily spend cap. */
+  maxPhotosPerChat: 2,
+  maxPhotosPerIpPerHour: 4,
+  maxPhotosPerDay: 40,
 } as const;
 
 /** Cost reserved per in-flight reply when checking the daily spend cap
  *  (USD; a typical turn costs well below this). A single turn that runs past
- *  TURN_COST_CEILING_FACTOR x this is cut short (lib/chatbot/turn.ts). */
+ *  TURN_COST_CEILING_FACTOR x this is cut short (lib/chatbot/turn.ts).
+ *  A customer photo is re-sent on every call of the chat, mostly as a cache
+ *  read. The server enforces its size (photo.ts: long side <= 1100 px and at
+ *  most 1024 x 1024 pixels), so a photo is at most about ceil(w/28) x
+ *  ceil(h/28) = ~1,400 image tokens (the widget's 1024 px photos: 1,000-1,400):
+ *  well under $0.001 per call on Haiku 5.5 and about $0.003 / $0.006 on
+ *  Sonnet / Opus 5.5 uncached, so these reserves need no change. The real
+ *  cost is always taken from the response's usage (pricing.ts). */
 export const TURN_COST_RESERVE_USD: Record<ChatModel, number> = {
   'claude-haiku-5-5': 0.02,
   'claude-sonnet-5-5': 0.4,

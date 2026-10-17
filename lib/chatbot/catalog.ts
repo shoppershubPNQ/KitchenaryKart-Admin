@@ -409,3 +409,38 @@ export async function resolveActive(sku: string): Promise<{ name: string; sizeLa
   }
   return { name: p.name, sizeLabel: null, sku: p.sku };
 }
+
+/**
+ * For the "[Website photo context]" block: the photo-search SKUs the widget
+ * sent (already shape-checked by photo.ts cleanHintSkus), re-validated here.
+ * EXACT sku matches on ACTIVE products only (no case-insensitive fallback - a
+ * hint is not a typed code), a size sku mapping wins over a parent sku (same
+ * rule as searchCatalog), one entry per product, in the widget's order.
+ * Names and size labels come from the database, never from the request.
+ */
+export async function resolvePhotoHints(skus: string[]): Promise<Array<{ sku: string; name: string; sizeLabel: string | null }>> {
+  if (!skus.length) return [];
+  const [parents, variants] = await Promise.all([
+    prisma.product.findMany({ where: { sku: { in: skus }, status: 'active' }, select: { id: true, sku: true, name: true } }),
+    prisma.productVariant.findMany({
+      where: { skuSuffix: { in: skus }, product: { status: 'active' } },
+      select: { skuSuffix: true, productId: true, variantType: true, variantValue: true, product: { select: { name: true } } },
+    }),
+  ]);
+  const bySku = new Map<string, { productId: number; name: string; sizeLabel: string | null }>();
+  for (const p of parents) bySku.set(p.sku, { productId: p.id, name: p.name, sizeLabel: null });
+  for (const v of variants) {
+    if (!v.skuSuffix) continue;
+    const label = readableVariant(v.variantValue ?? '') || nonEmpty(v.variantType) || null;
+    bySku.set(v.skuSuffix, { productId: v.productId, name: v.product.name, sizeLabel: label });
+  }
+  const out: Array<{ sku: string; name: string; sizeLabel: string | null }> = [];
+  const seen = new Set<number>();
+  for (const s of skus) {
+    const m = bySku.get(s);
+    if (!m || seen.has(m.productId)) continue;
+    seen.add(m.productId);
+    out.push({ sku: s, name: m.name, sizeLabel: m.sizeLabel });
+  }
+  return out;
+}

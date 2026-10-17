@@ -4,17 +4,39 @@
  * storefront's middleware.ts may add a signed visitor IP - lib/chatbot/limits.ts).
  *
  * PUBLIC and costs money per message, so the order of checks matters and every
- * step returns early: origin -> body -> sanitise -> on/off -> limits (per
- * visitor FIRST, so a client over its own limit never uses up the shared
- * budgets; then global burst, replies in flight, daily messages) -> chat
- * lookup -> daily spend with a reservation for replies in flight -> key ->
- * session claim (per chat cap + one turn at a time) -> the Claude turn ->
- * persist.
+ * step returns early: origin -> body -> sanitise + photo check -> on/off ->
+ * limits (per visitor FIRST, so a client over its own limit never uses up the
+ * shared budgets; then global burst, replies in flight, daily messages) -> chat
+ * lookup -> per-chat photo cap (quick read) -> daily spend with a reservation
+ * for replies in flight -> key -> session claim (per chat cap + one turn at a
+ * time + per-chat photo cap, atomically) -> per-network / daily photo counters
+ * (only for a photo that will reach Claude) -> the Claude turn -> persist.
  *
  * Responses are always JSON with Cache-Control: no-store, and the widget shows
  * `reply` for every response. Error replies come from lib/chatbot/messages.ts,
  * never from an exception message. The API key never appears in a response
  * or a log line.
+ *
+ * Photos (optional `image`, one per message): validated in lib/chatbot/photo.ts
+ * (allow-listed type, magic bytes, byte and pixel caps), capped per chat / per
+ * visitor network / per day, refused while the model takes no image input
+ * (the admin key Test, config photosEnabled), and sent to Claude as a base64
+ * image block followed by a "[Website photo context]" text block that lists
+ * the widget's photo-search SKUs (`photoMatches`) re-validated against active
+ * products. The image block is stored in the customer row's content like any
+ * other block, so the history stays append-only and is replayed byte for byte.
+ * Base64 in chat_messages rather than the Files API because: uploaded files
+ * cannot be downloaded back, and the admin log needs our own copy anyway (the
+ * Files API would mean two copies plus delete handling, and a deleted file_id
+ * - or one lost when the organisation's 100 GB file storage is cleaned up -
+ * would break every later replay of that chat; files persist until deleted,
+ * typescript/claude-api/files-api.md); the Files API also does not reduce the
+ * tokens an image costs (shared/preserved-thinking-migration.md, images option
+ * (d)), and the bundled reference names base64 as a safe way to reference an
+ * image across turns (shared/model-migration.md, "Referencing an
+ * image/document by URL across turns"); with prompt caching the replayed
+ * image is mostly a cache read. Cost: about 0.4 MB of database per photo, at
+ * most 2 answered per chat (Dashboard -> Chatbot shows the chat log's size).
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
@@ -32,21 +54,26 @@ import {
   UNKNOWN_IP_BUCKET,
 } from './limits';
 import { callClaude, makeClaudeClient, scrubSecrets, type ContentBlockParam } from './claude';
-import { buildHandoff, HANDOFF_FOR, HTTP_STATUS, isHindi, messagesFor, type ErrorCode, type Handoff } from './messages';
+import { buildHandoff, HANDOFF_FOR, HTTP_STATUS, isHindi, messagesFor, type ErrorCode, type Handoff, type Messages } from './messages';
 import {
   claimSession,
+  countChatPhotos,
   createSession,
   findReusableSession,
+  lastCustomerText,
   loadHistory,
   persistTurn,
+  PHOTO_ONLY_TEXT,
   recordUnpersistedCost,
   releaseSession,
   type SessionRow,
 } from './store';
 import { executeTool, type ToolCtx } from './tools';
 import { runChatTurn, type TurnOutcome } from './turn';
-import { resolveActive } from './catalog';
+import { resolveActive, resolvePhotoHints } from './catalog';
+import { checkPhoto, cleanHintSkus, MAX_PHOTO_BODY_BYTES, type CheckedPhoto, type CustomerPhotoMeta } from './photo';
 
+/** A request without a photo. */
 const MAX_BODY_BYTES = 8000;
 
 const chatSchema = z
@@ -54,9 +81,25 @@ const chatSchema = z
     sessionId: z.string().uuid().optional(),
     /** Issued with a new chat; required to continue it (store.ts). */
     chatToken: z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional(),
-    message: z.string(), // length checked after sanitising
+    // Exact length checked after sanitising; may be empty with a photo. The
+    // bound here only keeps a photo request (whose body may be larger) from
+    // pushing a huge string through sanitizeMessage.
+    message: z.string().max(MAX_BODY_BYTES),
     page: z.string().max(300).optional(), // location.pathname
     trackingSessionId: z.string().regex(/^[a-z0-9]{8,40}$/i).optional(),
+    /** One photo per message, base64 without the data: prefix. Only the shape
+     *  is checked here; type allow-list, base64, magic bytes and size are
+     *  checked by photo.ts checkPhoto so they answer photo_invalid. */
+    image: z
+      .object({
+        mediaType: z.string().max(40),
+        data: z.string().max(MAX_PHOTO_BODY_BYTES),
+      })
+      .strict()
+      .optional(),
+    /** SKUs from the website's photo search for this photo - hints only; up
+     *  to 8 are used, each re-validated (cleanHintSkus + resolvePhotoHints). */
+    photoMatches: z.array(z.string().max(120)).max(24).optional(),
   })
   .strict();
 
@@ -91,11 +134,15 @@ function send(body: ChatOk | ChatErr, status: number, extraHeaders: Record<strin
   return NextResponse.json(body, { status, headers: { ...NO_STORE, ...extraHeaders } });
 }
 
-function errorResponse(code: ErrorCode, hindi: boolean, extra: { sessionId?: string; retryAfterSec?: number } = {}): Response {
+function errorResponse(
+  code: ErrorCode,
+  hindi: boolean,
+  extra: { sessionId?: string; retryAfterSec?: number; /** Another text for this code (photo_busy). */ reply?: keyof Messages } = {},
+): Response {
   const body: ChatErr = {
     ok: false,
     code,
-    reply: messagesFor(hindi)[code],
+    reply: messagesFor(hindi)[extra.reply ?? code],
     handoff: HANDOFF_FOR[code] ? buildHandoff() : null,
     ...(extra.sessionId ? { sessionId: extra.sessionId } : {}),
     ...(extra.retryAfterSec ? { retryAfterSec: extra.retryAfterSec } : {}),
@@ -122,7 +169,8 @@ function originAllowed(origin: string): boolean {
  *  format characters (zero-width spaces and joiners, BOM, soft hyphen) and
  *  control characters (except \n), collapse long blank runs, trim, and
  *  neutralise anything that looks like a "[Website context]" / "[Website
- *  check]" marker - only the server may write those. */
+ *  photo context]" / "[Website check]" marker - only the server may write
+ *  those. */
 export function sanitizeMessage(raw: string): string {
   return raw
     .normalize('NFKC')
@@ -154,6 +202,46 @@ async function pageContext(page: string): Promise<string | null> {
   return `[Website context] The customer opened this chat on the product page for "${label}" (sku ${r.sku}).`;
 }
 
+/** "[Website photo context]" block, placed right after the image. The marker
+ *  ends in "context", so sanitizeMessage strips it from customer text. Names
+ *  and size labels are from the database (resolvePhotoHints). */
+export function photoContext(hints: Array<{ sku: string; name: string; sizeLabel: string | null }>, photoOnly: boolean): string {
+  const head = photoOnly
+    ? '[Website photo context] The customer sent this photo without a message.'
+    : '[Website photo context] The customer sent this photo together with a message.';
+  if (!hints.length) {
+    return `${head} No photo-search suggestions came with it: use search_products with words for what you see.`;
+  }
+  const lines = hints.map((h) => `- ${h.sizeLabel ? `${h.name} - ${h.sizeLabel}` : h.name} (sku ${h.sku})`);
+  return [
+    `${head} The website's photo search found these catalogue items that look similar. They are visual hints, not verified matches:`,
+    ...lines,
+    'Check a sku with get_product_details before you name, price or recommend it, and never call it an exact match unless its details agree with the photo.',
+  ].join('\n');
+}
+
+/** The request body as text, or null when it is over `cap` bytes (by
+ *  Content-Length, or while streaming when the header is missing or wrong). */
+async function readBodyCapped(req: NextRequest, cap: number): Promise<string | null> {
+  const declared = Number(req.headers.get('content-length') ?? '');
+  if (Number.isFinite(declared) && declared > cap) return null;
+  if (!req.body) return '';
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > cap) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 export async function handlePublicChat(req: NextRequest): Promise<Response> {
   const started = Date.now();
   let hindi = false;
@@ -165,29 +253,53 @@ export async function handlePublicChat(req: NextRequest): Promise<Response> {
     const origin = req.headers.get('origin');
     if (origin && !originAllowed(origin)) return errorResponse('forbidden_origin', false);
 
-    // 2. Body.
-    const raw = await req.text();
-    if (Buffer.byteLength(raw, 'utf8') > MAX_BODY_BYTES) return errorResponse('too_long', false);
+    // 2. Body: read with a hard cap (a photo request is larger), then the
+    //    usual 8,000-byte cap for a request without a photo.
+    const raw = await readBodyCapped(req, MAX_PHOTO_BODY_BYTES);
+    if (raw === null) return errorResponse('photo_invalid', false);
     let json: unknown;
     try {
       json = JSON.parse(raw);
     } catch {
       return errorResponse('invalid_request', false);
     }
+    // Without a photo the whole body is capped at 8,000 bytes (checked before
+    // the schema, so a long text answers too_long); with one, everything
+    // except the base64 is.
+    const rawBytes = Buffer.byteLength(raw, 'utf8');
+    const hasImageKey = typeof json === 'object' && json !== null && 'image' in json;
+    if (!hasImageKey && rawBytes > MAX_BODY_BYTES) return errorResponse('too_long', false);
     const parsed = chatSchema.safeParse(json);
     if (!parsed.success) return errorResponse('invalid_request', false);
     const body = parsed.data;
+    if (body.image && rawBytes - body.image.data.length > MAX_BODY_BYTES) return errorResponse('too_long', false);
 
-    // 3. Sanitise.
+    // 3. Sanitise. A message may be empty only when it carries a photo.
     const message = sanitizeMessage(body.message);
     hindi = isHindi(message);
-    if (!message) return errorResponse('invalid_request', hindi);
+    if (!message && !body.image) return errorResponse('invalid_request', hindi);
     if (message.length > LIMITS.maxMessageChars) return errorResponse('too_long', hindi);
+
+    // 3b. Photo: allow-listed type, magic bytes, byte and pixel caps.
+    let photo: CheckedPhoto | null = null;
+    if (body.image) {
+      const c = checkPhoto(body.image.mediaType, body.image.data);
+      if (!c.ok) {
+        console.warn(`[chatbot] photo rejected: ${c.reason}`);
+        return errorResponse('photo_invalid', hindi);
+      }
+      photo = c.photo;
+    }
 
     // 4. On/off (one settings query; nothing is counted while the bot is off).
     const cfg = await loadChatbotConfig();
     if (!cfg.enabled) return errorResponse('disabled', hindi);
     if (!publicChatEnabled(cfg)) return errorResponse('unavailable', hindi);
+    // The admin key Test found that the model takes no image input (the
+    // widget hides its camera then; this catches an older open page). Code
+    // photo_invalid (the photo is not retried), wording "photos can't be sent
+    // right now".
+    if (photo && !cfg.photosEnabled) return errorResponse('photo_invalid', hindi, { reply: 'photo_busy' });
 
     // 5. Limits (atomic Postgres counters). Per visitor network FIRST - always
     //    on (requests without any IP header share one bucket) - so a client
@@ -208,6 +320,19 @@ export async function handlePublicChat(req: NextRequest): Promise<Response> {
     // 6. The chat to continue (read only), which fixes the model.
     const existing = body.sessionId && body.chatToken ? await findReusableSession(body.sessionId, body.chatToken) : null;
     const model: ChatModel = existing?.model ?? cfg.model;
+    // A photo sent without words: reply (and refuse) in the language of the
+    // customer's last typed message in this chat.
+    if (!message && existing) {
+      const last = await lastCustomerText(existing.id).catch(() => null);
+      if (last) hindi = isHindi(last);
+    }
+
+    // 6b. Per-chat photo cap, quick read-only check before the chat is
+    //     claimed (so a refused photo uses up no message). The binding check
+    //     is part of the claim in step 9. A new chat starts at 0.
+    if (photo && existing && (await countChatPhotos(existing.id)) >= LIMITS.maxPhotosPerChat) {
+      return errorResponse('photo_limit', hindi, { sessionId: existing.id });
+    }
 
     // 7. Daily spend: what today's finished turns cost, plus a reservation for
     //    every reply still being generated (their cost is written only when
@@ -219,18 +344,45 @@ export async function handlePublicChat(req: NextRequest): Promise<Response> {
     const apiKey = await getDecryptedApiKey();
     if (!apiKey) return errorResponse('unavailable', hindi);
 
-    // 9. Session: reuse (atomic claim) or create.
+    // 8b. Per visitor network per hour and per IST day for the whole website:
+    //     counted only for a photo that will reach Claude (after every free
+    //     refusal above, and for an existing chat after its claim), so photo
+    //     posts that are refused anyway never use up these budgets. The reply
+    //     says "not right now" (photo_busy), not the per-chat wording.
+    const photoCountersRefusal = async (sessionId?: string): Promise<Response | null> => {
+      if (!photo) return null;
+      const ipPhotos = await hitLimit(`photo-ip:${ipHash ?? UNKNOWN_IP_BUCKET}`, 3600, LIMITS.maxPhotosPerIpPerHour);
+      if (!ipPhotos.ok) {
+        return errorResponse('photo_limit', hindi, { sessionId, retryAfterSec: ipPhotos.retryAfterSec, reply: 'photo_busy' });
+      }
+      const dayPhotos = await hitLimit(`photo-day:${istDayKey()}`, 172_800, LIMITS.maxPhotosPerDay);
+      if (!dayPhotos.ok) return errorResponse('photo_limit', hindi, { sessionId, reply: 'photo_busy' });
+      return null;
+    };
+
+    // 9. Session: reuse (atomic claim: message cap, one turn at a time and,
+    //    with a photo, the per-chat photo cap) or create.
     let session: SessionRow | null = null;
     let newSession = false;
     let chatToken: string | undefined;
     if (existing) {
-      const count = await claimSession(existing.id, cfg.sessionCap);
+      const count = await claimSession(existing.id, cfg.sessionCap, photo ? LIMITS.maxPhotosPerChat : 0);
       if (count === null) {
+        if (photo && (await countChatPhotos(existing.id)) >= LIMITS.maxPhotosPerChat) {
+          return errorResponse('photo_limit', hindi, { sessionId: existing.id });
+        }
         return existing.userMessageCount >= cfg.sessionCap
           ? errorResponse('session_cap', hindi, { sessionId: existing.id })
           : errorResponse('busy', hindi, { sessionId: existing.id });
       }
+      // Claimed: from here every return frees the chat again (finally).
+      claimedSessionId = existing.id;
+      const refused = await photoCountersRefusal(existing.id);
+      if (refused) return refused;
       session = { ...existing, userMessageCount: count };
+    } else {
+      const refused = await photoCountersRefusal();
+      if (refused) return refused;
     }
     if (!session) {
       const created = await createSession({
@@ -252,13 +404,26 @@ export async function handlePublicChat(req: NextRequest): Promise<Response> {
       ? { history: [], priorCustomerTexts: [] as string[] }
       : await loadHistory(session.id);
 
-    // 11. User content: page context on a new chat's first turn, then the text.
+    // 11. User content: [image, photo context] when there is a photo (images
+    //     work best before text), then page context on a new chat's first
+    //     turn, then the customer's text (none for a photo-only message).
     const userContent: ContentBlockParam[] = [];
+    let customerMeta: CustomerPhotoMeta | undefined;
+    if (photo) {
+      const hintSkus = cleanHintSkus(body.photoMatches);
+      const hints = hintSkus.length ? await resolvePhotoHints(hintSkus).catch(() => []) : [];
+      userContent.push({ type: 'image', source: { type: 'base64', media_type: photo.mediaType, data: photo.data } });
+      userContent.push({ type: 'text', text: photoContext(hints, !message) });
+      customerMeta = {
+        photo: { mediaType: photo.mediaType, bytes: photo.bytes, width: photo.width, height: photo.height },
+        photoHints: { sent: body.photoMatches?.length ?? 0, used: hints.map((h) => h.sku) },
+      };
+    }
     if (newSession && body.page) {
       const block = await pageContext(body.page);
       if (block) userContent.push({ type: 'text', text: block });
     }
-    userContent.push({ type: 'text', text: message });
+    if (message) userContent.push({ type: 'text', text: message });
 
     // 12. The turn, on the chat's own model.
     const ctx: ToolCtx = {
@@ -276,7 +441,8 @@ export async function handlePublicChat(req: NextRequest): Promise<Response> {
         model: session.model,
         history,
         userContent,
-        customerText: message,
+        customerText: message || PHOTO_ONLY_TEXT,
+        customerMeta,
         ctx,
         deadline: started + LIMITS.turnBudgetMs,
         hindi,
@@ -354,15 +520,17 @@ export async function handlePublicChat(req: NextRequest): Promise<Response> {
   }
 }
 
-/** GET /api/public/chat/config - what the widget may know: on/off and the
- *  greeting. Never the model, caps or anything about the key. */
+/** GET /api/public/chat/config - what the widget may know: on/off, the
+ *  greeting and whether photos are accepted (the camera button). Never the
+ *  model, caps or anything about the key. */
 export async function handlePublicChatConfig(): Promise<Response> {
   const headers = { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' };
   try {
     const cfg = await loadChatbotConfig();
-    return NextResponse.json({ enabled: publicChatEnabled(cfg), greeting: cfg.greeting }, { status: 200, headers });
+    const enabled = publicChatEnabled(cfg);
+    return NextResponse.json({ enabled, greeting: cfg.greeting, photos: enabled && cfg.photosEnabled }, { status: 200, headers });
   } catch {
-    return NextResponse.json({ enabled: false, greeting: '' }, { status: 200, headers });
+    return NextResponse.json({ enabled: false, greeting: '', photos: false }, { status: 200, headers });
   }
 }
 

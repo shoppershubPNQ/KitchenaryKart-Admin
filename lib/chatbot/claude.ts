@@ -209,6 +209,15 @@ const KEY_TEST_TIMEOUT_MS = 20_000;
 
 export type KeyTestStatus = 'ok' | 'invalid' | 'billing' | 'error';
 
+/** A Test result. `photos` (only with status ok): whether the model accepts
+ *  image input, from the Models API (shared/models.md -> capabilities
+ *  image_input.supported); false switches the chat's camera off. */
+export interface KeyTestResult {
+  status: KeyTestStatus;
+  detail: string;
+  photos?: boolean;
+}
+
 /** Typed SDK exceptions, most specific first; never string-matched
  *  (typescript README -> Error Handling; error-codes.md -> Typed Exceptions).
  *  APIConnectionError is checked before the APIError fallbacks because in the
@@ -232,14 +241,18 @@ export function classifyKeyError(e: unknown, model: string): { status: KeyTestSt
 /**
  * Used by the admin key `set` / `test` actions and on a model change. Two calls:
  *  1. models.retrieve - free; the key works and this model is available to it.
+ *     Its capabilities also say whether the model accepts photos (`photos`).
  *  2. A production-shaped warm-up with max_tokens 0: prefill only (no output
  *     billed), validates the exact betas / thinking / fallbacks / strict tool
  *     schemas production sends, and primes the system + tools cache.
  */
-export async function testKey(apiKey: string, model: ChatModel): Promise<{ status: KeyTestStatus; detail: string }> {
+export async function testKey(apiKey: string, model: ChatModel): Promise<KeyTestResult> {
   const client = makeClaudeClient(apiKey);
   try {
-    await client.models.retrieve(model, {}, { timeout: KEY_TEST_TIMEOUT_MS, signal: AbortSignal.timeout(KEY_TEST_TIMEOUT_MS) });
+    const info = await client.models.retrieve(model, {}, { timeout: KEY_TEST_TIMEOUT_MS, signal: AbortSignal.timeout(KEY_TEST_TIMEOUT_MS) });
+    // capabilities is null only for an unknown model record: assume photos work
+    // (a photo the model cannot read is then answered as photo_invalid, turn.ts).
+    const photos = info.capabilities ? info.capabilities.image_input.supported === true : true;
     // A 200 is the result; its usage is not shown to the owner.
     await client.beta.messages.create(
       buildParams(model, [{ role: 'user', content: [{ type: 'text', text: 'warmup' }] }], {
@@ -249,7 +262,13 @@ export async function testKey(apiKey: string, model: ChatModel): Promise<{ statu
       }),
       { timeout: KEY_TEST_TIMEOUT_MS, signal: AbortSignal.timeout(KEY_TEST_TIMEOUT_MS) },
     );
-    return { status: 'ok', detail: 'Key works - the chatbot can use it.' };
+    return {
+      status: 'ok',
+      detail: photos
+        ? 'Key works - the chatbot can use it.'
+        : 'Key works, but this model does not accept photos - the chat camera stays off.',
+      photos,
+    };
   } catch (e) {
     return classifyKeyError(e, model);
   }
@@ -269,6 +288,14 @@ export class TurnFailure extends Error {
     this.name = 'TurnFailure';
   }
 }
+/** Claude refused (400) the first request of a turn that carries the
+ *  customer's photo - thrown by turn.ts, answered as photo_invalid. */
+export class PhotoRejected extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PhotoRejected';
+  }
+}
 
 export interface TurnErrorClass {
   code: ErrorCode;
@@ -283,6 +310,10 @@ export function classifyTurnError(e: unknown): TurnErrorClass {
   const msg = e instanceof Error ? e.message : String(e);
   const log = scrubSecrets(`${e instanceof Error ? e.name : 'Error'}${status ? ` ${status}` : ''}: ${msg}`);
 
+  // A turn with a photo whose first request Claude rejected (turn.ts decides,
+  // after the replayed-history retry where there is a history): only this
+  // photo failed - the chat stays open and the customer sees photo_invalid.
+  if (e instanceof PhotoRejected) return { code: 'photo_invalid', log };
   if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) {
     return { code: 'unavailable', keyStatus: 'invalid', log };
   }
@@ -291,10 +322,13 @@ export function classifyTurnError(e: unknown): TurnErrorClass {
   if (e instanceof Anthropic.NotFoundError) return { code: 'unavailable', closeSession: true, log };
   if (e instanceof Anthropic.RateLimitError || e instanceof Anthropic.InternalServerError) return { code: 'upstream_busy', log };
   if (e instanceof Anthropic.BadRequestError) {
-    // Type-based, never string-matched: the only variable part of the request
-    // is the replayed history, and turn.ts has already retried once without
-    // thinking blocks - this chat cannot continue safely, so the next message
-    // starts a new one.
+    // Type-based, never string-matched. A turn WITHOUT a new photo: the only
+    // variable part of the request is the replayed history, and turn.ts has
+    // already retried once without thinking blocks - this chat cannot
+    // continue safely, so the next message starts a new one. (A 400 on the
+    // first request of a turn WITH a photo arrives here as PhotoRejected
+    // instead; a 400 later in such a turn - after Claude accepted the photo -
+    // is handled like any other.)
     return { code: 'error', closeSession: true, log };
   }
   if (e instanceof Anthropic.APIConnectionError) return { code: 'error', log };

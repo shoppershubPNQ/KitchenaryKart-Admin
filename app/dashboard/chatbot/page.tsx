@@ -53,15 +53,27 @@ interface Status {
     maxOrderLookupsPerChat: number;
     maxLeadsPerChat: number;
     visitorIpSigned: boolean;
+    maxPhotosPerChat: number;
+    maxPhotosPerIpPerHour: number;
+    maxPhotosPerDay: number;
+    /** False when the last key Test found the model takes no photos. */
+    photosEnabled: boolean;
   };
   usage: { today: UsageBlock; last7Days: UsageBlock } | null;
   usageError: string | null;
+  /** Database space of the chat log (photos included), or null. */
+  chatLogBytes: number | null;
   promptVersion: string;
 }
+
+/** Above this the usage card suggests a clean-up of old chat photos. */
+const CHAT_LOG_NOTICE_BYTES = 500 * 1024 * 1024;
 interface TestResult {
   ok: boolean;
   status: string;
   detail: string;
+  /** With ok: whether the model accepts customer photos. */
+  photos?: boolean;
 }
 
 /** IST date + time for the key timestamps. */
@@ -176,6 +188,8 @@ function KeyCard({ status, onChange }: { status: Status; onChange: (s: Status) =
         ...status,
         key: r.key,
         settings: action === 'clear' ? { ...status.settings, enabled: false } : status.settings,
+        limits:
+          r.test?.ok && typeof r.test.photos === 'boolean' ? { ...status.limits, photosEnabled: r.test.photos } : status.limits,
       });
       if (r.test) setResult({ ok: r.test.ok, detail: r.test.detail });
       else if (action === 'clear') setResult({ ok: true, detail: 'The key was deleted and the chatbot is switched off.' });
@@ -510,7 +524,10 @@ function SettingsCard({ status, onSaved }: { status: Status; onSaved: (s: Status
       <p className="text-xs text-slate-500">
         Max message length {status.limits.maxMessageChars.toLocaleString('en-IN')} characters · up to{' '}
         {status.limits.maxToolRounds} tool steps per reply · one lead per chat · {status.limits.maxOrderLookupsPerChat} order
-        look-ups per chat · chats idle for {status.limits.sessionIdleHours} hours start fresh.
+        look-ups per chat · chats idle for {status.limits.sessionIdleHours} hours start fresh ·{' '}
+        {status.limits.photosEnabled
+          ? `customers can send up to ${status.limits.maxPhotosPerChat} photos per chat (${status.limits.maxPhotosPerIpPerHour} per visitor network per hour, ${status.limits.maxPhotosPerDay} per day in all).`
+          : 'customer photos are OFF: the last Test found that this model does not accept photos.'}
       </p>
 
       <div className="flex items-center gap-3 flex-wrap">
@@ -547,6 +564,7 @@ function UsageCard({ status }: { status: Status }) {
     ['Cache write tokens', (b) => n(b.cacheWriteTokens)],
   ];
   const oneNetwork = !!u && u.today.sessions >= 10 && (u.today.distinctIps ?? 0) <= 2;
+  const logMb = status.chatLogBytes === null ? null : status.chatLogBytes / (1024 * 1024);
 
   const table = (list: Array<[string, (b: UsageBlock) => string]>) =>
     u && (
@@ -585,6 +603,12 @@ function UsageCard({ status }: { status: Status }) {
               Tell the developer (CHATBOT_PROXY_SECRET), and meanwhile raise &quot;{SETTING_LABELS.ipLimit}&quot;.
             </div>
           )}
+          {status.chatLogBytes !== null && status.chatLogBytes >= CHAT_LOG_NOTICE_BYTES && (
+            <div className="notice-amber">
+              The chat log now uses about {Math.round(logMb ?? 0).toLocaleString('en-IN')} MB of database space (customer photos
+              are the largest part). Ask the developer about clearing photos from old chats.
+            </div>
+          )}
           {table(rows)}
           <details className="text-sm">
             <summary className="cursor-pointer text-slate-500 text-xs">Technical details</summary>
@@ -594,6 +618,7 @@ function UsageCard({ status }: { status: Status }) {
                 Today: {n(u.today.distinctIps ?? 0)} distinct visitor networks across {n(u.today.sessions)} chats. Visitor IP{' '}
                 {status.limits.visitorIpSigned ? 'signed by the website (CHATBOT_PROXY_SECRET set)' : 'taken from proxy headers'}.
                 Prompt version {status.promptVersion}.
+                {logMb !== null && ` Chat log in the database: ${logMb < 10 ? logMb.toFixed(1) : Math.round(logMb).toLocaleString('en-IN')} MB (photos included).`}
               </p>
             </div>
           </details>

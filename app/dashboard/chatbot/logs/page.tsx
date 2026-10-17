@@ -48,9 +48,15 @@ interface LogMessage {
   stopReason: string | null;
   costUsd: number;
   createdAt: string;
+  /** A customer photo (metadata only; the image comes from the admin-only photo route). */
+  photo: { mediaType: string; bytes: number; width: number; height: number; hints: string[] } | null;
 }
 
 const PAGE = 50;
+
+/** Admin-only route (withAuth, cookie) - there is no public URL for chat photos. */
+const photoUrl = (sessionId: string, messageId: number) =>
+  `/api/chatbot/sessions/${encodeURIComponent(sessionId)}/photos/${messageId}`;
 const FILTERS: Array<{ id: Filter; label: string }> = [
   { id: 'all', label: 'All' },
   { id: 'leads', label: 'With leads' },
@@ -242,14 +248,24 @@ function toolLines(m: LogMessage): string[] {
   return m.text ? [`Result: ${m.text}`] : [];
 }
 
+/** Thumbnail box size for the stored photo's own aspect ratio (no layout jump while it loads). */
+function thumbSize(w: number, h: number): { width: number; height: number } | null {
+  if (!(w > 0 && h > 0)) return null;
+  const s = Math.min(1, 180 / w, 180 / h);
+  return { width: Math.max(1, Math.round(w * s)), height: Math.max(1, Math.round(h * s)) };
+}
+
 function Transcript({ id, onClose }: { id: string; onClose: () => void }) {
   const [data, setData] = useState<{ session: SessionDetail; messages: LogMessage[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Photos the admin photo route could not serve (e.g. a 404). */
+  const [badPhotos, setBadPhotos] = useState<Set<number>>(() => new Set());
 
   useEffect(() => {
     let cancelled = false;
     setData(null);
     setError(null);
+    setBadPhotos(new Set());
     api<{ session: SessionDetail; messages: LogMessage[] }>(`/api/chatbot/sessions/${encodeURIComponent(id)}`)
       .then((d) => !cancelled && setData(d))
       .catch((e) => !cancelled && setError(errorText(e)));
@@ -305,11 +321,42 @@ function Transcript({ id, onClose }: { id: string; onClose: () => void }) {
                 <div className="text-[10px] uppercase tracking-wide text-slate-400 mt-0.5">{hiddenLabel(m.stopReason)}</div>
               ) : null;
               if (m.kind === 'customer') {
+                const showText = !(m.photo && m.text === '(photo)');
+                const size = m.photo ? thumbSize(m.photo.width, m.photo.height) : null;
                 return (
                   <div key={m.id} className={`flex flex-col items-end ${!m.replay ? 'opacity-50' : ''}`}>
-                    <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-slate-200 px-3 py-2 text-sm text-slate-900 whitespace-pre-wrap break-words">
-                      {m.text}
-                    </div>
+                    {m.photo && (
+                      <div className="flex flex-col items-end mb-1">
+                        {badPhotos.has(m.id) ? (
+                          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
+                            Photo unavailable
+                          </div>
+                        ) : (
+                          <a href={photoUrl(id, m.id)} target="_blank" rel="noopener noreferrer" title="Open the customer's photo">
+                            <img
+                              src={photoUrl(id, m.id)}
+                              alt="Customer photo"
+                              loading="lazy"
+                              {...(size ? { width: size.width, height: size.height } : {})}
+                              style={size ? { aspectRatio: `${size.width} / ${size.height}` } : undefined}
+                              onError={() => setBadPhotos((s) => new Set(s).add(m.id))}
+                              className="max-w-[180px] max-h-[180px] rounded-lg border border-slate-200 bg-slate-50 object-contain"
+                            />
+                          </a>
+                        )}
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          Photo {m.photo.width}×{m.photo.height} · {Math.max(1, Math.round(m.photo.bytes / 1024))} KB
+                        </div>
+                        <div className="text-[10px] text-slate-500 max-w-[260px] text-right break-words">
+                          {m.photo.hints.length ? `Photo-search hints: ${m.photo.hints.join(', ')}` : 'No photo-search hints'}
+                        </div>
+                      </div>
+                    )}
+                    {showText && (
+                      <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-slate-200 px-3 py-2 text-sm text-slate-900 whitespace-pre-wrap break-words">
+                        {m.text}
+                      </div>
+                    )}
                     <div className="text-[10px] text-slate-400 mt-0.5">{ist(m.createdAt)}</div>
                     {tag}
                   </div>

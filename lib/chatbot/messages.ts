@@ -24,6 +24,8 @@ export type ErrorCode =
   | 'busy'
   | 'upstream_busy'
   | 'refused'
+  | 'photo_limit'
+  | 'photo_invalid'
   | 'error';
 
 export interface Handoff {
@@ -33,7 +35,9 @@ export interface Handoff {
   hours: string;
 }
 
-type MsgKey = Exclude<ErrorCode, 'forbidden_origin'> | 'errorAfterLead' | 'priceFallback' | 'discountFallback';
+/** Reply texts. `photo_busy` is the photo_limit reply for the per-network and
+ *  site-wide photo caps (photo_limit itself is the per-chat cap). */
+type MsgKey = Exclude<ErrorCode, 'forbidden_origin'> | 'errorAfterLead' | 'priceFallback' | 'discountFallback' | 'photo_busy';
 export type Messages = Record<MsgKey | 'forbidden_origin', string>;
 
 const EN: Record<MsgKey, string> = {
@@ -47,6 +51,9 @@ const EN: Record<MsgKey, string> = {
   too_long: "Please keep your message under 1,000 characters.",
   invalid_request: "Sorry, I couldn't read that message. Please type it again.",
   refused: "Sorry, I can't help with that here. I'm happy to help with our products, prices or your order - or you can WhatsApp our team on +91 98903 52455.",
+  photo_limit: "You've reached the photo limit for this chat (up to 2 photos in one chat). Please describe the item in words, or WhatsApp the photo to our team on +91 98903 52455.",
+  photo_busy: "Photos can't be sent right now. Please describe the item in words, or WhatsApp the photo to our team on +91 98903 52455.",
+  photo_invalid: "Sorry, I couldn't open that photo. Please try another photo (JPG or PNG), or describe the item in words.",
   error: "Sorry, something went wrong on our side. Please try again in a moment, or WhatsApp us on +91 98903 52455.",
   errorAfterLead: "Your details have reached our team, and they will contact you during working hours (Mon–Sat, 10 am–7 pm IST). Sorry, I couldn't finish my reply - you can also WhatsApp us on +91 98903 52455.",
   priceFallback: "For the exact price of this item, please check the product page or WhatsApp our team on +91 98903 52455 - they'll confirm it for you.",
@@ -64,6 +71,9 @@ const HI: Record<MsgKey, string> = {
   too_long: "कृपया अपना संदेश 1,000 अक्षरों से छोटा रखें।",
   invalid_request: "माफ़ कीजिए, यह संदेश पढ़ा नहीं जा सका। कृपया दोबारा लिखें।",
   refused: "माफ़ कीजिए, इसमें यहाँ मदद संभव नहीं है। हमारे प्रोडक्ट, कीमत या आपके ऑर्डर के बारे में ज़रूर पूछिए - या +91 98903 52455 पर हमारी टीम को WhatsApp करें।",
+  photo_limit: "इस चैट में फ़ोटो की सीमा पूरी हो गई है (एक चैट में 2 फ़ोटो तक)। कृपया प्रोडक्ट के बारे में लिखकर बताएँ, या फ़ोटो +91 98903 52455 पर हमारी टीम को WhatsApp करें।",
+  photo_busy: "अभी फ़ोटो नहीं भेजी जा सकतीं। कृपया प्रोडक्ट के बारे में लिखकर बताएँ, या फ़ोटो +91 98903 52455 पर हमारी टीम को WhatsApp करें।",
+  photo_invalid: "माफ़ कीजिए, यह फ़ोटो खुल नहीं सकी। कृपया दूसरी फ़ोटो (JPG या PNG) भेजें, या प्रोडक्ट के बारे में लिखकर बताएँ।",
   error: "माफ़ कीजिए, हमारी तरफ़ से कुछ गड़बड़ हो गई। कृपया थोड़ी देर में फिर कोशिश करें, या +91 98903 52455 पर WhatsApp करें।",
   errorAfterLead: "आपकी जानकारी हमारी टीम तक पहुँच गई है, टीम काम के समय (सोम–शनि, सुबह 10 से शाम 7 बजे) आपसे संपर्क करेगी। माफ़ कीजिए, जवाब पूरा नहीं हो सका - आप +91 98903 52455 पर WhatsApp भी कर सकते हैं।",
   priceFallback: "इस प्रोडक्ट की सही कीमत के लिए कृपया प्रोडक्ट पेज देखें या +91 98903 52455 पर हमारी टीम को WhatsApp करें - टीम आपको पुष्टि कर देगी।",
@@ -91,6 +101,8 @@ export const HTTP_STATUS: Record<ErrorCode, number> = {
   upstream_busy: 429,
   busy: 409,
   refused: 200,
+  photo_limit: 429,
+  photo_invalid: 400,
   error: 200,
 };
 
@@ -107,6 +119,8 @@ export const HANDOFF_FOR: Record<ErrorCode, boolean> = {
   upstream_busy: true,
   busy: false,
   refused: true,
+  photo_limit: true,
+  photo_invalid: false,
   error: true,
 };
 
