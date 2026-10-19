@@ -56,6 +56,17 @@ export interface ManualOrderLine {
 export interface ManualOrderPricing {
   lines: ManualOrderLine[];
   summary: OrderSummary;
+  /**
+   * What to STORE on the Order row — both GST-INCLUSIVE, exactly as the
+   * storefront checkout stores them: `subtotal` = the items' inclusive total
+   * before discount, `discountAmount` = the inclusive discount applied. Every
+   * reader (invoice, order page, GST report, shipments, credit note, emails)
+   * reads Order.discountAmount as inclusive. NOT summary.discountAmount — that
+   * is the ex-GST discount for display; storing it made KK-MVF1PKSX's invoice
+   * back GST out twice (10% shown as 8.47%, ₹42,471 vs a ₹41,763 link).
+   */
+  subtotalInclusive: number;
+  discountInclusive: number;
   /** Ex-GST freight actually applied. */
   shippingCost: number;
   /** False when the operator supplied their own freight figure. */
@@ -189,6 +200,8 @@ export async function priceManualOrder(
   return {
     lines,
     summary,
+    subtotalInclusive,
+    discountInclusive: discount,
     shippingCost,
     shippingAuto,
     shippingZone,

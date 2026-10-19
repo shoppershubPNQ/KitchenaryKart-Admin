@@ -106,7 +106,7 @@ export const POST = withAuth(async (req) => {
       if (e instanceof ManualOrderPricingError) return fail(e.message, 400);
       throw e;
     }
-    const { lines, summary, shippingCost } = priced;
+    const { lines, summary, shippingCost, subtotalInclusive, discountInclusive } = priced;
 
     const orderNumber = 'KK-' + Date.now().toString(36).toUpperCase();
 
@@ -120,9 +120,12 @@ export const POST = withAuth(async (req) => {
         customerGstin: body.customerGstin || null,
         shippingAddress: body.shippingAddress,
         shippingCost,
-        // Stored GST-INCLUSIVE, exactly as the storefront stores it.
-        subtotal: summary.netPrice + summary.lines.reduce((s, l) => s + l.lineGst, 0),
-        discountAmount: summary.discountAmount,
+        // Both stored GST-INCLUSIVE, exactly as the storefront stores them —
+        // the invoice and every other reader take Order.discountAmount as
+        // inclusive. summary.discountAmount is the EX-GST figure; storing it
+        // printed 10% as 8.47% on KK-MVF1PKSX's invoice.
+        subtotal: subtotalInclusive,
+        discountAmount: discountInclusive,
         // The GST actually embedded in this order — goods GST on the discounted
         // value plus GST on freight. Never 18% bolted on top of an
         // already-inclusive price, which is what this route used to do.
