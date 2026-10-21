@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { fail, handleError, ok, paging } from '@/lib/api';
 import { priceManualOrder, ManualOrderPricingError } from '@/lib/manual-order-pricing';
+import { withContactLine } from '@/lib/order-contact-line';
 
 const itemSchema = z.object({
   productId: z.number().int().positive().optional(),
@@ -118,7 +119,9 @@ export const POST = withAuth(async (req) => {
         customerEmail: body.customerEmail,
         customerPhone: body.customerPhone,
         customerGstin: body.customerGstin || null,
-        shippingAddress: body.shippingAddress,
+        // Stored as "<Name> · <Phone>\n<address>" like a website order, so the
+        // invoice shows the buyer's number. Pricing above used the bare address.
+        shippingAddress: withContactLine(body.shippingAddress, body.customerName, body.customerPhone),
         shippingCost,
         // Both stored GST-INCLUSIVE, exactly as the storefront stores them —
         // the invoice and every other reader take Order.discountAmount as
