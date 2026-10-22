@@ -47,6 +47,26 @@ export interface ResolveOptions {
   activeOnly?: boolean;
 }
 
+/**
+ * A size's label for the order line / invoice. Multi-axis sizes store
+ * variantValue as JSON ({"Capacity":"Bowl Capacity: 50L | …","Power":"2200W"});
+ * printing that raw put braces and quotes on the invoice (owner 2026-10-22,
+ * KKKBE0004-B50 PI). Values are joined with " | "; a plain string is unchanged.
+ */
+export function variantQualifier(raw: string | null | undefined): string {
+  const s = (raw || '').trim();
+  if (!s.startsWith('{')) return s;
+  try {
+    const obj = JSON.parse(s);
+    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+      return Object.values(obj).map((x) => String(x ?? '').trim()).filter(Boolean).join(' | ');
+    }
+  } catch {
+    // Not JSON after all — print it as typed.
+  }
+  return s;
+}
+
 export async function resolveOrderItems(
   skus: string[],
   opts: ResolveOptions = {},
@@ -91,7 +111,7 @@ export async function resolveOrderItems(
   // resolves to the variant — the more specific record.
   for (const v of variants) {
     if (!v.skuSuffix) continue;
-    const qualifier = (v.variantValue || '').trim();
+    const qualifier = variantQualifier(v.variantValue);
     resolved.set(v.skuSuffix, {
       productId: v.product?.id ?? null,
       variantId: v.id,
