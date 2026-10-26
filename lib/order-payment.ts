@@ -3,6 +3,7 @@ import { sendEmail } from '@/lib/integrations/resend';
 import { buildOrderConfirmationEmail } from '@/lib/email-templates/order-confirmation';
 import { buildAdminNewOrderEmail } from '@/lib/email-templates/admin-new-order';
 import { ensureInvoiceNumber } from '@/lib/invoice-serial';
+import { isReplacementOrder } from '@/lib/replacement';
 import { adminBaseUrl, adminRecipients } from '@/lib/admin-notify';
 import { fetchRazorpayOrderPayments, fetchRazorpayPaymentLink } from '@/lib/integrations/razorpay';
 
@@ -96,10 +97,11 @@ export async function finalizePaidOrder(
 ): Promise<{ order: { id: number; paymentStatus: string }; alreadyProcessed: boolean } | null> {
   const existing = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { id: true, paymentStatus: true, internalNotes: true, createdAt: true },
+    select: { id: true, paymentStatus: true, internalNotes: true, createdAt: true, paymentMethod: true, replacementOfId: true },
   });
   if (!existing) return null;
-  if (existing.paymentStatus === 'completed') {
+  // A free replacement is never a sale: no Payment row, invoice serial, coupon or emails.
+  if (existing.paymentStatus === 'completed' || isReplacementOrder(existing)) {
     return { order: existing, alreadyProcessed: true };
   }
 

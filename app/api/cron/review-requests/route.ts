@@ -48,6 +48,8 @@ export async function GET(req: NextRequest) {
         paymentStatus: 'completed',
         orderStatus: 'delivered',
         reviewEmailAt: null,
+        // A free replacement part is not a purchase to review (lib/replacement.ts).
+        replacementOfId: null,
         customerEmail: { not: null },
         deliveredAt: {
           lte: new Date(now - MIN_DAYS * 86_400_000),

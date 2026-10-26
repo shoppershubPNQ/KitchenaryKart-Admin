@@ -222,6 +222,8 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
       paymentStatus: { in: ['completed', 'refunded'] },
       invoiceSerial: { not: null },
       invoiceFinancialYear: filters.fy,
+      // Belt and braces: a free replacement never gets a serial (lib/invoice-serial.ts).
+      replacementOfId: null,
     },
     include: {
       // The variant link too: a line sold as a variant reaches its HSN through

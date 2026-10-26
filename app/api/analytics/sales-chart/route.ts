@@ -24,6 +24,7 @@ export const GET = withAuth(async (req) => {
         -- 28 Jul spike; ₹6.4L of the last 60 days was never paid).
         AND payment_status = 'completed'
         AND order_status <> 'cancelled'
+        AND replacement_of_id IS NULL -- free replacements are not sales
       GROUP BY DATE_TRUNC('${trunc}', created_at)
       ORDER BY date
     `;

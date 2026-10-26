@@ -7,6 +7,7 @@ import { computeOrderSummary } from '@/lib/order-summary';
 import { MarkPaidOffline } from '@/components/MarkPaidOffline';
 import { ResendConfirmation } from '@/components/ResendConfirmation';
 import { ShipOrder } from '@/components/ShipOrder';
+import { CreateReplacement } from '@/components/CreateReplacement';
 
 interface OrderItem {
   id: number;
@@ -17,6 +18,8 @@ interface OrderItem {
   unitPrice: number;
   taxPercent: number;
   lineTotal: number;
+  /** Replacement orders only: declared value per unit (nothing is charged). */
+  declaredUnitValue: number | null;
   product: { id: number; costPrice: number | null } | null;
 }
 
@@ -47,6 +50,10 @@ interface Order {
   shippedAt: string | null;
   deliveredAt: string | null;
   items: OrderItem[];
+  /** Free replacement links (lib/replacement.ts). */
+  replacementOfId: number | null;
+  replacementOf: { id: number; orderNumber: string } | null;
+  replacements: Array<{ id: number; orderNumber: string; orderStatus: string; trackingNumber: string | null; createdAt: string }>;
 }
 
 export default function OrderDetail({ params }: { params: { id: string } }) {
@@ -75,6 +82,9 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
   }
 
   if (!order) return <div className="text-slate-400">Loading…</div>;
+  const isReplacement = order.replacementOfId != null || order.paymentMethod === 'replacement';
+  const canReplace = !isReplacement && order.paymentStatus === 'completed' &&
+    ['processing', 'shipped', 'delivered', 'returned'].includes(order.orderStatus);
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -83,8 +93,17 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
           <div className="text-sm text-slate-500">Order</div>
           <h1 className="text-2xl font-semibold font-mono">{order.orderNumber}</h1>
           <div className="text-sm text-slate-500 mt-1">Placed {dateShort(order.createdAt)}</div>
+          {isReplacement && (
+            <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-800">
+              Free replacement for{' '}
+              {order.replacementOf
+                ? <Link href={`/dashboard/orders/${order.replacementOf.id}`} className="font-mono underline">{order.replacementOf.orderNumber}</Link>
+                : 'another order'}
+              <span className="text-sky-600">· no charge, not a sale</span>
+            </div>
+          )}
         </div>
-        <a href={`/api/orders/${order.id}/invoice`} target="_blank" rel="noopener" className="btn-outline">Download invoice</a>
+        <a href={`/api/orders/${order.id}/invoice`} target="_blank" rel="noopener" className="btn-outline">{isReplacement ? 'Download challan' : 'Download invoice'}</a>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -101,6 +120,9 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
         </div>
         <div className="card p-4">
           <div className="label">Payment status</div>
+          {isReplacement ? (
+            <div className="text-sm text-slate-700">No payment — free replacement. Prints a Delivery Challan, not a tax invoice.</div>
+          ) : (<>
           <select className="input" value={order.paymentStatus} onChange={e => setPayment(e.target.value)} disabled={saving}>
             <option value="pending">Pending</option>
             <option value="completed">Completed</option>
@@ -113,6 +135,7 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
               Only changes the label. Money received by bank/UPI/cash? Use &ldquo;Record payment&rdquo; below.
             </div>
           )}
+          </>)}
         </div>
         <div className="card p-4">
           <div className="label">Customer</div>
@@ -125,7 +148,7 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
               GSTIN: {order.customerGstin}
             </div>
           )}
-          {order.paymentStatus === 'completed' && order.customerEmail && (
+          {order.paymentStatus === 'completed' && !isReplacement && order.customerEmail && (
             <ResendConfirmation orderId={order.id} customerEmail={order.customerEmail} />
           )}
         </div>
@@ -141,6 +164,39 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
         />
       )}
 
+      {isReplacement && (
+        <div className="card overflow-x-auto">
+          <div className="px-4 py-3 border-b border-slate-200 font-semibold">Items sent free <span className="text-xs font-normal text-slate-400">· value declared to the courier and on the challan</span></div>
+          <table className="w-full text-sm min-w-[520px]">
+            <thead className="text-xs text-slate-500 uppercase bg-slate-50">
+              <tr>
+                <th className="px-4 py-2 text-left">Description</th>
+                <th className="px-4 py-2 text-right">Qty</th>
+                <th className="px-4 py-2 text-right">Value / pc</th>
+                <th className="px-4 py-2 text-right">Value</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {order.items.map((it) => (
+                <tr key={it.id}>
+                  <td className="px-4 py-2">
+                    <div>{it.productName}</div>
+                    <div className="font-mono text-[11px] text-slate-400">{it.productSku ? `SKU: ${it.productSku}` : 'Part not sold on its own — no stock change'}</div>
+                  </td>
+                  <td className="px-4 py-2 text-right">{it.quantity}</td>
+                  <td className="px-4 py-2 text-right">{inr(Number(it.declaredUnitValue ?? 0))}</td>
+                  <td className="px-4 py-2 text-right font-medium">{inr(Number(it.declaredUnitValue ?? 0) * it.quantity)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className="bg-slate-50 text-sm">
+              <tr><td colSpan={3} className="px-4 py-3 text-right font-semibold">Charged to the customer</td><td className="px-4 py-3 text-right font-semibold text-brand">{inr(0)}</td></tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      {!isReplacement && (
       <div className="card overflow-x-auto">
         <div className="px-4 py-3 border-b border-slate-200 font-semibold">Items</div>
         {(() => {
@@ -210,6 +266,7 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
           );
         })()}
       </div>
+      )}
 
       {order.shippingAddress && (
         <div className="card p-4">
@@ -224,13 +281,36 @@ export default function OrderDetail({ params }: { params: { id: string } }) {
 
       <ProfitCard order={order} onSaved={load} />
 
-      <RefundCard order={order} onDone={load} />
-      <CreditNoteCard orderId={order.id} />
+      {!isReplacement && order.replacements?.length > 0 && (
+        <div className="card p-4">
+          <div className="label">Free replacements sent for this order</div>
+          <ul className="text-sm divide-y divide-slate-100">
+            {order.replacements.map((r) => (
+              <li key={r.id} className="py-1.5 flex flex-wrap items-center gap-x-3">
+                <Link href={`/dashboard/orders/${r.id}`} className="font-mono text-brand underline">{r.orderNumber}</Link>
+                <span className="text-slate-500">{dateShort(r.createdAt)}</span>
+                <span className="text-slate-600">{r.orderStatus}</span>
+                {r.trackingNumber && <span className="font-mono text-xs text-slate-500">AWB {r.trackingNumber}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {canReplace && (
+        <CreateReplacement
+          orderId={order.id}
+          orderNumber={order.orderNumber}
+          items={order.items.map((it) => ({ id: it.id, productName: it.productName, productSku: it.productSku, quantity: it.quantity, unitPrice: Number(it.unitPrice) }))}
+        />
+      )}
+
+      {!isReplacement && <RefundCard order={order} onDone={load} />}
+      {!isReplacement && <CreditNoteCard orderId={order.id} />}
 
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="card p-4">
-          <div className="label">Customer notes</div>
+          <div className="label">{isReplacement ? 'Replacement reason' : 'Customer notes'}</div>
           <div className="text-sm whitespace-pre-line">{order.notes || <span className="text-slate-400">None</span>}</div>
         </div>
         <div className="card p-4">
@@ -283,7 +363,8 @@ function ProfitCard({ order, onSaved }: { order: Order; onSaved: () => void | Pr
     const saved = it.product?.costPrice;
     const edited = costEdits[it.id];
     const cp = edited !== undefined && edited !== '' ? num(edited) : (saved != null ? Number(saved) : null);
-    if (cp == null) { anyMissing = true; continue; }
+    // A replacement part we do not sell on its own has no product, so no cost price to ask for.
+    if (cp == null) { if (it.product || it.productId) anyMissing = true; continue; }
     const base = cp * it.quantity;
     costExGst += base;
     itc += (base * tax) / 100;
@@ -332,7 +413,7 @@ function ProfitCard({ order, onSaved }: { order: Order; onSaved: () => void | Pr
       {anyMissing && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
           <div className="text-xs font-semibold text-amber-800">Some products have no cost price — enter it (ex-GST) to complete the profit:</div>
-          {order.items.filter((it) => it.product?.costPrice == null).map((it) => (
+          {order.items.filter((it) => it.product?.costPrice == null && (it.product || it.productId)).map((it) => (
             <div key={it.id} className="flex items-center gap-2">
               <span className="text-sm text-slate-600 flex-1 truncate">{it.productName} <span className="text-[11px] text-slate-400">×{it.quantity}</span></span>
               <input className="input !py-1 w-32" inputMode="decimal" placeholder="Cost ₹"

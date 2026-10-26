@@ -48,8 +48,8 @@ import { num } from '@/lib/analytics-range';
 const ENGAGED_MS = 10_000;
 const IST = 'Asia/Kolkata';
 
-/** Paid, not cancelled — money actually received. */
-const PAID = Prisma.sql`o.payment_status = 'completed' AND o.order_status <> 'cancelled'`;
+/** Paid, not cancelled — money actually received. A free replacement (lib/replacement.ts) is not a sale. */
+const PAID = Prisma.sql`o.payment_status = 'completed' AND o.order_status <> 'cancelled' AND o.replacement_of_id IS NULL`;
 /** created_at as an IST wall-clock timestamp (the column is UTC). */
 const istTime = (col: Prisma.Sql) => Prisma.sql`(${col} AT TIME ZONE 'UTC' AT TIME ZONE ${IST})`;
 

@@ -145,7 +145,12 @@ export async function applyOrderStatus(
   // once the response returns, so a fire-and-forget send would be dropped.
   let emailSent = false;
   if (changed && next === 'shipped' && order.customerEmail) {
+    // A free replacement says so ("Your replacement for order X has shipped").
+    const replacementFor = order.replacementOfId
+      ? (await prisma.order.findUnique({ where: { id: order.replacementOfId }, select: { orderNumber: true } }))?.orderNumber ?? null
+      : null;
     const mail = buildShippingNotificationEmail({
+      replacementFor,
       orderNumber: order.orderNumber,
       customerName: order.customerName,
       carrierName: order.carrierName,

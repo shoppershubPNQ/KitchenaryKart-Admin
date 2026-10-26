@@ -14,6 +14,9 @@ interface Order {
   totalAmount: number | null;
   orderStatus: string;
   paymentStatus: string;
+  paymentMethod?: string | null;
+  /** Set on a free replacement order (lib/replacement.ts). */
+  replacementOfId?: number | null;
   createdAt: string;
 }
 
@@ -151,9 +154,13 @@ function OrdersList() {
                 <td className="px-4 py-2 text-slate-600">{dateShort(o.createdAt)}</td>
                 <td className="px-4 py-2 text-right font-medium">{inr(o.totalAmount)}</td>
                 <td className="px-4 py-2"><span className={statusPill[o.orderStatus] || 'pill-gray'}>{o.orderStatus}</span></td>
-                <td className="px-4 py-2"><span className={statusPill[o.paymentStatus] || 'pill-gray'}>{o.paymentStatus}</span></td>
+                <td className="px-4 py-2">
+                  {o.replacementOfId != null || o.paymentMethod === 'replacement'
+                    ? <span className="pill-gray">replacement</span>
+                    : <span className={statusPill[o.paymentStatus] || 'pill-gray'}>{o.paymentStatus}</span>}
+                </td>
                 <td className="px-4 py-2 text-right">
-                  <a href={`/api/orders/${o.id}/invoice`} target="_blank" rel="noopener" className="text-xs text-slate-600 hover:text-brand">Invoice ↗</a>
+                  <a href={`/api/orders/${o.id}/invoice`} target="_blank" rel="noopener" className="text-xs text-slate-600 hover:text-brand">{o.replacementOfId != null || o.paymentMethod === 'replacement' ? 'Challan ↗' : 'Invoice ↗'}</a>
                 </td>
               </tr>
             ))}

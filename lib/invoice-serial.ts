@@ -19,6 +19,7 @@
  */
 import { Prisma } from '@prisma/client';
 import { prisma } from './db';
+import { isReplacementOrder, NOT_REPLACEMENT } from './replacement';
 
 /**
  * Indian financial year for a given date, in `YYYY-YY` form.
@@ -102,6 +103,8 @@ async function tryAllocate(orderId: number): Promise<
       invoiceSerial: true,
       invoiceFinancialYear: true,
       paymentStatus: true,
+      paymentMethod: true,
+      replacementOfId: true,
     },
   });
   if (!order) throw new Error(`Order ${orderId} not found`);
@@ -124,7 +127,9 @@ async function tryAllocate(orderId: number): Promise<
   // invoice never burns a number (it renders as a proforma instead). The
   // serial is normally allocated at payment-success time (razorpay route),
   // so paid orders get clean sequential numbers in payment order.
-  if (order.paymentStatus !== 'completed') {
+  // A free replacement is "completed" (nothing to collect) but is not a sale:
+  // it never takes a tax-invoice number — it prints a Delivery Challan.
+  if (order.paymentStatus !== 'completed' || isReplacementOrder(order)) {
     return { fy, serial: null, formatted: null };
   }
 
@@ -169,6 +174,7 @@ export async function backfillSerialsForFinancialYear(fy: string): Promise<numbe
       createdAt: { gte: start, lt: end },
       paymentStatus: 'completed',
       invoiceSerial: null,
+      ...NOT_REPLACEMENT,
     },
     orderBy: { createdAt: 'asc' },
     select: { id: true },

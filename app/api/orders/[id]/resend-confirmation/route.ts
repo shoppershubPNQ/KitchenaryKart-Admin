@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { fail, handleError, ok } from '@/lib/api';
+import { isReplacementOrder } from '@/lib/replacement';
 import { sendEmail } from '@/lib/integrations/resend';
 import { buildOrderConfirmationEmail } from '@/lib/email-templates/order-confirmation';
 
@@ -18,6 +19,7 @@ export const POST = withAuth(async (_req, { params }) => {
     const order = await prisma.order.findUnique({ where: { id }, include: { items: true } });
     if (!order) return fail('Order not found', 404);
     if (order.paymentStatus !== 'completed') return fail('Only a paid order has a confirmation to send', 400);
+    if (isReplacementOrder(order)) return fail('A free replacement has no order confirmation to send', 400);
     if (!order.customerEmail) return fail('This order has no customer email', 400);
 
     const { subject, html, text } = buildOrderConfirmationEmail({

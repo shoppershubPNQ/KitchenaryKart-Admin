@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { fail, handleError, ok } from '@/lib/api';
 import { applyOrderStatus } from '@/lib/order-status';
+import { isReplacementOrder, REPLACEMENT_METHOD } from '@/lib/replacement';
 
 const patchSchema = z.object({
   orderStatus: z.enum(['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned']).optional(),
@@ -36,6 +37,12 @@ export const GET = withAuth(async (_req, { params }) => {
         items: { include: { product: { select: { id: true, costPrice: true } } } },
         payments: true,
         customer: true,
+        // Free replacement links (lib/replacement.ts), both directions.
+        replacementOf: { select: { id: true, orderNumber: true } },
+        replacements: {
+          select: { id: true, orderNumber: true, orderStatus: true, trackingNumber: true, createdAt: true },
+          orderBy: { id: 'asc' },
+        },
       },
     });
     if (!order) return fail('Not found', 404);
@@ -52,6 +59,19 @@ export const PATCH = withAuth(async (req, { params }) => {
 
     const current = await prisma.order.findUnique({ where: { id } });
     if (!current) return fail('Not found', 404);
+
+    // Only POST /api/orders/:id/replacement makes a replacement, and a
+    // replacement's payment fields stay as created (paid, ₹0, no reference) —
+    // flipping them would let it be invoiced or counted as a sale.
+    if (body.paymentMethod === REPLACEMENT_METHOD && !isReplacementOrder(current)) {
+      return fail('Use "Create replacement" on the original order', 400);
+    }
+    if (
+      isReplacementOrder(current) &&
+      (body.paymentStatus !== undefined || body.paymentMethod !== undefined || body.paymentReference !== undefined)
+    ) {
+      return fail('A free replacement has no payment to change', 400);
+    }
 
     // "Save tracking" (a tracking number being added) auto-advances the order
     // to "shipped" in one step — the admin doesn't also have to change the
@@ -83,6 +103,9 @@ export const PATCH = withAuth(async (req, { params }) => {
 export const DELETE = withAuth(async (_req, { params }) => {
   try {
     const id = parseInt(params.id);
+    // The replacement link is ON DELETE RESTRICT (lib/replacement.ts) — say why instead of a raw FK error.
+    const reps = await prisma.order.count({ where: { replacementOfId: id } });
+    if (reps) return fail(`This order has ${reps} free replacement order(s) — it cannot be deleted`, 400);
     await prisma.order.delete({ where: { id } });
     return ok({ deleted: true });
   } catch (e) {

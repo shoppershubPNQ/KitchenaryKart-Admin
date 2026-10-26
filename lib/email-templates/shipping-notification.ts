@@ -15,11 +15,16 @@ export interface ShippingEmailInput {
   trackingUrl: string | null;
   /** Storefront link where the customer can see live status. */
   trackUrl: string;
+  /** Set for a free replacement order: the original order number it replaces. */
+  replacementFor?: string | null;
 }
 
 export function buildShippingNotificationEmail(o: ShippingEmailInput) {
   const firstName = o.customerName ? o.customerName.split(' ')[0] : null;
-  const subject = `Your order ${o.orderNumber} has shipped — Kitchenary Kart`;
+  const what = o.replacementFor ? `replacement for order ${o.replacementFor}` : 'order';
+  const subject = o.replacementFor
+    ? `Your replacement for order ${o.replacementFor} has shipped — Kitchenary Kart`
+    : `Your order ${o.orderNumber} has shipped — Kitchenary Kart`;
 
   const facts: Array<{ k: string; v: string; mono?: boolean }> = [
     { k: 'Order number', v: o.orderNumber, mono: true },
@@ -29,7 +34,7 @@ export function buildShippingNotificationEmail(o: ShippingEmailInput) {
 
   const body = [
     paragraph(
-      `${firstName ? `Hi ${esc(firstName)}, your` : 'Your'} order has left our warehouse and is on its way to you.`,
+      `${firstName ? `Hi ${esc(firstName)}, your` : 'Your'} ${o.replacementFor ? `free ${esc(what)}` : 'order'} has left our warehouse and is on its way to you.`,
     ),
     spacer(6),
     panel(factRows(facts)),
@@ -48,7 +53,7 @@ export function buildShippingNotificationEmail(o: ShippingEmailInput) {
       ? `${o.carrierName ? o.carrierName + ' · ' : ''}Tracking ${o.trackingNumber}`
       : 'Your order is on its way — track it here.',
     eyebrow: 'On the way',
-    heading: 'Your order has shipped.',
+    heading: o.replacementFor ? 'Your replacement has shipped.' : 'Your order has shipped.',
     body,
     footerNote: 'Tracking can take a few hours to show its first scan after pickup.',
   });
@@ -56,7 +61,9 @@ export function buildShippingNotificationEmail(o: ShippingEmailInput) {
   const text = textBody([
     firstName ? `Hi ${firstName},` : 'Hi,',
     '',
-    `Your order ${o.orderNumber} has shipped and is on its way.`,
+    o.replacementFor
+      ? `Your free ${what} (${o.orderNumber}) has shipped and is on its way.`
+      : `Your order ${o.orderNumber} has shipped and is on its way.`,
     '',
     o.carrierName ? `Carrier: ${o.carrierName}` : '',
     o.trackingNumber ? `Tracking / AWB: ${o.trackingNumber}` : '',

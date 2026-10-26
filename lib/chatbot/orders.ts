@@ -141,6 +141,7 @@ export async function lookupOrderForChat(
       createdAt: true,
       orderStatus: true,
       paymentStatus: true,
+      paymentMethod: true,
       totalAmount: true,
       carrierName: true,
       trackingNumber: true,
@@ -174,15 +175,18 @@ export async function lookupOrderForChat(
     match: true,
     order_number: order.orderNumber,
     placed_on: fmtDate(order.createdAt),
-    status: statusLabel(order),
-    payment: PAYMENT_LABELS[order.paymentStatus] ?? order.paymentStatus,
+    // A free replacement (lib/replacement.ts) was never paid for — say so instead of 'Paid ₹0'.
+    status: order.paymentMethod === 'replacement' && !order.shippedAt && !order.deliveredAt && !['cancelled', 'returned'].includes(order.orderStatus)
+      ? 'Processing - free replacement being prepared for dispatch'
+      : statusLabel(order),
+    payment: order.paymentMethod === 'replacement' ? 'Free replacement - no charge' : PAYMENT_LABELS[order.paymentStatus] ?? order.paymentStatus,
     shipped_on: order.shippedAt ? fmtDate(order.shippedAt) : null,
     delivered_on: order.deliveredAt ? fmtDate(order.deliveredAt) : null,
     courier: order.carrierName?.trim() || null,
     tracking_number: order.trackingNumber?.trim() || null,
     tracking_url: httpsUrl(order.trackingUrl),
     latest_update: latest,
-    total_display: order.totalAmount != null ? formatInr(order.totalAmount) : null,
+    total_display: order.paymentMethod === 'replacement' ? 'Free replacement' : order.totalAmount != null ? formatInr(order.totalAmount) : null,
     items: order.items.map((i) => ({ name: i.productName ?? 'Item', quantity: i.quantity })),
     track_page: `${SITE_URL}/track`,
   };

@@ -54,6 +54,11 @@ export interface InvoiceInput {
   /** True when the order isn't paid yet → render as a Proforma Invoice with
    *  no GST serial (so unpaid orders never consume a tax-invoice number). */
   proforma?: boolean;
+  /** Set for a FREE REPLACEMENT order (lib/replacement.ts): renders a Delivery
+   *  Challan — no tax invoice, nothing payable. `summary` then carries the
+   *  DECLARED value of the goods (for transport), and `invoiceNumber` is the
+   *  challan number. */
+  challan?: { againstOrder: string; againstInvoice?: string | null; reason?: string | null };
   date: Date;
   company: {
     name: string;
@@ -143,14 +148,17 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     // Right column — invoice declaration. Unpaid orders render as a PROFORMA
     // (no GST serial burned) so the document isn't passed off as a real tax
     // invoice for a sale that hasn't been paid for.
+    const challan = inv.challan ?? null;
     doc.font('Body-Bold').fontSize(11).fillColor('#000').text(
-      inv.proforma ? 'Proforma Invoice' : 'Tax Invoice / Bill of Supply / Cash Memo',
+      challan ? 'Delivery Challan' : inv.proforma ? 'Proforma Invoice' : 'Tax Invoice / Bill of Supply / Cash Memo',
       rightX,
       yTop + 4,
       { width: colW, align: 'right' },
     );
     doc.font('Body').fontSize(9).fillColor('#555').text(
-      inv.proforma ? '(Not a tax invoice — payment pending)' : '(Triplicate for Supplier)',
+      challan
+        ? '(Free replacement — not a sale, nothing payable)'
+        : inv.proforma ? '(Not a tax invoice — payment pending)' : '(Triplicate for Supplier)',
       rightX,
       doc.y,
       { width: colW, align: 'right' },
@@ -167,10 +175,23 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     doc.font('Body').text(inv.orderNumber, leftX + 88, y);
     doc.font('Body-Bold').text('Order Date:', leftX, y + 14);
     doc.font('Body').text(inv.date.toLocaleDateString('en-IN'), leftX + 88, y + 14);
-    doc.font('Body-Bold').text('Invoice Number:', leftX, y + 28);
+    doc.font('Body-Bold').text(challan ? 'Challan Number:' : 'Invoice Number:', leftX, y + 28);
     doc.font('Body').text(inv.invoiceNumber, leftX + 88, y + 28);
-    doc.font('Body-Bold').text('Invoice Date:', leftX, y + 42);
+    doc.font('Body-Bold').text(challan ? 'Challan Date:' : 'Invoice Date:', leftX, y + 42);
     doc.font('Body').text(inv.date.toLocaleDateString('en-IN'), leftX + 88, y + 42);
+    if (challan) {
+      doc.font('Body-Bold').text('Against Order:', leftX, y + 56);
+      doc.font('Body').text(challan.againstOrder, leftX + 88, y + 56, { width: colW - 88 });
+      if (challan.againstInvoice) {
+        doc.font('Body-Bold').text('Against Invoice:', leftX, y + 70);
+        doc.font('Body').text(challan.againstInvoice, leftX + 88, y + 70, { width: colW - 88 });
+      }
+      if (challan.reason) {
+        doc.font('Body-Bold').text('Reason:', leftX, y + (challan.againstInvoice ? 84 : 70));
+        doc.font('Body').text(challan.reason, leftX + 88, y + (challan.againstInvoice ? 84 : 70), { width: colW - 88 });
+      }
+    }
+    const orderInfoEndY = doc.y;
 
     // Right: Billing Address.
     // Render only the address — the shippingAddress field is built
@@ -234,7 +255,7 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
       });
     }
 
-    const headerBlockEndY = Math.max(orderInfoY + 60, doc.y);
+    const headerBlockEndY = Math.max(orderInfoY + 60, orderInfoEndY, doc.y);
     y = headerBlockEndY + 14;
     doc.moveTo(leftX, y).lineTo(leftX + contentW, y).strokeColor('#CFC5A8').stroke();
     y += 8;
@@ -262,10 +283,10 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
       sl:   { x: leftX,        w: 24,  label: 'Sl.', align: 'center' as const },
       desc: { x: leftX + 24,   w: 181, label: 'Description', align: 'left' as const },
       qty:  { x: leftX + 205,  w: 36,  label: 'Qty', align: 'center' as const },
-      unit: { x: leftX + 241,  w: 74,  label: 'Unit Price', align: 'right' as const },
+      unit: { x: leftX + 241,  w: 74,  label: challan ? 'Unit Value' : 'Unit Price', align: 'right' as const },
       disc: { x: leftX + 315,  w: 62,  label: 'Discount', align: 'right' as const },
       gst:  { x: leftX + 377,  w: 66,  label: 'GST', align: 'right' as const },
-      tot:  { x: leftX + 443,  w: 80,  label: 'Total', align: 'right' as const },
+      tot:  { x: leftX + 443,  w: 80,  label: challan ? 'Value' : 'Total', align: 'right' as const },
     };
     const tableRight = leftX + contentW;
     const HEADER_H = 22;
@@ -349,7 +370,8 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
         height: rowH,
       });
       const subY = y + PAD + descNameH + 1;
-      doc.fontSize(7).fillColor('#777').text(`SKU: ${it.sku}`, cols.desc.x + PAD, subY, {
+      // A replacement part we do not sell on its own has no SKU.
+      doc.fontSize(7).fillColor('#777').text(it.sku ? `SKU: ${it.sku}` : '', cols.desc.x + PAD, subY, {
         width: cols.desc.w - PAD * 2, ...cellOpts,
       });
       if (it.hsnCode) {
@@ -364,23 +386,23 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
         { width: cols.qty.w - PAD * 2, align: cols.qty.align, ...cellOpts },
       );
 
-      // Unit Price (excl. GST)
-      doc.text(inrPlain(it.unitNetPrice), cols.unit.x + PAD, y + PAD, {
+      // Unit Price (excl. GST) — on a challan, the declared value per unit (incl. GST)
+      doc.text(inrPlain(challan ? it.lineTotal / (it.quantity || 1) : it.unitNetPrice), cols.unit.x + PAD, y + PAD, {
         width: cols.unit.w - PAD * 2, align: cols.unit.align, ...cellOpts,
       });
 
       // Discount (ex-GST amount, no minus sign; — when none)
-      doc.fillColor(it.lineDiscount > 0 ? '#0A7D33' : '#777').text(
-        it.lineDiscount > 0 ? inrPlain(it.lineDiscount) : '—',
+      doc.fillColor(!challan && it.lineDiscount > 0 ? '#0A7D33' : '#777').text(
+        !challan && it.lineDiscount > 0 ? inrPlain(it.lineDiscount) : '—',
         cols.disc.x + PAD, y + PAD,
         { width: cols.disc.w - PAD * 2, align: cols.disc.align, ...cellOpts },
       );
 
-      // GST: amount (on discounted value) + small rate
-      doc.fillColor('#1A1A1A').fontSize(9).text(inrPlain(it.lineGst), cols.gst.x + PAD, y + PAD, {
+      // GST: amount (on discounted value) + small rate. A challan charges none.
+      doc.fillColor('#1A1A1A').fontSize(9).text(challan ? 'Nil' : inrPlain(it.lineGst), cols.gst.x + PAD, y + PAD, {
         width: cols.gst.w - PAD * 2, align: cols.gst.align, ...cellOpts,
       });
-      doc.fontSize(7).fillColor('#777').text(`${it.taxPercent}%`, cols.gst.x + PAD, y + PAD + 11, {
+      doc.fontSize(7).fillColor('#777').text(challan ? 'not charged' : `${it.taxPercent}%`, cols.gst.x + PAD, y + PAD + 11, {
         width: cols.gst.w - PAD * 2, align: cols.gst.align, ...cellOpts,
       });
 
@@ -448,24 +470,33 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     };
     // GST-compliant ladder — identical labels + numbers across website,
     // admin and print. GST is on the discounted Net Value.
-    sumRow('Excluding GST Price (Net Price)', inrPlain(s.netPrice));
-    if (s.discountPct > 0) {
-      sumRow(`Discount (${s.discountPct}%)`, `- ${inrPlain(s.discountAmount)}`, { color: '#0A7D33' });
-    }
-    if (s.discountPct > 0) {
-      sumRow('Net Value', inrPlain(s.netValue));
-    }
-    sumRow(`Shipping Fee${s.shipping === 0 ? ' (Free)' : ''}`, inrPlain(s.shipping));
-    sumRow(`GST (${s.gstRateLabel})`, inrPlain(s.gstAmount));
-    if (s.roundOff !== 0) {
-      sumRow('Round Off', `${s.roundOff > 0 ? '+ ' : '- '}${inrPlain(Math.abs(s.roundOff))}`);
+    // A Delivery Challan instead states the declared value of the goods and
+    // that nothing is payable.
+    const declaredTotal = s.lines.reduce((sum, l) => sum + l.lineTotal, 0);
+    if (challan) {
+      sumRow('Value of goods (declared for transport)', inrPlain(declaredTotal));
+      sumRow('Amount charged (free replacement)', inrPlain(0));
+      sumRow('GST charged', inrPlain(0));
+    } else {
+      sumRow('Excluding GST Price (Net Price)', inrPlain(s.netPrice));
+      if (s.discountPct > 0) {
+        sumRow(`Discount (${s.discountPct}%)`, `- ${inrPlain(s.discountAmount)}`, { color: '#0A7D33' });
+      }
+      if (s.discountPct > 0) {
+        sumRow('Net Value', inrPlain(s.netValue));
+      }
+      sumRow(`Shipping Fee${s.shipping === 0 ? ' (Free)' : ''}`, inrPlain(s.shipping));
+      sumRow(`GST (${s.gstRateLabel})`, inrPlain(s.gstAmount));
+      if (s.roundOff !== 0) {
+        sumRow('Round Off', `${s.roundOff > 0 ? '+ ' : '- '}${inrPlain(Math.abs(s.roundOff))}`);
+      }
     }
     // Net Payable Amount — bold black bar.
     y += 3;
     doc.rect(leftX, y, contentW, 26).fillAndStroke('#1F1F1F', '#1F1F1F');
     doc.fillColor('#FFFFFF').font('Body-Bold').fontSize(11);
-    doc.text('Net Payable Amount', sumLabelX, y + 7, { width: sumLabelW, align: 'right', lineBreak: false, height: 26 });
-    doc.text(inrPlain(s.netPayable), sumValX, y + 7, { width: sumValW, align: 'right', lineBreak: false, height: 26 });
+    doc.text(challan ? 'Amount Payable' : 'Net Payable Amount', sumLabelX, y + 7, { width: sumLabelW, align: 'right', lineBreak: false, height: 26 });
+    doc.text(inrPlain(challan ? 0 : s.netPayable), sumValX, y + 7, { width: sumValW, align: 'right', lineBreak: false, height: 26 });
     y += 36;
     doc.fillColor('#444');
 
@@ -474,11 +505,16 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     // (e.g. ₹16,014.96 → "Sixteen Thousand...") wrap inside the
     // invoice instead of overflowing into the signatory area.
     const wordsBlockY = y;
-    doc.font('Body-Bold').fontSize(9).fillColor('#000').text('Amount in Words:', leftX, wordsBlockY, {
-      width: colW,
-    });
+    doc.font('Body-Bold').fontSize(9).fillColor('#000').text(
+      challan ? 'Value of goods in Words:' : 'Amount in Words:',
+      leftX,
+      wordsBlockY,
+      { width: colW },
+    );
     doc.font('Body').fontSize(9).fillColor('#222').text(
-      `${rupeeWords(inv.summary.netPayable)} only.`,
+      challan
+        ? `${rupeeWords(declaredTotal)} only (declared value; no payment due).`
+        : `${rupeeWords(inv.summary.netPayable)} only.`,
       leftX,
       doc.y + 2,
       { width: colW, lineGap: 1 },
@@ -521,13 +557,22 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
       .font('Body')
       .fontSize(8)
       .fillColor('#222')
-      .text('Whether tax is payable under reverse charge — No', leftX, y, { width: contentW });
+      .text(
+        challan
+          ? `Free replacement, without consideration, of goods supplied against order ${challan.againstOrder}${challan.againstInvoice ? ` (invoice ${challan.againstInvoice})` : ''}. Not a sale — no GST is charged on this challan.`
+          : 'Whether tax is payable under reverse charge — No',
+        leftX,
+        y,
+        { width: contentW },
+      );
     y = doc.y + 6;
     doc
       .fontSize(7)
       .fillColor('#777')
       .text(
-        'Declaration: Goods once sold cannot be taken back without prior approval. Returns and refunds are subject to the policies published at kitchenarykart.com.',
+        challan
+          ? 'Declaration: The value shown is declared for transport purposes only. Returns and refunds are subject to the policies published at kitchenarykart.com.'
+          : 'Declaration: Goods once sold cannot be taken back without prior approval. Returns and refunds are subject to the policies published at kitchenarykart.com.',
         leftX,
         y,
         { width: contentW },

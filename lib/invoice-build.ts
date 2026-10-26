@@ -13,8 +13,9 @@
 import { prisma } from '@/lib/db';
 import { renderInvoicePdf } from '@/lib/invoice';
 import { detectStateFromAddress, GST_STATES } from '@/lib/gst-states';
-import { ensureInvoiceNumber } from '@/lib/invoice-serial';
+import { ensureInvoiceNumber, formatInvoiceNumber } from '@/lib/invoice-serial';
 import { computeOrderSummary } from '@/lib/order-summary';
+import { isReplacementOrder } from '@/lib/replacement';
 
 /**
  * Fetch a setting value from the DB (with a static fallback so a
@@ -78,6 +79,17 @@ export async function buildInvoicePdfForOrder(
   const placeOfSupply = detected ? { name: detected.name, code: detected.code } : null;
   const isInterState = !!(detected && detected.code !== companyStateCode);
 
+  // A free replacement is not a sale: it prints a DELIVERY CHALLAN (numbered
+  // with its own order number, e.g. KKMVETUXB3-R1) carrying the declared value
+  // of the goods, and never takes a tax-invoice serial.
+  const replacement = isReplacementOrder(order);
+  const original = replacement && order.replacementOfId
+    ? await prisma.order.findUnique({
+        where: { id: order.replacementOfId },
+        select: { orderNumber: true, invoiceSerial: true, invoiceFinancialYear: true },
+      })
+    : null;
+
   // ── Items + per-line breakdown (shared helper = identical to the
   // website/admin/print). GST is computed on the DISCOUNTED net value;
   // each line's stored lineTotal is GST-inclusive. ────────────────────
@@ -86,12 +98,12 @@ export async function buildInvoicePdfForOrder(
       name: it.productName || '',
       sku: it.productSku || '',
       hsnCode: it.product?.hsnCode ?? null,
-      lineInclusive: Number(it.lineTotal),
+      lineInclusive: replacement ? Number(it.declaredUnitValue ?? 0) * it.quantity : Number(it.lineTotal),
       quantity: it.quantity,
       taxPercent: Number(it.taxPercent),
     })),
-    Number(order.discountAmount || 0),
-    Number(order.shippingCost || 0),
+    replacement ? 0 : Number(order.discountAmount || 0),
+    replacement ? 0 : Number(order.shippingCost || 0),
   );
   const taxBreakdown = isInterState
     ? { cgst: 0, sgst: 0, igst: summary.gstAmount }
@@ -105,14 +117,23 @@ export async function buildInvoicePdfForOrder(
   // (normally at payment-success time). An unpaid order gets no serial →
   // we render a PROFORMA referencing the order number, so viewing an
   // unpaid order's invoice never burns a real tax-invoice number.
-  const { formatted } = await ensureInvoiceNumber(order.id);
-  const proforma = formatted == null;
-  const invoiceNumber = formatted ?? `PRO/${order.orderNumber}`;
+  const { formatted } = replacement ? { formatted: null } : await ensureInvoiceNumber(order.id);
+  const proforma = !replacement && formatted == null;
+  const invoiceNumber = replacement ? `DC/${order.orderNumber}` : formatted ?? `PRO/${order.orderNumber}`;
 
   const pdf = await renderInvoicePdf({
     orderNumber: order.orderNumber,
     invoiceNumber,
     proforma,
+    challan: replacement
+      ? {
+          againstOrder: original?.orderNumber ?? '—',
+          againstInvoice: original?.invoiceSerial && original.invoiceFinancialYear
+            ? formatInvoiceNumber(original.invoiceFinancialYear, original.invoiceSerial)
+            : null,
+          reason: order.notes,
+        }
+      : undefined,
     date: order.createdAt,
     company: {
       name: companyName || 'Kitchenary Kart',

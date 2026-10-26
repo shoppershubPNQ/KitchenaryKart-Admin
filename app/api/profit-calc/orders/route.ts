@@ -19,7 +19,8 @@ export const GET = withAuth(async (req) => {
     const take = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '40', 10)));
 
     const orders = await prisma.order.findMany({
-      where: { paymentStatus: 'completed' },
+      // Sales only — a free replacement (lib/replacement.ts) shows its cost on its own order page.
+      where: { paymentStatus: 'completed', replacementOfId: null },
       orderBy: { createdAt: 'desc' },
       take,
       select: {

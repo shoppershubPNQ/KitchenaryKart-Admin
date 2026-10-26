@@ -20,6 +20,7 @@ export const GET = withAuth(async () => {
       JOIN orders o ON o.id = oi.order_id
         AND o.payment_status = 'completed'
         AND o.order_status <> 'cancelled'
+        AND o.replacement_of_id IS NULL -- free replacements are not sales
       JOIN products p ON p.id = oi.product_id
       GROUP BY p.id
       ORDER BY total_revenue DESC NULLS LAST

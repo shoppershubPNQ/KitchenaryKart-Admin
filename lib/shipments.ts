@@ -24,6 +24,7 @@ import { prisma } from './db';
 import { applyOrderStatus } from './order-status';
 import { parseGrams } from './shipping-zones';
 import { formatInvoiceNumber } from './invoice-serial';
+import { goodsValue, isReplacementOrder } from './replacement';
 import { getCreds, type ShiprocketCreds } from './integration-credentials';
 import {
   type Address, type PackageSpec, type QuoteOption, type TrackResult, type ShipmentLine,
@@ -199,7 +200,7 @@ export async function shipmentPanel(orderId: number) {
   const order = await loadOrder(orderId);
   const providers = await providerStatus();
   const weight = catalogueWeight(order);
-  const declaredValue = Number(order.totalAmount ?? 0);
+  const declaredValue = goodsValue(order);
   const shipments = await prisma.shipment.findMany({
     where: { orderId },
     orderBy: { id: 'desc' },
@@ -242,7 +243,8 @@ export async function shipmentPanel(orderId: number) {
 
 /** Null when the order may be booked; otherwise the reason it may not. */
 function bookingBlocker(order: LoadedOrder): string | null {
-  if (order.paymentStatus !== 'completed') return 'Payment is not completed — record the payment first';
+  // A free replacement is created 'completed' (nothing to collect); the second test is a safety net.
+  if (order.paymentStatus !== 'completed' && !isReplacementOrder(order)) return 'Payment is not completed — record the payment first';
   if (order.orderStatus === 'cancelled' || order.orderStatus === 'returned') return `Order is ${order.orderStatus}`;
   if (order.orderStatus === 'delivered') return 'Order is already delivered';
   const act = activeShipment(order);
@@ -300,7 +302,7 @@ export async function quoteForOrder(orderId: number, input: BookingInput): Promi
   const from = await originPincode();
   if (input.provider === 'shiprocket') {
     await shiprocketCreds();
-    const list = await shiprocketQuote(from, input.to, input.pkg, Number(order.totalAmount ?? 0));
+    const list = await shiprocketQuote(from, input.to, input.pkg, goodsValue(order));
     if (!list.length) {
       return [{
         provider: 'shiprocket', courierId: '', courierName: 'Shiprocket', charge: 0, etaDays: null,
@@ -332,16 +334,20 @@ interface Booked {
  * (Order.discountAmount, also GST-inclusive — KKMUMJQZM4: 7,290 − 729 =
  * 6,561 total) is spread over the lines pro rata, so the value Shiprocket
  * records next to our invoice number is the value on that invoice.
+ * A free replacement charges nothing, so its lines carry the DECLARED value
+ * per unit (lib/replacement.ts) — the value on its Delivery Challan.
  */
 function invoicedLines(order: LoadedOrder): ShipmentLine[] {
+  const replacement = isReplacementOrder(order);
   const lines: ShipmentLine[] = order.items.map((it) => ({
     name: it.productName ?? it.product?.name ?? it.productSku ?? 'Item',
     sku: it.productSku ?? '',
     units: it.quantity,
-    sellingPrice: Number(it.unitPrice),
+    sellingPrice: replacement ? Number(it.declaredUnitValue ?? 0) : Number(it.unitPrice),
     hsn: it.product?.hsnCode ?? null,
     taxPercent: Number(it.taxPercent),
   }));
+  if (replacement) return lines;
   const gross = lines.reduce((s, l) => s + l.sellingPrice * l.units, 0);
   const discount = Number(order.discountAmount ?? 0);
   if (!(discount > 0) || !(gross > discount)) return lines;
@@ -392,7 +398,7 @@ export async function bookShipment(orderId: number, input: BookingInput, adminId
     validateShiprocketBooking(input, order.customerEmail);
   }
 
-  const declaredValue = Number(order.totalAmount ?? 0);
+  const declaredValue = goodsValue(order);
   if (declaredValue > EWAYBILL_THRESHOLD && !input.ewaybill?.trim()) {
     throw new ShipmentError(`Order value is above ₹${EWAYBILL_THRESHOLD.toLocaleString('en-IN')} — enter the e-way bill number`);
   }
@@ -405,9 +411,12 @@ export async function bookShipment(orderId: number, input: BookingInput, adminId
 
   const to = { ...input.to, phone: normalisePhone(input.to.phone) };
   const lines = invoicedLines(order);
-  const invoiceNumber = order.invoiceSerial && order.invoiceFinancialYear
-    ? formatInvoiceNumber(order.invoiceFinancialYear, order.invoiceSerial)
-    : null;
+  // A replacement travels with its Delivery Challan (DC/<order number>), not a tax invoice.
+  const invoiceNumber = isReplacementOrder(order)
+    ? `DC/${order.orderNumber}`
+    : order.invoiceSerial && order.invoiceFinancialYear
+      ? formatInvoiceNumber(order.invoiceFinancialYear, order.invoiceSerial)
+      : null;
   const common = {
     orderNumber: reference,
     orderDate: order.createdAt,

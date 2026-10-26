@@ -67,7 +67,7 @@ export async function getTraffic(days: number) {
         GROUP BY sku ORDER BY viewers DESC, carted DESC LIMIT 60`,
       prisma.orderItem.groupBy({
         by: ['productSku'],
-        where: { order: { paymentStatus: 'completed', orderStatus: { not: 'cancelled' }, createdAt: { gte: since } } },
+        where: { order: { paymentStatus: 'completed', orderStatus: { not: 'cancelled' }, replacementOfId: null, createdAt: { gte: since } } },
         _sum: { quantity: true },
       }),
       prisma.$queryRaw<Array<{ path: string }>>`

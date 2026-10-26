@@ -372,6 +372,7 @@ export async function buildAnalyticsWorkbook(days: number, hideStaff = true) {
     where: {
       paymentStatus: 'completed',
       orderStatus: { not: 'cancelled' },
+      replacementOfId: null, // free replacements are not sales
       createdAt: { gte: m.range.since, lt: m.range.until },
     },
     select: {

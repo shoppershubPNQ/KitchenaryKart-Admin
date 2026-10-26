@@ -75,6 +75,8 @@ interface CachedStats {
 const PAID_WHERE: Prisma.OrderWhereInput = {
   paymentStatus: 'completed',
   orderStatus: { not: 'cancelled' },
+  // A free replacement (lib/replacement.ts) is 'completed' but is not a sale.
+  replacementOfId: null,
 };
 
 /** createdAt filter for a resolved window; `{}` when the window is unbounded. */
@@ -167,6 +169,7 @@ async function compute(period: ResolvedPeriod): Promise<CachedStats> {
       -- Same rule as PAID_WHERE above: only money actually received. Without
       -- this the list counted unpaid/abandoned orders and overstated revenue.
       WHERE o.payment_status = 'completed' AND o.order_status <> 'cancelled'
+        AND o.replacement_of_id IS NULL -- free replacements are not sales
       -- Scoped to the selected period, so "top products" answers "best sellers
       -- LAST YEAR" rather than always showing all-time winners.
       ${period.start ? Prisma.sql`AND o.created_at >= ${period.start} AND o.created_at < ${period.end}` : Prisma.empty}

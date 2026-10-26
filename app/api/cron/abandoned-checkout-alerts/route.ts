@@ -72,7 +72,8 @@ export async function GET(req: NextRequest) {
     const recent = await prisma.order.findMany({
       where: {
         createdAt: { gte: new Date(now - (MAX_AGE_HOURS + 1) * 3_600_000) },
-        OR: [{ paymentStatus: 'completed' }, { abandonedAlertAt: { not: null } }],
+        // A free replacement (lib/replacement.ts) is 'completed' but is not the buyer paying.
+        OR: [{ paymentStatus: 'completed', replacementOfId: null }, { abandonedAlertAt: { not: null } }],
       },
       select: { customerPhone: true, customerEmail: true, createdAt: true, paymentStatus: true, abandonedAlertAt: true },
     });

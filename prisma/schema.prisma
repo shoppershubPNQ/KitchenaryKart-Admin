@@ -464,6 +464,15 @@ model Order {
   notes         String?
   internalNotes String? @map("internal_notes")
 
+  /// Set on a FREE REPLACEMENT order: the original order whose item/part
+  /// arrived broken. Such an order is never a sale — no payment, no GST
+  /// invoice serial (it prints a Delivery Challan), no sale emails, and it is
+  /// left out of every sales/revenue report. See lib/replacement.ts.
+  /// Column added by raw SQL 2026-10-26 (scripts/add-replacement-columns.ts).
+  replacementOfId Int?    @map("replacement_of_id")
+  replacementOf   Order?  @relation("OrderReplacement", fields: [replacementOfId], references: [id], onDelete: Restrict)
+  replacements    Order[] @relation("OrderReplacement")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -477,6 +486,7 @@ model Order {
   @@index([paymentStatus])
   @@index([createdAt])
   @@index([invoiceFinancialYear])
+  @@index([replacementOfId])
   @@map("orders")
 }
 
@@ -503,6 +513,12 @@ model OrderItem {
   discountPercent Decimal @default(0) @map("discount_percent") @db.Decimal(5, 2)
 
   lineTotal Decimal @map("line_total") @db.Decimal(12, 2)
+
+  /// Replacement orders only: the GST-inclusive value of ONE unit of this
+  /// line, declared to the courier and printed on the Delivery Challan
+  /// (unitPrice/lineTotal stay 0 — nothing is charged). NULL on sales.
+  /// Column added by raw SQL 2026-10-26 (scripts/add-replacement-columns.ts).
+  declaredUnitValue Decimal? @map("declared_unit_value") @db.Decimal(10, 2)
 
   createdAt DateTime @default(now()) @map("created_at")
 
