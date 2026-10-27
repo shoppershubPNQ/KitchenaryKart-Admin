@@ -7,7 +7,7 @@ import { handleError, ok, paging } from '@/lib/api';
 import { rankItems } from '@/lib/search';
 import { getAdminSearchIndex, invalidateAdminSearchIndex, codeKey } from '@/lib/product-search-index';
 import { partnerPricesFor } from '@/lib/sync-consumer';
-import { heSizePrice, isKept, readHeSizes } from '@/lib/he-price-watch';
+import { heSizePrice, isKept, marginFor, readHeSizes } from '@/lib/he-price-watch';
 
 /**
  * Hang what Hotelic Essentials charges off each row, so the list can show
@@ -24,7 +24,7 @@ import { heSizePrice, isKept, readHeSizes } from '@/lib/he-price-watch';
  * size — the case the owner acts on. HE being lower is deliberate (prices are
  * only ever raised, never lowered) and no longer flagged.
  */
-async function withPartnerPrice<T extends { id: number; sku: string; price: unknown; taxPercent?: unknown }>(
+async function withPartnerPrice<T extends { id: number; sku: string; price: unknown; taxPercent?: unknown; category?: string | null }>(
   products: T[],
 ) {
   if (products.length === 0) return products;
@@ -57,7 +57,7 @@ async function withPartnerPrice<T extends { id: number; sku: string; price: unkn
     const rows = sizesOf.get(p.id) ?? [{ sku: p.sku, ours: Number(p.price) }];
     const matched = heSizes
       ? rows
-          .map((r) => ({ ...r, he: heSizePrice(heSizes.sizes[r.sku.toUpperCase()], gst, r.ours, isKept(r.sku, p.sku)) }))
+          .map((r) => ({ ...r, he: heSizePrice(heSizes.sizes[r.sku.toUpperCase()], gst, r.ours, isKept(r.sku, p.sku), marginFor(p.category)) }))
           .filter((r): r is typeof r & { he: NonNullable<typeof r.he> } => r.he !== null)
       : [];
 

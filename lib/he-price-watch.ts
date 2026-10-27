@@ -3,7 +3,7 @@
  * kam sell na ho" → "Only notify me", shown as a pop-up in the admin.
  *
  * Compares every active size with Hotelic Essentials' live feed using the owner's HE rule — our price =
- * HE ex-GST × 1.30 × (1 + our GST) — and lists the sizes now priced below it.
+ * HE ex-GST × 1.30 × (1 + our GST), × 1.50 for SPARE PARTS (owner 2026-10-27) — and lists the sizes now priced below it.
  *
  * READ-ONLY for the catalogue: nothing here writes a price, MRP, stock or any other product field. The only
  * writes are settings rows (the snapshot and who has seen it), so the pop-up never has to call HE on a page load.
@@ -22,6 +22,13 @@ export const HE_WATCH_SEEN_PREFIX = 'he_price_watch_seen:';
 export const HE_WATCH_SIZES_KEY = 'he_price_watch_sizes';
 
 const MARGIN = 1.3;
+/** Owner 2026-10-27: "Spare Part mai HE se 30% increase kiya hai vo 50% kro" — spares are HE × 1.50. */
+const SPARES_MARGIN = 1.5;
+
+/** The owner's HE markup for a listing's category. */
+export function marginFor(category: string | null | undefined): number {
+  return category === 'SPARE PARTS' ? SPARES_MARGIN : MARGIN;
+}
 /** A jump this large is more often a feed mistake than a real rise — the owner checks with HE first. */
 const BIG_PCT = 30;
 /** Under ₹1 is rounding, not a rise. */
@@ -96,13 +103,13 @@ export interface HeSizePrice {
 
 /** HE's price for a size against ours, or null when HE has no price for it or its GST differs from ours.
  *  `kept` (an owner-fixed price, see KEEP) is never reported as below HE — same as the pop-up. */
-export function heSizePrice(entry: [number, number] | undefined, ourGst: number, ours: number, kept = false): HeSizePrice | null {
+export function heSizePrice(entry: [number, number] | undefined, ourGst: number, ours: number, kept = false, margin = MARGIN): HeSizePrice | null {
   if (!entry) return null;
   const [heIncl, heTax] = entry;
   if (heTax !== ourGst) return null;
   const heEx = r2(heIncl / (1 + heTax / 100));
-  const target = targetPrice(heEx, ourGst);
-  return { heIncl, heTax, heEx, marked: r2(heEx * MARGIN), target, below: !kept && target - ours > MIN_DIFF };
+  const target = targetPrice(heEx, ourGst, margin);
+  return { heIncl, heTax, heEx, marked: r2(heEx * margin), target, below: !kept && target - ours > MIN_DIFF };
 }
 
 /** True for an owner-fixed price (by size SKU or its listing's SKU). */
@@ -112,13 +119,13 @@ export function isKept(sku: string, listingSku: string): boolean {
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-export function targetPrice(heEx: number, gst: number): number {
-  return r2(heEx * MARGIN * (1 + gst / 100));
+export function targetPrice(heEx: number, gst: number, margin = MARGIN): number {
+  return r2(heEx * margin * (1 + gst / 100));
 }
 
-function withPrices(row: HeIncrease, ours: number, gst: number): HeIncrease | null {
+function withPrices(row: HeIncrease, ours: number, gst: number, margin = MARGIN): HeIncrease | null {
   if (row.heTax !== gst) return null;
-  const target = targetPrice(row.heEx, gst);
+  const target = targetPrice(row.heEx, gst, margin);
   const diff = r2(target - ours);
   if (!(diff > MIN_DIFF)) return null;
   const pct = ours > 0 ? r2((diff / ours) * 100) : null;
@@ -197,7 +204,7 @@ export async function computeHeIncreases(): Promise<HeWatchSnapshot> {
         sku: r.sku, listingSku: p.sku, productId: p.id, variantId: r.variantId, name: p.name, size: r.size, category,
         ours: r.ours, gst, heIncl: h.incl, heEx, heTax: h.tax, target: 0, diff: 0, pct: null,
         heUpdatedAt: h.upd ? h.upd.slice(0, 10) : null, big: false,
-      }, r.ours, gst);
+      }, r.ours, gst, marginFor(p.category));
       if (row) items.push(row);
     }
   }

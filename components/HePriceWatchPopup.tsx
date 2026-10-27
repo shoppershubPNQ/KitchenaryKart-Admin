@@ -193,7 +193,7 @@ function WatchPopup() {
 
           {data.items.length > 0 && (
             <>
-              <p className="text-sm text-slate-600">Our price is now below HE price × 1.30 + GST for these sizes.</p>
+              <p className="text-sm text-slate-600">Our price is now below HE price × 1.30 + GST (spare parts × 1.50) for these sizes.</p>
               <div className="overflow-x-auto rounded-lg border border-slate-200">
                 <table className="table-mini">
                   <thead>
@@ -201,7 +201,7 @@ function WatchPopup() {
                       <th className="min-w-[12rem]">Product</th>
                       <th>Size</th>
                       <th className="text-right">Our price</th>
-                      <th className="text-right">New price (HE × 1.30 + GST)</th>
+                      <th className="text-right">New price (HE × 1.30, spares × 1.50, + GST)</th>
                       <th className="text-right">Increase</th>
                     </tr>
                   </thead>
