@@ -83,7 +83,7 @@ async function withPartnerPrice<T extends { id: number; sku: string; price: unkn
         price_ex_gst: own.he.heEx,
         marked_ex_gst: show.he.marked,
         chain_mrp: Math.round(show.he.target * 2 * 100) / 100,
-        chain_note: `${show.sku}: HE ₹${show.he.heEx} ex-GST × 1.30 = ₹${show.he.marked} + ${gst}% GST = ₹${show.he.target}`,
+        chain_note: `${show.sku}: HE ₹${show.he.heEx} ex-GST × ${marginFor(p.category).toFixed(2)} = ₹${show.he.marked} + ${gst}% GST = ₹${show.he.target}`,
         landed_price: show.he.target,
         stock: linked?.stock ?? null,
         drifted: below.length > 0,

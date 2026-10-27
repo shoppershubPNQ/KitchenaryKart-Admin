@@ -66,7 +66,7 @@ export interface HeIncrease {
   heIncl: number;
   heEx: number;
   heTax: number;
-  /** HE ex-GST × 1.30 × (1 + our GST). */
+  /** HE ex-GST × 1.30 (spare parts × 1.50) × (1 + our GST). */
   target: number;
   diff: number;
   pct: number | null;
