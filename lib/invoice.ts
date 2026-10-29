@@ -90,9 +90,16 @@ export interface InvoiceInput {
    *  same numbers + labels as the website, admin and print view. GST is on
    *  the discounted net value. */
   summary: OrderSummary;
+  /** Optional product photo per summary line (JPEG/PNG buffer, same order as summary.lines), drawn as a
+   *  thumbnail at the left of the Description cell. Only the proforma (PI) scripts pass it; a missing or
+   *  null entry renders that row exactly as before. */
+  lineImages?: Array<Buffer | null>;
 }
 
 const PAGE_MARGIN = 36;
+// Side of the square product thumbnail in the Description cell (points) + its gap to the text.
+const THUMB = 50;
+const THUMB_GAP = 6;
 const COL_GAP = 16;
 // A4 in PDFKit points = 595.28 × 841.89. We stop drawing rows at this Y
 // so the per-page "Page X of Y" footer + bottom margin always have room.
@@ -329,10 +336,14 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     doc.font('Body').fontSize(9).fillColor('#222');
     inv.summary.lines.forEach((it, i) => {
       // Row height driven by the (fully wrapped) description + sub-lines.
+      // With a photo, the name/SKU/HSN text sits to the right of the thumbnail.
+      const img = inv.lineImages?.[i] ?? null;
+      const textX = cols.desc.x + PAD + (img ? THUMB + THUMB_GAP : 0);
+      const textW = cols.desc.w - PAD * 2 - (img ? THUMB + THUMB_GAP : 0);
       doc.fontSize(9);
-      const descNameH = doc.heightOfString(it.name, { width: cols.desc.w - PAD * 2 });
+      const descNameH = doc.heightOfString(it.name, { width: textW });
       const subLineH = it.hsnCode ? 22 : 11; // SKU line + optional HSN line
-      const rowH = Math.max(descNameH + subLineH + PAD * 2, 34);
+      const rowH = Math.max(descNameH + subLineH + PAD * 2, 34, img ? THUMB + PAD * 2 : 0);
 
       if (y + rowH > PAGE_ROW_LIMIT_Y) {
         currentTable.bodyBottomY = y;
@@ -364,19 +375,22 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
         { width: cols.sl.w - PAD * 2, align: cols.sl.align, ...cellOpts },
       );
 
-      // Description: full wrapped name + SKU (+ HSN)
-      doc.fontSize(9).fillColor('#1A1A1A').text(it.name, cols.desc.x + PAD, y + PAD, {
-        width: cols.desc.w - PAD * 2,
+      // Description: optional photo, then full wrapped name + SKU (+ HSN)
+      if (img) {
+        doc.image(img, cols.desc.x + PAD, y + PAD, { fit: [THUMB, THUMB], align: 'center', valign: 'center' });
+      }
+      doc.fontSize(9).fillColor('#1A1A1A').text(it.name, textX, y + PAD, {
+        width: textW,
         height: rowH,
       });
       const subY = y + PAD + descNameH + 1;
       // A replacement part we do not sell on its own has no SKU.
-      doc.fontSize(7).fillColor('#777').text(it.sku ? `SKU: ${it.sku}` : '', cols.desc.x + PAD, subY, {
-        width: cols.desc.w - PAD * 2, ...cellOpts,
+      doc.fontSize(7).fillColor('#777').text(it.sku ? `SKU: ${it.sku}` : '', textX, subY, {
+        width: textW, ...cellOpts,
       });
       if (it.hsnCode) {
-        doc.text(`HSN: ${it.hsnCode}`, cols.desc.x + PAD, subY + 10, {
-          width: cols.desc.w - PAD * 2, ...cellOpts,
+        doc.text(`HSN: ${it.hsnCode}`, textX, subY + 10, {
+          width: textW, ...cellOpts,
         });
       }
 
