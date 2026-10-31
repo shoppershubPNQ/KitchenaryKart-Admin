@@ -94,6 +94,20 @@ export interface InvoiceInput {
    *  thumbnail at the left of the Description cell. Only the proforma (PI) scripts pass it; a missing or
    *  null entry renders that row exactly as before. */
   lineImages?: Array<Buffer | null>;
+  /** Bank account for NEFT/RTGS/IMPS, printed in a box under "Amount in Words" (owner 2026-10-31: customers paying a
+   *  proforma by bank transfer had no account details). Passed for PROFORMAS only, from the bank_* settings the owner
+   *  fills in (lib/bank-details.ts). Needs at least the account number and IFSC; otherwise nothing is drawn and the
+   *  invoice renders exactly as before. */
+  bank?: BankDetails | null;
+}
+
+export interface BankDetails {
+  accountName?: string | null;
+  bankName?: string | null;
+  accountNumber?: string | null;
+  ifsc?: string | null;
+  branch?: string | null;
+  upi?: string | null;
 }
 
 const PAGE_MARGIN = 36;
@@ -108,6 +122,8 @@ const PAGE_ROW_LIMIT_Y = 770;
 // block needs at the bottom of the last page. Used to decide whether
 // to push the totals to a fresh page after the items table ends.
 const FOOTER_RESERVE = 270;
+/** Extra room for the bank-details box (proformas with bank details only). */
+const BANK_RESERVE = 60;
 
 export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -454,8 +470,10 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     doc.switchToPage(lastTablePageIdx);
 
     // If the totals + signatory block wouldn't fit on the current
-    // page, push it to a fresh page so nothing gets clipped.
-    if (y + FOOTER_RESERVE > PAGE_ROW_LIMIT_Y) {
+    // page, push it to a fresh page so nothing gets clipped. The bank box
+    // (proformas with bank details only) needs room of its own.
+    const bank = inv.bank?.accountNumber?.trim() && inv.bank?.ifsc?.trim() ? inv.bank : null;
+    if (y + FOOTER_RESERVE + (bank ? BANK_RESERVE : 0) > PAGE_ROW_LIMIT_Y) {
       doc.addPage();
       y = PAGE_MARGIN;
     }
@@ -533,7 +551,28 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
       doc.y + 2,
       { width: colW, lineGap: 1 },
     );
-    const wordsEndY = doc.y;
+    let wordsEndY = doc.y;
+
+    // Bank account box under the amount in words (left column), so a proforma can be paid by bank transfer.
+    if (bank) {
+      const rows = ([
+        ['Account name', bank.accountName], ['Bank', bank.bankName], ['Account no.', bank.accountNumber],
+        ['IFSC', bank.ifsc], ['Branch', bank.branch], ['UPI ID', bank.upi],
+      ] as Array<[string, string | null | undefined]>).filter(([, v]) => v && v.trim());
+      const LINE = 12;
+      const bx = leftX, by = wordsEndY + 8, bw = colW, bh = 20 + rows.length * LINE + 18;
+      doc.roundedRect(bx, by, bw, bh, 4).fillAndStroke('#FBF7EE', '#CFC5A8');
+      doc.font('Body-Bold').fontSize(9).fillColor('#000')
+        .text('Bank details for payment (NEFT / RTGS / IMPS)', bx + 8, by + 6, { width: bw - 16, lineBreak: false, height: 12 });
+      rows.forEach(([k, v], i) => {
+        const ry = by + 20 + i * LINE;
+        doc.font('Body').fontSize(8.5).fillColor('#555').text(`${k}:`, bx + 8, ry, { width: 72, lineBreak: false, height: LINE });
+        doc.font('Body-Bold').fontSize(8.5).fillColor('#111').text(String(v).trim(), bx + 82, ry, { width: bw - 90, lineBreak: false, height: LINE });
+      });
+      doc.font('Body').fontSize(7.5).fillColor('#777')
+        .text('Please share the UTR / transaction reference after payment.', bx + 8, by + 20 + rows.length * LINE + 3, { width: bw - 16, lineBreak: false, height: 11 });
+      wordsEndY = by + bh;
+    }
 
     // Signatory on the right
     doc.font('Body-Bold').fontSize(10).fillColor('#000').text(

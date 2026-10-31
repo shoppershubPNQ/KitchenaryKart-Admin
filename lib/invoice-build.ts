@@ -16,6 +16,7 @@ import { detectStateFromAddress, GST_STATES } from '@/lib/gst-states';
 import { ensureInvoiceNumber, formatInvoiceNumber } from '@/lib/invoice-serial';
 import { computeOrderSummary } from '@/lib/order-summary';
 import { isReplacementOrder } from '@/lib/replacement';
+import { getBankDetails } from '@/lib/bank-details';
 
 /**
  * Fetch a setting value from the DB (with a static fallback so a
@@ -155,6 +156,8 @@ export async function buildInvoicePdfForOrder(
     isInterState,
     taxBreakdown,
     summary,
+    // An unpaid order's proforma carries the bank account so it can be paid by transfer.
+    bank: proforma ? await getBankDetails() : null,
   });
 
   return {
