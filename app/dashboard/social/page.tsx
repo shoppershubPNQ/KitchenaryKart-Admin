@@ -21,7 +21,7 @@ const FIELDS: { key: keyof Links; label: string; placeholder: string; help: stri
   { key: 'youtube',   label: 'YouTube',   placeholder: 'https://youtube.com/@your-channel', help: 'Channel URL.' },
   { key: 'twitter',   label: 'Twitter / X', placeholder: 'https://x.com/your-handle', help: 'Profile URL.' },
   { key: 'facebook',  label: 'Facebook',  placeholder: 'https://facebook.com/your-page', help: 'Page URL.' },
-  { key: 'whatsapp',  label: 'WhatsApp',  placeholder: 'https://wa.me/918483073049', help: 'Click-to-chat link (use https://wa.me/<number>).' },
+  { key: 'whatsapp',  label: 'WhatsApp',  placeholder: 'https://wa.me/919890352455', help: 'Click-to-chat link (use https://wa.me/<number>).' },
   { key: 'linkedin',  label: 'LinkedIn',  placeholder: 'https://linkedin.com/company/your-page', help: 'Company or profile URL.' },
 ];
 
