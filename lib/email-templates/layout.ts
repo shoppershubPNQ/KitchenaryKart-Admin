@@ -37,8 +37,8 @@ export const BRAND = {
 } as const;
 
 export const SUPPORT_EMAIL = 'support@kitchenarykart.com';
-export const WHATSAPP_NUMBER = '+91 98903 52455';
-export const WHATSAPP_LINK = 'https://wa.me/919890352455';
+export const WHATSAPP_NUMBER = '+91 84830 73049';
+export const WHATSAPP_LINK = 'https://wa.me/918483073049';
 export const STORE_URL = 'https://kitchenarykart.com';
 
 const FONT = `-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif`;

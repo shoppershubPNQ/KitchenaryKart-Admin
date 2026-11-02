@@ -28,7 +28,7 @@ interface AbandonedOrder {
 
 const STORE_URL =
   process.env.NEXT_PUBLIC_STORE_URL || 'https://kitchenarykart.com';
-const SUPPORT_PHONE = '+91 98903 52455';
+const SUPPORT_PHONE = '+91 84830 73049';
 
 const CUTOFF_OPTIONS = [
   { v: 15, label: '15 minutes' },
