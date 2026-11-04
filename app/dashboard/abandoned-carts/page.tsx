@@ -38,6 +38,14 @@ const CUTOFF_OPTIONS = [
   { v: 1440, label: '24 hours' },
 ];
 
+/** Must match UNPAID_PERIOD_DAYS in lib/unpaid-checkouts-load.ts. */
+const EXPORT_OPTIONS = [
+  { v: 1, label: 'Last 24 hours' },
+  { v: 7, label: 'Last 7 days' },
+  { v: 30, label: 'Last 30 days' },
+  { v: 90, label: 'Last 90 days' },
+];
+
 function firstName(full: string | null): string {
   if (!full) return 'there';
   return full.trim().split(/\s+/)[0] || 'there';
@@ -138,6 +146,7 @@ export default function AbandonedCartsPage() {
   const [cutoff, setCutoff] = useState(30);
   const [includeContacted, setIncludeContacted] = useState(false);
   const [busy, setBusy] = useState<Record<number, boolean>>({});
+  const [exportDays, setExportDays] = useState(7);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -250,6 +259,38 @@ export default function AbandonedCartsPage() {
           />
           Show already-contacted carts
         </label>
+        {/* Call list for the sales team as Excel (lib/unpaid-checkouts.ts):
+            one row per buyer, staff tests and buyers who paid later left
+            out. Includes carts the 24 h auto-cancel has already closed. */}
+        <div className="flex items-end gap-2">
+          <div>
+            <label className="label">Excel call list</label>
+            <select
+              className="input"
+              value={exportDays}
+              onChange={(e) => setExportDays(parseInt(e.target.value, 10))}
+            >
+              {EXPORT_OPTIONS.map((o) => (
+                <option key={o.v} value={o.v}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <a
+            href={`/api/orders/abandoned/export?days=${exportDays}`}
+            className="btn-outline gap-1.5 text-sm"
+            download
+            title="Unpaid checkouts as Excel: order no., time, buyer, phone, city, items, amount, WhatsApp link"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download Excel
+          </a>
+        </div>
         <div className="ml-auto text-right">
           <div className="text-xs text-slate-500">Recoverable value</div>
           <div className="font-head text-2xl font-bold text-ink">
