@@ -47,7 +47,7 @@ Name: Vishakha
 Designation: Grievance Officer, Kitchenary Kart (Shoppers Hub, Proprietorship)
 Address: A2/103, Parshwanagar, Opp. Swami Vivekanand Garden, Kondhwa Budruk, Pune – 411048, Maharashtra, India
 Email: support@kitchenarykart.com
-Phone: +91 98903 52455
+Phone: +91 84830 73049
 Working Hours: Monday to Saturday, 10:00 AM to 6:00 PM IST (excluding public holidays)
 
 We acknowledge every grievance within 48 hours of receipt and aim to resolve it within 15 days, as required under the IT Rules, 2021. Grievances relating to personal data under DPDPA 2023 are resolved within 30 days.

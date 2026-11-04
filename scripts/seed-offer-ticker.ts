@@ -11,7 +11,7 @@ const STARTER = {
   items: [
     { text: 'Free pan-India delivery on orders above ₹5,000', href: '/shop' },
     { text: 'GST invoice with every order — claim full input tax credit', href: null },
-    { text: 'Bulk & HORECA pricing — WhatsApp +91 98903 52455', href: 'https://wa.me/919890352455' },
+    { text: 'Bulk & HORECA pricing — WhatsApp +91 84830 73049', href: 'https://wa.me/918483073049' },
   ],
 };
 
