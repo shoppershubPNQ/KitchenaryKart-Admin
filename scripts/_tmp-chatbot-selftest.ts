@@ -254,6 +254,8 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
     check('phone the customer never typed -> phone_not_from_customer', 'done' in l5 && JSON.parse(l5.done.content).error === 'phone_not_from_customer');
     const l6 = prepareLead({ ...baseLead, phone: '+91 98903 52455' }, { leadInquiryId: null, customerTexts: ['call 98903 52455'] });
     check("store's own number -> phone_not_from_customer", 'done' in l6 && JSON.parse(l6.done.content).error === 'phone_not_from_customer');
+    const l6b = prepareLead({ ...baseLead, phone: '+91 84830 73049' }, { leadInquiryId: null, customerTexts: ['call 84830 73049'] });
+    check("store's sales number -> phone_not_from_customer", 'done' in l6b && JSON.parse(l6b.done.content).error === 'phone_not_from_customer');
     const l7 = prepareLead({ ...baseLead, name: 'Rahul' }, typed);
     check('name the customer never typed -> dropped', 'lead' in l7 && l7.lead.name === null);
     const l8 = prepareLead(baseLead, { leadInquiryId: null, customerTexts: ['मेरा नंबर ९८७६५४३२१० है, Test'] });

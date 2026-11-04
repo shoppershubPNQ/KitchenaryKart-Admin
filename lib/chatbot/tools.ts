@@ -32,8 +32,9 @@ import { createInquiryWithNotification } from '../inquiry-create';
 import { resolveOrderItems } from '../order-items';
 import { adminBaseUrl } from '../admin-notify';
 
-/** The store's own number (prompt + handoff) - never saved as a customer's. */
-const TEAM_PHONE10 = '9890352455';
+/** The store's own numbers - the sales number in the prompt + handoff (2026-11-02) and the
+ *  earlier office number - never saved as a customer's. */
+const TEAM_PHONES10 = new Set(['8483073049', '9890352455']);
 /** First line of every chatbot Inquiry message (also used to find duplicates). */
 const LEAD_PREFIX = '[Website chatbot]';
 
@@ -295,7 +296,7 @@ export function prepareLead(
   }
   const typed = typedText(ctx.customerTexts);
   const typedDigits = typed.replace(/\D/g, '');
-  if (phone10 === TEAM_PHONE10 || !typedDigits.includes(phone10)) {
+  if (TEAM_PHONES10.has(phone10) || !typedDigits.includes(phone10)) {
     return {
       done: result(
         { ok: false, error: 'phone_not_from_customer', detail: 'Ask the customer to type their own 10-digit mobile number.' },

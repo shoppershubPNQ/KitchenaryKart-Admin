@@ -48,7 +48,7 @@ async function seedSettings() {
     { key: 'company_gst', value: '18AABCT1234B1Z5', dataType: 'string' },
     { key: 'default_tax_percent', value: '18', dataType: 'number' },
     { key: 'free_shipping_above', value: '10000', dataType: 'number' },
-    { key: 'whatsapp_number', value: '+919890352455', dataType: 'string' },
+    { key: 'whatsapp_number', value: '+918483073049', dataType: 'string' },
     { key: 'support_email', value: 'support@kitchenarykart.com', dataType: 'string' },
   ];
   for (const s of defaults) {
