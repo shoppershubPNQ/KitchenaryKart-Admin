@@ -94,6 +94,10 @@ export interface InvoiceInput {
    *  thumbnail at the left of the Description cell. Only the proforma (PI) scripts pass it; a missing or
    *  null entry renders that row exactly as before. */
   lineImages?: Array<Buffer | null>;
+  /** Optional text inside the summary's "Discount (…)" label, for a proforma whose lines carry DIFFERENT discount %
+   *  (owner 2026-11-04: 15% on GN pans, 10% on the rest — the blended % alone reads as a mistake). Only the
+   *  per-line PI script passes it; without it the label is `${summary.discountPct}%` exactly as before. */
+  discountLabel?: string;
   /** Bank account for NEFT/RTGS/IMPS, printed in a box under "Amount in Words" (owner 2026-10-31: customers paying a
    *  proforma by bank transfer had no account details). Passed for PROFORMAS only, from the bank_* settings the owner
    *  fills in (lib/bank-details.ts). Needs at least the account number and IFSC; otherwise nothing is drawn and the
@@ -512,7 +516,7 @@ export async function renderInvoicePdf(inv: InvoiceInput): Promise<Buffer> {
     } else {
       sumRow('Excluding GST Price (Net Price)', inrPlain(s.netPrice));
       if (s.discountPct > 0) {
-        sumRow(`Discount (${s.discountPct}%)`, `- ${inrPlain(s.discountAmount)}`, { color: '#0A7D33' });
+        sumRow(`Discount (${inv.discountLabel ?? `${s.discountPct}%`})`, `- ${inrPlain(s.discountAmount)}`, { color: '#0A7D33' });
       }
       if (s.discountPct > 0) {
         sumRow('Net Value', inrPlain(s.netValue));
