@@ -8,6 +8,11 @@
  * Source of truth: orders with `paymentStatus = 'completed'` in the
  * selected period. Orders missing an invoice serial get one allocated
  * here so the report is GST-complete (no gaps, no orphans).
+ *
+ * A paid order CANCELLED BEFORE DISPATCH (owner 2026-11-16, KKMWI4BSPD) keeps
+ * its invoice number, but nothing was supplied: it is listed in
+ * `cancelledInvoices` (GSTR-1 Table 13, "cancelled") and NOT in the sales rows.
+ * The decision is taken once, when the order is cancelled — see lib/invoice-cancel.ts.
  */
 import { prisma } from './db';
 import {
@@ -19,6 +24,7 @@ import {
 import { detectStateFromAddress, GST_STATES } from './gst-states';
 import { computeOrderSummary } from './order-summary';
 import { formatCreditNoteNumber } from './credit-note';
+import { isCancelledInvoice } from './invoice-cancel';
 
 export type GstReportType = 'b2b' | 'b2c' | 'all';
 
@@ -110,20 +116,42 @@ export interface GstReportSummary {
   sgst: number;
   igst: number;
   totalInvoiceValue: number;
-  /** Orders in this report that are PAID but CANCELLED. Normally 0. When it is
-   *  not, those lines are sitting in the file looking like ordinary sales, and
-   *  a credit note is due rather than the invoice being filed as revenue —
-   *  so it is surfaced before the file is opened, not after filing. */
+  /** CANCELLED orders that are STILL in the sales rows and have NO credit note.
+   *  Normally 0. A paid order cancelled before dispatch leaves the sales rows by
+   *  itself (see `cancelledInvoices`); one that stays here had something
+   *  dispatched, or was cancelled after its invoice's month ended (or before
+   *  2026-11-16, when the decision began to be recorded) — so it needs a CREDIT
+   *  NOTE, and is surfaced before filing.
+   *  Cancelled orders that already have a credit note are not counted. */
   cancelledOrders: number;
   /** Rupee value of those cancelled lines, so the size of the problem is
    *  visible without filtering the sheet. */
   cancelledValue: number;
-  /** Invoices in this period that have since been RETURNED or refunded. They
+  /** Invoices in this period that have since been RETURNED or refunded (and are
+   *  not cancelled — those are counted above) and have NO credit note yet. They
    *  stay in the return — the sale did happen and was invoiced — but each one
    *  needs a CREDIT NOTE in the month the return occurred, so they are counted
    *  here rather than left to be spotted by eye. */
   returnedOrders: number;
   returnedValue: number;
+  /** Paid orders cancelled BEFORE DISPATCH: their invoice numbers were issued
+   *  but nothing was supplied, so they are NOT in the sales rows or any total
+   *  above. Declared in GSTR-1 Table 13 as cancelled documents. */
+  cancelledInvoiceCount: number;
+  cancelledInvoiceTaxable: number;
+  cancelledInvoiceGst: number;
+  cancelledInvoiceValue: number;
+  /** Cancelled invoices whose order has since been made active again AFTER the
+   *  invoice's month ended (the decision is frozen then). Normally 0 — each one
+   *  needs checking: if the goods are now going out, a fresh invoice is due. */
+  cancelledInvoiceActiveAgain: number;
+  /** GSTR-1 Table 13 (documents issued), invoices only: the serial range in this
+   *  period across sales AND cancelled invoices. Always the WHOLE series — the
+   *  B2B / B2C filter does not apply, because Table 13 is one series. */
+  invoiceFrom: string;
+  invoiceTo: string;
+  invoicesIssued: number;
+  invoicesCancelled: number;
   /** Credit notes ISSUED in this period (by issuedAt, not by the invoice's
    *  date — a note for a July invoice raised in August belongs to August).
    *  These REDUCE the month's liability and are filed in GSTR-1's CDNR/CDNUR
@@ -187,6 +215,33 @@ export interface GstCreditNoteRow {
   notes: string;
 }
 
+/**
+ * A paid invoice whose order was cancelled before dispatch — one row per
+ * invoice. The figures are the invoice's own (same breakdown as the PDF), so
+ * the cancelled document can be matched to what the customer was issued.
+ */
+export interface GstCancelledInvoiceRow {
+  invoiceNumber: string;
+  invoiceDate: string;
+  orderNumber: string;
+  customerName: string;
+  customerGstin: string;
+  customerType: 'B2B' | 'B2C';
+  placeOfSupplyName: string;
+  placeOfSupplyCode: string;
+  taxableValue: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  roundOff: number;
+  /** What the customer was charged (and refunded). */
+  invoiceValue: number;
+  cancelledOn: string;
+  orderStatus: string;
+  paymentStatus: string;
+  reason: string;
+}
+
 export interface GstReportResult {
   filters: GstReportFilters;
   rangeStart: Date;
@@ -194,6 +249,9 @@ export interface GstReportResult {
   rows: GstReportRow[];
   /** Credit notes ISSUED in this period, in filing detail. */
   creditNotes: GstCreditNoteRow[];
+  /** Paid invoices in this period whose order was cancelled before dispatch —
+   *  NOT in `rows`. GSTR-1 Table 13 "cancelled". */
+  cancelledInvoices: GstCancelledInvoiceRow[];
   summary: GstReportSummary;
 }
 
@@ -236,6 +294,8 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
         },
       },
       customer: true,
+      // Orders with a credit note are settled — not flagged as needing one.
+      creditNotes: { select: { id: true } },
     },
     orderBy: { invoiceSerial: 'asc' },
   });
@@ -315,6 +375,12 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
     }));
 
   const rows: GstReportRow[] = [];
+  const cancelledInvoices: GstCancelledInvoiceRow[] = [];
+
+  // GSTR-1 Table 13 is ONE series for the whole return, so it is counted over
+  // every invoice in the period BEFORE the B2B / B2C filter below.
+  const allSerials = orders.map((o) => o.invoiceSerial!).sort((a, b) => a - b);
+  const allCancelled = orders.filter((o) => isCancelledInvoice(o)).length;
 
   for (const order of orders) {
     // Match the invoice generator (lib/invoice-build.ts): a GSTIN entered at
@@ -492,8 +558,49 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
       orderRows[0].roundOff = round2(charged - lineSum);
       for (const r of orderRows) r.orderInvoiceValue = charged;
     }
+
+    // Cancelled before dispatch (decided once, at cancel time — lib/invoice-cancel.ts):
+    // the invoice number was issued but nothing was supplied, so it is listed as
+    // a cancelled document, not a sale. Built from the same rows, so its figures
+    // are exactly the invoice's.
+    if (isCancelledInvoice(order)) {
+      const sum = (k: 'taxableValue' | 'cgst' | 'sgst' | 'igst' | 'roundOff') =>
+        round2(orderRows.reduce((s, r) => s + r[k], 0));
+      cancelledInvoices.push({
+        invoiceNumber,
+        invoiceDate,
+        orderNumber: order.orderNumber,
+        customerName: order.customerName || order.customer?.name || '',
+        customerGstin: gstin,
+        customerType: isB2B ? 'B2B' : 'B2C',
+        placeOfSupplyName,
+        placeOfSupplyCode,
+        taxableValue: sum('taxableValue'),
+        cgst: sum('cgst'),
+        sgst: sum('sgst'),
+        igst: sum('igst'),
+        roundOff: sum('roundOff'),
+        invoiceValue: charged,
+        cancelledOn: order.invoiceCancelledAt!.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        orderStatus: order.orderStatus,
+        paymentStatus: order.paymentStatus,
+        reason: order.orderStatus !== 'cancelled'
+          ? 'Cancelled before dispatch — ORDER ACTIVE AGAIN, check it'
+          : `Cancelled before dispatch${order.paymentStatus === 'refunded' ? ', refunded' : ', refund not recorded'}`,
+      });
+      continue;
+    }
     rows.push(...orderRows);
   }
+
+  // Orders that already have a credit note (in any period) are settled — they
+  // are not flagged as needing one.
+  const credited = new Set(orders.filter((o) => o.creditNotes.length).map((o) => o.id));
+  const cancelledRows = rows.filter((r) => r.orderStatus === 'cancelled' && !credited.has(r.orderId));
+  const returnedRows = rows.filter(
+    (r) => r.orderStatus !== 'cancelled' && !credited.has(r.orderId)
+      && (r.orderStatus === 'returned' || r.paymentStatus === 'refunded'),
+  );
 
   // 4. Reconciliation totals
   const summary: GstReportSummary = {
@@ -504,27 +611,27 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
     sgst: round2(rows.reduce((s, r) => s + r.sgst, 0)),
     igst: round2(rows.reduce((s, r) => s + r.igst, 0)),
     totalInvoiceValue: round2(rows.reduce((s, r) => s + r.totalInvoiceValue, 0)),
-    cancelledOrders: new Set(
-      rows.filter((r) => r.orderStatus === 'cancelled').map((r) => r.orderId),
-    ).size,
-    cancelledValue: round2(
-      rows.filter((r) => r.orderStatus === 'cancelled')
-        .reduce((s, r) => s + r.totalInvoiceValue, 0),
-    ),
-    returnedOrders: new Set(
-      rows.filter((r) => r.orderStatus === 'returned' || r.paymentStatus === 'refunded')
-        .map((r) => r.orderId),
-    ).size,
-    returnedValue: round2(
-      rows.filter((r) => r.orderStatus === 'returned' || r.paymentStatus === 'refunded')
-        .reduce((s, r) => s + r.totalInvoiceValue, 0),
-    ),
-    creditNoteCount: creditNotes.length,
-    creditNoteTaxable: round2(creditNotes.reduce((s, c) => s + Number(c.taxableValue), 0)),
-    creditNoteCgst: round2(creditNotes.reduce((s, c) => s + Number(c.cgst), 0)),
-    creditNoteSgst: round2(creditNotes.reduce((s, c) => s + Number(c.sgst), 0)),
-    creditNoteIgst: round2(creditNotes.reduce((s, c) => s + Number(c.igst), 0)),
-    creditNoteTotal: round2(creditNotes.reduce((s, c) => s + Number(c.totalAmount), 0)),
+    cancelledOrders: new Set(cancelledRows.map((r) => r.orderId)).size,
+    cancelledValue: round2(cancelledRows.reduce((s, r) => s + r.totalInvoiceValue, 0)),
+    returnedOrders: new Set(returnedRows.map((r) => r.orderId)).size,
+    returnedValue: round2(returnedRows.reduce((s, r) => s + r.totalInvoiceValue, 0)),
+    cancelledInvoiceCount: cancelledInvoices.length,
+    cancelledInvoiceTaxable: round2(cancelledInvoices.reduce((s, c) => s + c.taxableValue, 0)),
+    cancelledInvoiceGst: round2(cancelledInvoices.reduce((s, c) => s + c.cgst + c.sgst + c.igst, 0)),
+    cancelledInvoiceValue: round2(cancelledInvoices.reduce((s, c) => s + c.invoiceValue, 0)),
+    cancelledInvoiceActiveAgain: cancelledInvoices.filter((c) => c.orderStatus !== 'cancelled').length,
+    invoiceFrom: allSerials.length ? formatInvoiceNumber(filters.fy, allSerials[0]) : '',
+    invoiceTo: allSerials.length ? formatInvoiceNumber(filters.fy, allSerials[allSerials.length - 1]) : '',
+    invoicesIssued: allSerials.length,
+    invoicesCancelled: allCancelled,
+    // From the B2B / B2C-filtered note rows, like the sales: totals taken from
+    // the unfiltered notes put a B2B reversal into a B2C view's net GST.
+    creditNoteCount: creditNoteRows.length,
+    creditNoteTaxable: round2(creditNoteRows.reduce((s, c) => s + c.taxableValue, 0)),
+    creditNoteCgst: round2(creditNoteRows.reduce((s, c) => s + c.cgst, 0)),
+    creditNoteSgst: round2(creditNoteRows.reduce((s, c) => s + c.sgst, 0)),
+    creditNoteIgst: round2(creditNoteRows.reduce((s, c) => s + c.igst, 0)),
+    creditNoteTotal: round2(creditNoteRows.reduce((s, c) => s + c.totalAmount, 0)),
     netTaxableValue: 0, // filled below
     netGst: 0,
     discountTotal: round2(rows.reduce((s, r) => s + r.lineDiscount, 0)),
@@ -566,7 +673,7 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
       - (summary.creditNoteCgst + summary.creditNoteSgst + summary.creditNoteIgst),
   );
 
-  return { filters, rangeStart: start, rangeEnd: end, rows, creditNotes: creditNoteRows, summary };
+  return { filters, rangeStart: start, rangeEnd: end, rows, creditNotes: creditNoteRows, cancelledInvoices, summary };
 }
 
 function round2(n: number): number {

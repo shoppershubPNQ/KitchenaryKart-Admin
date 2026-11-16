@@ -36,11 +36,24 @@ interface GstReportSummary {
   sgst: number;
   igst: number;
   totalInvoiceValue: number;
-  /** Paid-but-cancelled orders caught in this period. Normally 0. */
+  /** Cancelled orders STILL in sales with no credit note — each needs one. Normally 0. */
   cancelledOrders: number;
   cancelledValue: number;
+  /** Returned / refunded (not cancelled) with no credit note yet. */
   returnedOrders: number;
   returnedValue: number;
+  /** Paid orders cancelled before dispatch — NOT in the sales rows or totals. */
+  cancelledInvoiceCount: number;
+  cancelledInvoiceTaxable: number;
+  cancelledInvoiceGst: number;
+  cancelledInvoiceValue: number;
+  /** Cancelled invoices whose order became active again after the month ended. */
+  cancelledInvoiceActiveAgain: number;
+  /** GSTR-1 Table 13 (invoices): the whole series for the period, all types. */
+  invoiceFrom: string;
+  invoiceTo: string;
+  invoicesIssued: number;
+  invoicesCancelled: number;
   creditNoteCount: number;
   creditNoteTaxable: number;
   creditNoteCgst: number;
@@ -83,12 +96,35 @@ interface GstCreditNoteRow {
   notes: string;
 }
 
+interface GstCancelledInvoiceRow {
+  invoiceNumber: string;
+  invoiceDate: string;
+  orderNumber: string;
+  customerName: string;
+  customerGstin: string;
+  customerType: string;
+  placeOfSupplyName: string;
+  placeOfSupplyCode: string;
+  taxableValue: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  roundOff: number;
+  invoiceValue: number;
+  cancelledOn: string;
+  orderStatus: string;
+  paymentStatus: string;
+  reason: string;
+}
+
 interface GstReportResponse {
   filters: { fy: string; month?: number; type: GstReportType };
   rangeStart: string;
   rangeEnd: string;
   rows: GstReportRow[];
   creditNotes: GstCreditNoteRow[];
+  /** Absent from a response produced before the cancelled-invoices split. */
+  cancelledInvoices?: GstCancelledInvoiceRow[];
   summary: GstReportSummary;
 }
 
@@ -161,7 +197,8 @@ export default function GstReportsPage() {
           <h1 className="text-2xl font-semibold text-slate-900">GST Reports</h1>
           <p className="text-sm text-slate-500 mt-1">
             Monthly Merchant Tax Report (MTR) for GSTR-1 filing. Reflects paid orders
-            with allocated invoice numbers (auto-allocated for any missing).
+            with allocated invoice numbers (auto-allocated for any missing). Paid orders
+            cancelled before dispatch are listed separately as cancelled invoices, not as sales.
           </p>
         </div>
       </div>
@@ -270,8 +307,8 @@ export default function GstReportsPage() {
           </div>
           {!!data.summary.shippingTaxable && (
             <div className="text-xs">
-              Shipping: {inr(data.summary.shippingTaxable)} excl. GST + {inr(data.summary.shippingGst)} GST = {inr(data.summary.shippingInclGst)} charged. Reported
-              on its own rows under SAC 9965.
+              Shipping: {inr(data.summary.shippingTaxable)} excl. GST + {inr(data.summary.shippingGst)} GST = {inr(data.summary.shippingInclGst)} charged. Included
+              in the goods lines&apos; taxable value (composite supply), not on rows of its own.
             </div>
           )}
         </div>
@@ -346,32 +383,99 @@ export default function GstReportsPage() {
         </div>
       )}
 
+      {/* Paid orders cancelled BEFORE DISPATCH: the invoice number was issued but
+          nothing was supplied, so they are NOT in the sales rows or any total
+          above. GSTR-1 declares them as cancelled documents (Table 13). Also the
+          "Cancelled Invoices" sheet in the .xlsx. */}
+      {!!data?.summary.cancelledInvoiceCount && (
+        <div className="card p-4 border-l-4 border-slate-500 text-sm bg-slate-50 text-slate-900">
+          <span className="font-semibold">
+            {data.summary.cancelledInvoiceCount} cancelled {data.summary.cancelledInvoiceCount === 1 ? 'invoice' : 'invoices'}
+            {' '}({inr(data.summary.cancelledInvoiceValue)}) — not counted as sales.
+          </span>{' '}
+          Paid, then cancelled before dispatch in the same month. Report {data.summary.cancelledInvoiceCount === 1 ? 'it' : 'them'} in
+          GSTR-1 Table 13 as cancelled. Whole series for the month (all types): invoices {data.summary.invoiceFrom} to{' '}
+          {data.summary.invoiceTo}, {data.summary.invoicesIssued} issued, {data.summary.invoicesCancelled} cancelled,{' '}
+          {data.summary.invoicesIssued - data.summary.invoicesCancelled} net. No credit note is needed for these.
+          {!!data.summary.cancelledInvoiceActiveAgain && (
+            <div className="mt-2 font-semibold text-red-700">
+              {data.summary.cancelledInvoiceActiveAgain} of these orders {data.summary.cancelledInvoiceActiveAgain === 1 ? 'is' : 'are'} active
+              again (status changed after the month ended). Check {data.summary.cancelledInvoiceActiveAgain === 1 ? 'it' : 'them'} — if the
+              goods are now going out, a fresh invoice is needed.
+            </div>
+          )}
+          {!!data.cancelledInvoices?.length && (
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-xs bg-white rounded border border-slate-200">
+                <thead className="bg-slate-100 text-slate-900">
+                  <tr>
+                    <th className="text-left px-2 py-1.5">Invoice</th>
+                    <th className="text-left px-2 py-1.5">Order</th>
+                    <th className="text-left px-2 py-1.5">Customer</th>
+                    <th className="text-left px-2 py-1.5">Place of Supply</th>
+                    <th className="text-left px-2 py-1.5">Cancelled On</th>
+                    <th className="text-right px-2 py-1.5">Taxable</th>
+                    <th className="text-right px-2 py-1.5">GST</th>
+                    <th className="text-right px-2 py-1.5">Invoice Value</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {data.cancelledInvoices.map((c) => (
+                    <tr key={c.invoiceNumber}>
+                      <td className="px-2 py-1.5 font-mono">
+                        {c.invoiceNumber}
+                        <span className="text-slate-400 ml-1">({c.invoiceDate})</span>
+                      </td>
+                      <td className="px-2 py-1.5 font-mono">{c.orderNumber}</td>
+                      <td className="px-2 py-1.5">
+                        {c.customerName}
+                        <span className="text-slate-400 ml-1">{c.customerType}</span>
+                        {c.customerGstin && <div className="font-mono text-[10px] text-slate-400">{c.customerGstin}</div>}
+                      </td>
+                      <td className="px-2 py-1.5">
+                        {c.placeOfSupplyName}
+                        {c.placeOfSupplyCode && <span className="text-slate-400 ml-1">({c.placeOfSupplyCode})</span>}
+                      </td>
+                      <td className="px-2 py-1.5">{c.cancelledOn}</td>
+                      <td className="px-2 py-1.5 text-right">{inr(c.taxableValue)}</td>
+                      <td className="px-2 py-1.5 text-right">{inr(c.cgst + c.sgst + c.igst)}</td>
+                      <td className="px-2 py-1.5 text-right font-semibold">{inr(c.invoiceValue)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* A returned invoice stays in the return — the sale happened and was
           invoiced — but the refund is settled by a CREDIT NOTE in the month the
-          return occurred, so it must not be forgotten. */}
+          return occurred, so it must not be forgotten. Counted only while no
+          credit note exists for it. */}
       {!!data?.summary.returnedOrders && (
         <div className="card p-4 border-l-4 border-purple-500 text-sm bg-purple-50 text-purple-900">
           <span className="font-semibold">
             {data.summary.returnedOrders} returned/refunded {data.summary.returnedOrders === 1 ? 'invoice' : 'invoices'}
-            {' '}({inr(data.summary.returnedValue)}) in this period.
+            {' '}({inr(data.summary.returnedValue)}) with no credit note yet.
           </span>{' '}
           They stay in this return because the sale was invoiced. Raise a CREDIT NOTE
           in the month the goods came back — do not remove them from here.
         </div>
       )}
 
-      {/* A paid order that was later cancelled still carries an invoice number,
-          so it sits in this report looking like an ordinary sale. Filing it as
-          revenue overstates the liability — a credit note is due instead. Flag
-          it here rather than leaving it to be spotted inside the sheet. */}
+      {/* A cancelled order still in the sales rows (something was dispatched,
+          or it was cancelled after its invoice's month ended) with no credit
+          note: filing it as revenue overstates the liability — a credit note is
+          due. Cancelled orders that already have one are not counted. */}
       {!!data?.summary.cancelledOrders && (
         <div className="card p-4 border-l-4 border-amber-500 text-sm bg-amber-50 text-amber-900">
           <span className="font-semibold">
-            {data.summary.cancelledOrders} cancelled {data.summary.cancelledOrders === 1 ? 'order is' : 'orders are'} included
-            {' '}({inr(data.summary.cancelledValue)}).
+            {data.summary.cancelledOrders} cancelled {data.summary.cancelledOrders === 1 ? 'order is' : 'orders are'} still
+            in the sales rows with no credit note ({inr(data.summary.cancelledValue)}).
           </span>{' '}
-          These were paid and then cancelled. Filter the “Order Status” column before filing —
-          a cancelled invoice normally needs a credit note, not a GSTR-1 entry.
+          Paid and then cancelled, but something was dispatched, or it was cancelled after the
+          invoice&apos;s month ended. Raise a credit note in the month of the cancellation, or check the order.
         </div>
       )}
 

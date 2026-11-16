@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
         paymentStatus: 'pending',
         orderStatus: 'pending',
       },
-      data: { orderStatus: 'cancelled' },
+      data: { orderStatus: 'cancelled', cancelledAt: new Date() },
     });
     return ok({ cancelled: res.count > 0 });
   } catch (e) {

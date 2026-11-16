@@ -48,6 +48,15 @@ export async function previewCreditNote(orderId: number) {
   if (!order.invoiceSerial || !order.invoiceFinancialYear) {
     throw new Error('This order has no invoice — there is nothing to credit');
   }
+  // Cancelled before dispatch (lib/invoice-cancel.ts): the invoice is reported as
+  // a CANCELLED invoice in GSTR-1, never as a sale, so there is nothing to reverse
+  // — a note here would reduce tax that was never declared.
+  if (order.invoiceCancelledAt) {
+    throw new Error(
+      `Invoice KK/${order.invoiceFinancialYear}/${String(order.invoiceSerial).padStart(4, '0')} was cancelled before dispatch ` +
+      `and is reported as a CANCELLED invoice in the GST report — no credit note is needed.`,
+    );
+  }
 
   const breakdown = computeOrderSummary(
     order.items.map((it) => ({

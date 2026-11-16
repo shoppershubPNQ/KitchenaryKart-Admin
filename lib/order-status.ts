@@ -24,6 +24,10 @@ import { notifyOrderStatus } from './integrations/whatsapp';
 import { sendEmail } from './integrations/resend';
 import { buildShippingNotificationEmail } from './email-templates/shipping-notification';
 import { cancelRazorpayPaymentLink } from './integrations/razorpay';
+import { invoiceCancelStamp, invoiceMonthEnd } from './invoice-cancel';
+
+/** A status change refused for a business reason — shown to the admin as-is (409). */
+export class ApplyStatusError extends Error {}
 
 export interface ApplyStatusOptions {
   /** Extra order fields to write in the same update — tracking number,
@@ -57,11 +61,40 @@ export async function applyOrderStatus(
 
   // Auto-stamp the timeline so the customer-facing dates are right without
   // anyone remembering to set them.
-  const autoStamps: { shippedAt?: Date; deliveredAt?: Date } = {};
+  const autoStamps: {
+    shippedAt?: Date; deliveredAt?: Date; cancelledAt?: Date | null; invoiceCancelledAt?: Date | null;
+  } = {};
   if (next === 'shipped' && !current.shippedAt) autoStamps.shippedAt = new Date();
   if (next === 'delivered') {
     if (!current.shippedAt) autoStamps.shippedAt = new Date();
     if (!current.deliveredAt) autoStamps.deliveredAt = new Date();
+  }
+  // When it was cancelled, re-stamped on every move INTO cancelled and cleared
+  // when un-cancelled. For a PAID, invoiced order, the cancelled-invoice decision
+  // (lib/invoice-cancel.ts) is taken here, ONCE: cancelled before dispatch within
+  // its invoice's month → the invoice is a cancelled document, not a sale.
+  if (next === 'cancelled' && current.orderStatus !== 'cancelled') {
+    const now = new Date();
+    autoStamps.cancelledAt = now;
+    if (current.invoiceSerial != null && !current.invoiceCancelledAt) {
+      autoStamps.invoiceCancelledAt = await invoiceCancelStamp(orderId, now);
+    }
+  }
+  if (next && next !== 'cancelled' && current.orderStatus === 'cancelled') {
+    if (current.invoiceCancelledAt) {
+      // Un-cancelled while the invoice's month is still open: it is a sale again.
+      // Once the month is over the invoice may already be FILED as cancelled —
+      // supplying goods against that number would never be declared, so refuse.
+      if (Date.now() >= invoiceMonthEnd(current.createdAt).getTime()) {
+        const inv = `KK/${current.invoiceFinancialYear}/${String(current.invoiceSerial).padStart(4, '0')}`;
+        throw new ApplyStatusError(
+          `Invoice ${inv} was reported as CANCELLED (cancelled before dispatch) for its month, which is now over. ` +
+          'This order cannot be re-opened — create a new order to supply these goods.',
+        );
+      }
+      autoStamps.invoiceCancelledAt = null;
+    }
+    autoStamps.cancelledAt = null;
   }
 
   // Empty strings become null, or the storefront's `if (trackingNumber)`

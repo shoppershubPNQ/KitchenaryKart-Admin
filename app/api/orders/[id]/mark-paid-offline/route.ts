@@ -42,12 +42,17 @@ export const POST = withAuth(async (req, { params, user }) => {
 
     const order = await prisma.order.findUnique({
       where: { id },
-      select: { id: true, orderNumber: true, paymentStatus: true, orderStatus: true, totalAmount: true },
+      select: { id: true, orderNumber: true, paymentStatus: true, orderStatus: true, totalAmount: true, invoiceCancelledAt: true },
     });
     if (!order) return fail('Order not found', 404);
     if (order.paymentStatus === 'completed') return fail('This order is already marked paid.', 409);
     if (order.orderStatus === 'returned') {
       return fail('This order was returned — its payment needs handling by hand, not here.', 409);
+    }
+    // Its invoice is reported as CANCELLED (lib/invoice-cancel.ts) — re-opening the
+    // order would supply goods against a cancelled invoice number.
+    if (order.invoiceCancelledAt) {
+      return fail('This order was cancelled before dispatch and its invoice is reported as cancelled. Create a new order for this payment.', 409);
     }
 
     const totalPaise = Math.round(Number(order.totalAmount ?? 0) * 100);

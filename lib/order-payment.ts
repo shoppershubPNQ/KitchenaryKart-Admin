@@ -97,11 +97,17 @@ export async function finalizePaidOrder(
 ): Promise<{ order: { id: number; paymentStatus: string }; alreadyProcessed: boolean } | null> {
   const existing = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { id: true, paymentStatus: true, internalNotes: true, createdAt: true, paymentMethod: true, replacementOfId: true },
+    select: {
+      id: true, paymentStatus: true, internalNotes: true, createdAt: true, paymentMethod: true, replacementOfId: true,
+      invoiceCancelledAt: true,
+    },
   });
   if (!existing) return null;
   // A free replacement is never a sale: no Payment row, invoice serial, coupon or emails.
-  if (existing.paymentStatus === 'completed' || isReplacementOrder(existing)) {
+  // An order whose invoice was CANCELLED before dispatch (lib/invoice-cancel.ts) is
+  // closed for good: re-opening it here would bypass that decision (and redate it
+  // out of its month). A new payment for the same goods needs a new order.
+  if (existing.paymentStatus === 'completed' || isReplacementOrder(existing) || existing.invoiceCancelledAt) {
     return { order: existing, alreadyProcessed: true };
   }
 

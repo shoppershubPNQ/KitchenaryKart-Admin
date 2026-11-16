@@ -38,9 +38,11 @@ enum OrderStatus {
   delivered
   cancelled
   /// Goods came back after delivery. Deliberately DISTINCT from `cancelled`:
-  /// a cancelled order was never invoiced, a returned one was. Its invoice
-  /// stays in the GST return for its own month and the refund is settled by a
-  /// CREDIT NOTE — removing the sale would silently restate a filed period.
+  /// a returned order was supplied and invoiced. Its invoice stays in the GST
+  /// return for its own month and the refund is settled by a CREDIT NOTE —
+  /// removing the sale would silently restate a filed period. (A PAID order
+  /// cancelled before dispatch also holds an invoice number; the GST report
+  /// lists it as a cancelled invoice instead of a sale — lib/gst-report.ts.)
   returned
 }
 
@@ -437,6 +439,18 @@ model Order {
   shippedAt      DateTime? @map("shipped_at")
   /// Auto-stamped when admin moves the order to "delivered" status.
   deliveredAt    DateTime? @map("delivered_at")
+  /// When the order was cancelled (stamped by applyOrderStatus on the move INTO
+  /// cancelled, cleared if it is un-cancelled). Column added by raw SQL
+  /// 2026-11-16 (scripts/add-order-cancelled-at.ts).
+  cancelledAt    DateTime? @map("cancelled_at")
+  /// Set ONCE, when a PAID, invoiced order is cancelled BEFORE DISPATCH within
+  /// its invoice's own month (lib/invoice-cancel.ts). Its invoice is then a
+  /// CANCELLED invoice (GSTR-1 Table 13): the GST report keeps it out of the
+  /// sales rows and no credit note can be raised against it. Frozen once the
+  /// invoice's month is over, so a filed month is never restated. Null = the
+  /// invoice is a sale (a later return/refund is settled by a credit note).
+  /// Column added by raw SQL 2026-11-16 (scripts/add-order-cancelled-at.ts).
+  invoiceCancelledAt DateTime? @map("invoice_cancelled_at")
 
   /// Set when admin clicks "Mark contacted" on the abandoned-carts
   /// page after sending a WhatsApp recovery message. Lets us hide

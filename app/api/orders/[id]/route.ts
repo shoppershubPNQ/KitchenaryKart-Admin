@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/auth';
 import { fail, handleError, ok } from '@/lib/api';
-import { applyOrderStatus } from '@/lib/order-status';
+import { applyOrderStatus, ApplyStatusError } from '@/lib/order-status';
 import { isReplacementOrder, REPLACEMENT_METHOD } from '@/lib/replacement';
 
 const patchSchema = z.object({
@@ -96,6 +96,7 @@ export const PATCH = withAuth(async (req, { params }) => {
 
     return ok({ order });
   } catch (e) {
+    if (e instanceof ApplyStatusError) return fail(e.message, 409);
     return handleError(e);
   }
 }, ['admin', 'sales', 'staff']);

@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
           // cancelling are the shop's call, not this cron's.
           keptPaymentLink.push(o.orderNumber);
         } else if (ageHours >= MIN_AGE_HOURS) {
-          await prisma.order.update({ where: { id: o.id }, data: { orderStatus: 'cancelled' } });
+          await prisma.order.update({ where: { id: o.id }, data: { orderStatus: 'cancelled', cancelledAt: new Date() } });
           cancelled.push(o.orderNumber);
         } else {
           keptYoung.push(o.orderNumber);
