@@ -17,6 +17,7 @@ import { ensureInvoiceNumber, formatInvoiceNumber } from '@/lib/invoice-serial';
 import { computeOrderSummary } from '@/lib/order-summary';
 import { isReplacementOrder } from '@/lib/replacement';
 import { getBankDetails } from '@/lib/bank-details';
+import { invoiceLinePhotos } from '@/lib/invoice-photos';
 
 /**
  * Fetch a setting value from the DB (with a static fallback so a
@@ -39,9 +40,14 @@ export interface BuiltInvoice {
  * Assemble and render an order's invoice PDF. Look the order up by numeric
  * `id` (admin route) or by `orderNumber` (storefront proxy). Returns null when
  * no such order exists.
+ *
+ * `photos`: print a product photo beside each line (owner 2026-11-17). Only the
+ * admin "Download invoice" asks for it; the customer's own download and anything
+ * else stay as they were. A line whose photo cannot be fetched simply has none.
  */
 export async function buildInvoicePdfForOrder(
   where: { id?: number; orderNumber?: string },
+  opts: { photos?: boolean } = {},
 ): Promise<BuiltInvoice | null> {
   const order = await prisma.order.findUnique({
     where: where.id != null ? { id: where.id } : { orderNumber: where.orderNumber! },
@@ -51,6 +57,12 @@ export async function buildInvoicePdfForOrder(
     },
   });
   if (!order) return null;
+
+  // Photos are fetched while the rest is assembled. One per line, in the same
+  // order as summary.lines (computeOrderSummary maps order.items one-to-one).
+  const photosPromise = opts.photos
+    ? invoiceLinePhotos(order.items.map((it) => ({ productId: it.productId, variantId: it.variantId })))
+    : Promise.resolve(undefined);
 
   // ── Company / seller info ────────────────────────────────────────
   const [
@@ -122,6 +134,8 @@ export async function buildInvoicePdfForOrder(
   const proforma = !replacement && formatted == null;
   const invoiceNumber = replacement ? `DC/${order.orderNumber}` : formatted ?? `PRO/${order.orderNumber}`;
 
+  const lineImages = await photosPromise;
+
   const pdf = await renderInvoicePdf({
     orderNumber: order.orderNumber,
     invoiceNumber,
@@ -156,6 +170,7 @@ export async function buildInvoicePdfForOrder(
     isInterState,
     taxBreakdown,
     summary,
+    lineImages,
     // An unpaid order's proforma carries the bank account so it can be paid by transfer.
     bank: proforma ? await getBankDetails() : null,
   });
