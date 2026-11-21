@@ -48,7 +48,8 @@ export async function invoiceCancelStamp(orderId: number, now: Date = new Date()
     where: { id: orderId },
     select: {
       invoiceSerial: true, paymentStatus: true, createdAt: true, shippedAt: true, deliveredAt: true, trackingNumber: true,
-      creditNotes: { select: { id: true } },
+      // A CANCELLED credit note reversed nothing (owner 2026-11-21), so it does not block this.
+      creditNotes: { select: { id: true, cancelledAt: true, issuedAt: true } },
       replacements: { select: { id: true } },
       shipments: { select: { status: true, cancelledAt: true, lastError: true, events: { select: { mappedStatus: true } } } },
     },
@@ -57,7 +58,9 @@ export async function invoiceCancelStamp(orderId: number, now: Date = new Date()
   if (o.paymentStatus !== 'completed' && o.paymentStatus !== 'refunded') return null;
   if (now.getTime() >= invoiceMonthEnd(o.createdAt).getTime()) return null; // month over — credit note
   if (o.shippedAt || o.deliveredAt || o.trackingNumber?.trim()) return null;
-  if (o.creditNotes.length || o.replacements.length) return null;
+  // Same test as lib/credit-note.ts isActiveCreditNote (inlined: that module imports this one).
+  const activeNotes = o.creditNotes.filter((c) => !c.cancelledAt || c.cancelledAt.getTime() >= invoiceMonthEnd(c.issuedAt).getTime());
+  if (activeNotes.length || o.replacements.length) return null;
   for (const s of o.shipments) {
     if (!SHIPMENT_CLOSED.has(s.status)) return null;
     if (s.events.some((e) => e.mappedStatus && COURIER_MOVED.has(e.mappedStatus))) return null;

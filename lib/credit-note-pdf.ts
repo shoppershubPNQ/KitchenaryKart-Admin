@@ -72,6 +72,15 @@ export async function renderCreditNotePdf(creditNoteId: number): Promise<{ pdf: 
   doc.font('R').fontSize(8.5).fillColor('#F3DCDC')
     .text('Issued under Section 34, CGST Act', W - M - 200, 46, { width: 200, align: 'right', lineBreak: false, height: 12 });
 
+  // A cancelled note keeps its number (GSTR-1 Table 13 lists it as cancelled)
+  // but reverses nothing — the document must say so on its face.
+  const cancelled = !!cn.cancelledAt;
+  if (cancelled) {
+    doc.rect(W - M - 96, 64, 96, 18).fill('#FFFFFF');
+    doc.font('B').fontSize(10).fillColor('#C62828')
+      .text('CANCELLED', W - M - 96, 68, { width: 96, align: 'center', lineBreak: false, height: 12 });
+  }
+
   let y = 110;
   doc.font('R').fontSize(8.5).fillColor(MUTED)
     .text(`GSTIN: ${companyGst}    PAN: ${companyPan}    State: ${companyState} (27)`, M, y, { width: CW, height: 12, lineBreak: false });
@@ -148,9 +157,16 @@ export async function renderCreditNotePdf(creditNoteId: number): Promise<{ pdf: 
     y += 28;
   }
 
-  doc.font('R').fontSize(8).fillColor(MUTED)
-    .text('This credit note reduces the tax liability for the month in which it is issued. The original invoice referenced above remains valid and filed in its own period.',
-      M, y, { width: CW, height: 28 });
+  if (cancelled) {
+    doc.font('B').fontSize(9).fillColor('#C62828')
+      .text(`CANCELLED on ${dmy(cn.cancelledAt!)}${cn.cancelReason ? ` — ${cn.cancelReason.replace(/[.\s]+$/, '')}` : ''}. ` +
+        'This credit note reverses nothing: it is not deducted from any return, and is declared as a cancelled document in GSTR-1 Table 13.',
+        M, y, { width: CW, height: 40 });
+  } else {
+    doc.font('R').fontSize(8).fillColor(MUTED)
+      .text('This credit note reduces the tax liability for the month in which it is issued. The original invoice referenced above remains valid and filed in its own period.',
+        M, y, { width: CW, height: 28 });
+  }
 
   // Signature block, bottom right.
   doc.font('R').fontSize(8.5).fillColor(MUTED)
@@ -161,6 +177,16 @@ export async function renderCreditNotePdf(creditNoteId: number): Promise<{ pdf: 
 
   doc.font('R').fontSize(7.5).fillColor(MUTED)
     .text('Computer-generated credit note.', M, 754, { width: 260, height: 12, lineBreak: false });
+
+  // Drawn last so the filled boxes above cannot hide it.
+  if (cancelled) {
+    doc.save();
+    doc.rotate(-32, { origin: [W / 2, 430] });
+    doc.fillOpacity(0.1).font('B').fontSize(88).fillColor('#C62828')
+      .text('CANCELLED', W / 2 - 290, 390, { width: 580, align: 'center', lineBreak: false, height: 100 });
+    doc.restore();
+    doc.fillOpacity(1);
+  }
 
   doc.end();
   return { pdf: await done, number };

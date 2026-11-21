@@ -772,13 +772,22 @@ function CreditNoteCard({ orderId }: { orderId: number }) {
           </thead>
           <tbody>
             {data.creditNotes.map((n: any) => (
-              <tr key={n.id} className="border-t border-slate-100">
-                <td className="py-1 font-mono">{n.number}</td>
+              // A cancelled note keeps its number but reverses nothing (owner 2026-11-21).
+              <tr key={n.id} className={`border-t border-slate-100 ${n.cancelledAt ? 'text-slate-400' : ''}`}>
+                <td className="py-1 font-mono">
+                  {n.number}
+                  {n.cancelledAt && (
+                    <span className="ml-1 rounded bg-slate-200 px-1 text-[10px] font-sans font-semibold text-slate-600"
+                      title={n.cancelReason || undefined}>
+                      CANCELLED {new Date(n.cancelledAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                    </span>
+                  )}
+                </td>
                 <td className="py-1">{new Date(n.issuedAt).toLocaleDateString('en-IN')}</td>
                 <td className="py-1">{n.reason}</td>
-                <td className="py-1 text-right">{inr(Number(n.taxableValue))}</td>
-                <td className="py-1 text-right">{inr(Number(n.cgst) + Number(n.sgst) + Number(n.igst))}</td>
-                <td className="py-1 text-right font-medium">{inr(Number(n.totalAmount))}</td>
+                <td className={`py-1 text-right ${n.cancelledAt ? 'line-through' : ''}`}>{inr(Number(n.taxableValue))}</td>
+                <td className={`py-1 text-right ${n.cancelledAt ? 'line-through' : ''}`}>{inr(Number(n.cgst) + Number(n.sgst) + Number(n.igst))}</td>
+                <td className={`py-1 text-right font-medium ${n.cancelledAt ? 'line-through' : ''}`}>{inr(Number(n.totalAmount))}</td>
                 <td className="py-1 text-right">
                   <a href={`/api/credit-notes/${n.id}/pdf`} target="_blank" rel="noopener"
                      className="text-brand hover:underline">PDF</a>

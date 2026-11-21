@@ -54,6 +54,12 @@ interface GstReportSummary {
   invoiceTo: string;
   invoicesIssued: number;
   invoicesCancelled: number;
+  /** GSTR-1 Table 13 (credit notes): every note issued in the period, all types.
+   *  Absent from a response produced before cancelled credit notes existed. */
+  creditNoteFrom?: string;
+  creditNoteTo?: string;
+  creditNotesIssued?: number;
+  creditNotesCancelled?: number;
   creditNoteCount: number;
   creditNoteTaxable: number;
   creditNoteCgst: number;
@@ -117,12 +123,35 @@ interface GstCancelledInvoiceRow {
   reason: string;
 }
 
+interface GstCancelledCreditNoteRow {
+  creditNoteNumber: string;
+  creditNoteDate: string;
+  originalInvoiceNumber: string;
+  originalInvoiceDate: string;
+  orderNumber: string;
+  customerName: string;
+  customerGstin: string;
+  customerType: string;
+  placeOfSupplyName: string;
+  placeOfSupplyCode: string;
+  reason: string;
+  taxableValue: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  totalAmount: number;
+  cancelledOn: string;
+  cancelReason: string;
+}
+
 interface GstReportResponse {
   filters: { fy: string; month?: number; type: GstReportType };
   rangeStart: string;
   rangeEnd: string;
   rows: GstReportRow[];
   creditNotes: GstCreditNoteRow[];
+  /** Notes issued in the period and since cancelled — in no total. */
+  cancelledCreditNotes?: GstCancelledCreditNoteRow[];
   /** Absent from a response produced before the cancelled-invoices split. */
   cancelledInvoices?: GstCancelledInvoiceRow[];
   summary: GstReportSummary;
@@ -440,6 +469,55 @@ export default function GstReportsPage() {
                       <td className="px-2 py-1.5 text-right">{inr(c.taxableValue)}</td>
                       <td className="px-2 py-1.5 text-right">{inr(c.cgst + c.sgst + c.igst)}</td>
                       <td className="px-2 py-1.5 text-right font-semibold">{inr(c.invoiceValue)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Credit notes CANCELLED before filing (owner 2026-11-21): the number was
+          used, so Table 13 declares it as cancelled, but it reverses nothing and
+          is in no total above. Also the "Cancelled Credit Notes" sheet. */}
+      {(!!data?.cancelledCreditNotes?.length || !!data?.summary.creditNotesCancelled) && (
+        <div className="card p-4 border-l-4 border-slate-400 text-sm bg-slate-50 text-slate-900">
+          <span className="font-semibold">
+            {data.summary.creditNotesCancelled ?? data.cancelledCreditNotes?.length} cancelled credit{' '}
+            {(data.summary.creditNotesCancelled ?? data.cancelledCreditNotes?.length) === 1 ? 'note' : 'notes'} — not deducted.
+          </span>{' '}
+          Report in GSTR-1 Table 13: credit notes {data.summary.creditNoteFrom} to {data.summary.creditNoteTo},{' '}
+          {data.summary.creditNotesIssued} issued, {data.summary.creditNotesCancelled} cancelled,{' '}
+          {(data.summary.creditNotesIssued ?? 0) - (data.summary.creditNotesCancelled ?? 0)} net.
+          {!!data.cancelledCreditNotes?.length && (
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-xs bg-white rounded border border-slate-200">
+                <thead className="bg-slate-100 text-slate-900">
+                  <tr>
+                    <th className="text-left px-2 py-1.5">Credit Note</th>
+                    <th className="text-left px-2 py-1.5">Against Invoice</th>
+                    <th className="text-left px-2 py-1.5">Customer</th>
+                    <th className="text-left px-2 py-1.5">Cancelled On</th>
+                    <th className="text-left px-2 py-1.5">Why</th>
+                    <th className="text-right px-2 py-1.5">Total (as issued)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {data.cancelledCreditNotes.map((c) => (
+                    <tr key={c.creditNoteNumber}>
+                      <td className="px-2 py-1.5 font-mono">
+                        {c.creditNoteNumber}
+                        <span className="text-slate-400 ml-1">({c.creditNoteDate})</span>
+                      </td>
+                      <td className="px-2 py-1.5 font-mono">{c.originalInvoiceNumber}</td>
+                      <td className="px-2 py-1.5">
+                        {c.customerName}
+                        <span className="text-slate-400 ml-1">{c.customerType}</span>
+                      </td>
+                      <td className="px-2 py-1.5">{c.cancelledOn}</td>
+                      <td className="px-2 py-1.5">{c.cancelReason}</td>
+                      <td className="px-2 py-1.5 text-right line-through text-slate-400">{inr(c.totalAmount)}</td>
                     </tr>
                   ))}
                 </tbody>

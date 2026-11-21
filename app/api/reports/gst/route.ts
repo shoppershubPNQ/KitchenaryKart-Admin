@@ -12,7 +12,8 @@
  *
  * The CSV carries the sales rows only. The xlsx adds the Credit Notes sheet,
  * the Cancelled Invoices sheet (paid orders cancelled before dispatch — NOT in
- * the sales rows; GSTR-1 Table 13) and the Summary.
+ * the sales rows; GSTR-1 Table 13), the Cancelled Credit Notes sheet (notes
+ * cancelled before filing — in no total; Table 13) and the Summary.
  */
 import { NextRequest } from 'next/server';
 import * as XLSX from 'xlsx';
@@ -25,6 +26,7 @@ import {
   type GstReportType,
   type GstCreditNoteRow,
   type GstCancelledInvoiceRow,
+  type GstCancelledCreditNoteRow,
 } from '@/lib/gst-report';
 
 export const dynamic = 'force-dynamic';
@@ -133,6 +135,15 @@ export const GET = withAuth(async (req: NextRequest) => {
       ['Cancelled invoices value (not in sales)', report.summary.cancelledInvoiceValue],
       ['Cancelled invoices whose order is active again (check)', report.summary.cancelledInvoiceActiveAgain],
       [],
+      // Same table, credit notes: every note issued in the period, active or
+      // cancelled. A cancelled note is in no total above (own sheet).
+      ['Documents issued (GSTR-1 Table 13) — credit notes, whole series (all types)', ''],
+      ['Serial from', report.summary.creditNoteFrom],
+      ['Serial to', report.summary.creditNoteTo],
+      ['Total issued', report.summary.creditNotesIssued],
+      ['Cancelled', report.summary.creditNotesCancelled],
+      ['Net issued', report.summary.creditNotesIssued - report.summary.creditNotesCancelled],
+      [],
       ['Needs attention', ''],
       ['Cancelled orders still in sales, no credit note', report.summary.cancelledOrders],
       ['Returned / refunded, no credit note yet', report.summary.returnedOrders],
@@ -204,10 +215,43 @@ export const GET = withAuth(async (req: NextRequest) => {
       { header: CX_COLUMNS.map(([, label]) => label) },
     );
 
+    // Credit notes cancelled before filing: the number was used, so Table 13
+    // declares it as cancelled, but it reverses nothing — kept off the Credit
+    // Notes sheet so nobody deducts it.
+    const CCN_COLUMNS: Array<[keyof GstCancelledCreditNoteRow, string]> = [
+      ['creditNoteNumber', 'Credit Note Number'],
+      ['creditNoteDate', 'Credit Note Date'],
+      ['originalInvoiceNumber', 'Original Invoice Number'],
+      ['originalInvoiceDate', 'Original Invoice Date'],
+      ['orderNumber', 'Order Number'],
+      ['customerName', 'Customer Name'],
+      ['customerGstin', 'Customer GSTIN'],
+      ['customerType', 'Customer Type'],
+      ['placeOfSupplyName', 'Place of Supply'],
+      ['placeOfSupplyCode', 'State Code'],
+      ['reason', 'Reason (as issued)'],
+      ['taxableValue', 'Taxable Value (as issued)'],
+      ['cgst', 'CGST (as issued)'],
+      ['sgst', 'SGST (as issued)'],
+      ['igst', 'IGST (as issued)'],
+      ['totalAmount', 'Total (as issued)'],
+      ['cancelledOn', 'Cancelled On'],
+      ['cancelReason', 'Why Cancelled'],
+    ];
+    const ccnSheet = XLSX.utils.json_to_sheet(
+      (report.cancelledCreditNotes ?? []).map((c) => {
+        const out: Record<string, unknown> = {};
+        for (const [key, label] of CCN_COLUMNS) out[label] = c[key];
+        return out;
+      }),
+      { header: CCN_COLUMNS.map(([, label]) => label) },
+    );
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, sheet, 'MTR');
     XLSX.utils.book_append_sheet(wb, cnSheet, 'Credit Notes');
     XLSX.utils.book_append_sheet(wb, cxSheet, 'Cancelled Invoices');
+    XLSX.utils.book_append_sheet(wb, ccnSheet, 'Cancelled Credit Notes');
     XLSX.utils.book_append_sheet(wb, summary, 'Summary');
 
     const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });

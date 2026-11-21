@@ -310,6 +310,13 @@ model CreditNote {
   issuedAt  DateTime @default(now()) @map("issued_at")
   createdAt DateTime @default(now()) @map("created_at")
 
+  /// A credit note CANCELLED before its month was filed (owner 2026-11-21: CN 0002/0003 — the orders
+  /// were cancelled before dispatch, so their invoices are reported as cancelled invoices instead).
+  /// The number stays used — GSTR-1 Table 13 lists it as cancelled — and the note no longer reduces
+  /// any liability or counts as credited. Never deleted: a tax document must not vanish.
+  cancelledAt  DateTime? @map("cancelled_at")
+  cancelReason String?   @map("cancel_reason")
+
   @@unique([financialYear, serial], name: "credit_note_fy_serial")
   @@index([orderId])
   @@index([issuedAt])

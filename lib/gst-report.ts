@@ -13,6 +13,10 @@
  * its invoice number, but nothing was supplied: it is listed in
  * `cancelledInvoices` (GSTR-1 Table 13, "cancelled") and NOT in the sales rows.
  * The decision is taken once, when the order is cancelled — see lib/invoice-cancel.ts.
+ *
+ * A CANCELLED credit note (owner 2026-11-21, CN 0002/0003) keeps its number but
+ * reverses nothing: it is left out of the credit-note rows and totals, listed in
+ * `cancelledCreditNotes`, and counted as cancelled in Table 13's credit-note line.
  */
 import { prisma } from './db';
 import {
@@ -23,7 +27,7 @@ import {
 } from './invoice-serial';
 import { detectStateFromAddress, GST_STATES } from './gst-states';
 import { computeOrderSummary } from './order-summary';
-import { formatCreditNoteNumber } from './credit-note';
+import { formatCreditNoteNumber, isActiveCreditNote } from './credit-note';
 import { isCancelledInvoice } from './invoice-cancel';
 
 export type GstReportType = 'b2b' | 'b2c' | 'all';
@@ -152,6 +156,14 @@ export interface GstReportSummary {
   invoiceTo: string;
   invoicesIssued: number;
   invoicesCancelled: number;
+  /** GSTR-1 Table 13, credit notes: the serial range of every note ISSUED in this
+   *  period, active and cancelled alike, and how many of them were cancelled.
+   *  Whole series — the B2B / B2C filter does not apply, as for invoices. Blank /
+   *  0 when no note was issued. */
+  creditNoteFrom: string;
+  creditNoteTo: string;
+  creditNotesIssued: number;
+  creditNotesCancelled: number;
   /** Credit notes ISSUED in this period (by issuedAt, not by the invoice's
    *  date — a note for a July invoice raised in August belongs to August).
    *  These REDUCE the month's liability and are filed in GSTR-1's CDNR/CDNUR
@@ -242,13 +254,42 @@ export interface GstCancelledInvoiceRow {
   reason: string;
 }
 
+/**
+ * A credit note issued in this period and then CANCELLED before filing. Its
+ * number was used, so Table 13 declares it as cancelled; its amounts are shown
+ * as issued but reverse nothing and are in no total.
+ */
+export interface GstCancelledCreditNoteRow {
+  creditNoteNumber: string;
+  creditNoteDate: string;
+  originalInvoiceNumber: string;
+  originalInvoiceDate: string;
+  orderNumber: string;
+  customerName: string;
+  customerGstin: string;
+  customerType: 'B2B' | 'B2C';
+  placeOfSupplyName: string;
+  placeOfSupplyCode: string;
+  reason: string;
+  taxableValue: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  totalAmount: number;
+  cancelledOn: string;
+  cancelReason: string;
+}
+
 export interface GstReportResult {
   filters: GstReportFilters;
   rangeStart: Date;
   rangeEnd: Date;
   rows: GstReportRow[];
-  /** Credit notes ISSUED in this period, in filing detail. */
+  /** Credit notes ISSUED in this period, in filing detail. Active notes only. */
   creditNotes: GstCreditNoteRow[];
+  /** Credit notes issued in this period and since cancelled — in no total;
+   *  GSTR-1 Table 13 "cancelled" (credit notes). */
+  cancelledCreditNotes: GstCancelledCreditNoteRow[];
   /** Paid invoices in this period whose order was cancelled before dispatch —
    *  NOT in `rows`. GSTR-1 Table 13 "cancelled". */
   cancelledInvoices: GstCancelledInvoiceRow[];
@@ -295,7 +336,8 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
       },
       customer: true,
       // Orders with a credit note are settled — not flagged as needing one.
-      creditNotes: { select: { id: true } },
+      // A cancelled note settles nothing (filtered below via isActiveCreditNote).
+      creditNotes: { select: { id: true, cancelledAt: true, issuedAt: true } },
     },
     orderBy: { invoiceSerial: 'asc' },
   });
@@ -335,24 +377,57 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
   // Credit notes are selected by ISSUE date, not by the invoice's date: a note
   // raised in August against a July invoice reduces AUGUST's liability. Pulling
   // them by invoice date would push the reversal back into a filed month.
-  const creditNotes = await prisma.creditNote.findMany({
+  const allCreditNotes = await prisma.creditNote.findMany({
     where: { issuedAt: { gte: start, lt: end } },
     orderBy: { serial: 'asc' },
     include: { order: { select: { orderNumber: true } } },
   });
 
+  // GSTR-1 Table 13 (credit notes) is ONE series, like the invoices: every note
+  // issued in the period — active or cancelled — before the B2B / B2C filter.
+  // Notes are numbered per FY; a period inside one FY has one series. The full-FY
+  // report covers one FY too, so sorting by serial is enough.
+  const cnSerials = allCreditNotes.map((c) => c.serial).sort((a, b) => a - b);
+  const cnFy = allCreditNotes[0]?.financialYear ?? filters.fy;
+  const cnCancelledCount = allCreditNotes.filter((c) => !isActiveCreditNote(c)).length;
+
+  // Honour the same B2B / B2C filter the sales rows use, otherwise a B2C
+  // export would silently carry a B2B reversal.
+  const typeMatches = (c: { customerGstin: string | null }) => {
+    const isB2B = !!c.customerGstin?.trim();
+    if (filters.type === 'b2b' && !isB2B) return false;
+    if (filters.type === 'b2c' && isB2B) return false;
+    return true;
+  };
+  // A cancelled note reverses nothing: it is listed on its own and is in no total.
+  const creditNotes = allCreditNotes.filter((c) => isActiveCreditNote(c) && typeMatches(c));
+  const cancelledCreditNotes: GstCancelledCreditNoteRow[] = allCreditNotes
+    .filter((c) => !isActiveCreditNote(c) && typeMatches(c))
+    .map((c) => ({
+      creditNoteNumber: formatCreditNoteNumber(c.financialYear, c.serial),
+      creditNoteDate: c.issuedAt.toISOString().slice(0, 10),
+      originalInvoiceNumber: c.invoiceNumber,
+      originalInvoiceDate: c.invoiceDate.toISOString().slice(0, 10),
+      orderNumber: c.order?.orderNumber ?? '',
+      customerName: c.customerName ?? '',
+      customerGstin: c.customerGstin ?? '',
+      customerType: (c.customerGstin?.trim() ? 'B2B' : 'B2C') as 'B2B' | 'B2C',
+      placeOfSupplyName: c.placeOfSupply ?? '',
+      placeOfSupplyCode: c.placeOfSupplyCode ?? '',
+      reason: c.reason,
+      taxableValue: round2(Number(c.taxableValue)),
+      cgst: round2(Number(c.cgst)),
+      sgst: round2(Number(c.sgst)),
+      igst: round2(Number(c.igst)),
+      totalAmount: round2(Number(c.totalAmount)),
+      cancelledOn: c.cancelledAt!.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      cancelReason: c.cancelReason ?? '',
+    }));
+
   // Filing detail for the CDNR/CDNUR table. The note carries its own copies of
   // the customer and place-of-supply fields (taken at issue time), so it still
   // files correctly even if the order is edited afterwards.
   const creditNoteRows: GstCreditNoteRow[] = creditNotes
-    .filter((c) => {
-      // Honour the same B2B / B2C filter the sales rows use, otherwise a B2C
-      // export would silently carry a B2B reversal.
-      const isB2B = !!c.customerGstin?.trim();
-      if (filters.type === 'b2b' && !isB2B) return false;
-      if (filters.type === 'b2c' && isB2B) return false;
-      return true;
-    })
     .map((c) => ({
       creditNoteNumber: formatCreditNoteNumber(c.financialYear, c.serial),
       creditNoteDate: c.issuedAt.toISOString().slice(0, 10),
@@ -594,8 +669,8 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
   }
 
   // Orders that already have a credit note (in any period) are settled — they
-  // are not flagged as needing one.
-  const credited = new Set(orders.filter((o) => o.creditNotes.length).map((o) => o.id));
+  // are not flagged as needing one. A cancelled note settles nothing.
+  const credited = new Set(orders.filter((o) => o.creditNotes.some(isActiveCreditNote)).map((o) => o.id));
   const cancelledRows = rows.filter((r) => r.orderStatus === 'cancelled' && !credited.has(r.orderId));
   const returnedRows = rows.filter(
     (r) => r.orderStatus !== 'cancelled' && !credited.has(r.orderId)
@@ -624,6 +699,10 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
     invoiceTo: allSerials.length ? formatInvoiceNumber(filters.fy, allSerials[allSerials.length - 1]) : '',
     invoicesIssued: allSerials.length,
     invoicesCancelled: allCancelled,
+    creditNoteFrom: cnSerials.length ? formatCreditNoteNumber(cnFy, cnSerials[0]) : '',
+    creditNoteTo: cnSerials.length ? formatCreditNoteNumber(cnFy, cnSerials[cnSerials.length - 1]) : '',
+    creditNotesIssued: cnSerials.length,
+    creditNotesCancelled: cnCancelledCount,
     // From the B2B / B2C-filtered note rows, like the sales: totals taken from
     // the unfiltered notes put a B2B reversal into a B2C view's net GST.
     creditNoteCount: creditNoteRows.length,
@@ -673,7 +752,7 @@ export async function generateGstReport(filters: GstReportFilters): Promise<GstR
       - (summary.creditNoteCgst + summary.creditNoteSgst + summary.creditNoteIgst),
   );
 
-  return { filters, rangeStart: start, rangeEnd: end, rows, creditNotes: creditNoteRows, cancelledInvoices, summary };
+  return { filters, rangeStart: start, rangeEnd: end, rows, creditNotes: creditNoteRows, cancelledCreditNotes, cancelledInvoices, summary };
 }
 
 function round2(n: number): number {

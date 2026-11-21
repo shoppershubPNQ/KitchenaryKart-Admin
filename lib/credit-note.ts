@@ -14,6 +14,7 @@ import { prisma } from './db';
 import { getFinancialYear } from './invoice-serial';
 import { computeOrderSummary } from './order-summary';
 import { detectStateFromAddress, GST_STATES } from './gst-states';
+import { invoiceMonthEnd } from './invoice-cancel';
 
 const SELLER_STATE_CODE = '27';
 
@@ -32,6 +33,19 @@ export function formatCreditNoteNumber(fy: string, serial: number): string {
 }
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+/**
+ * A cancelled credit note (owner 2026-11-21) keeps its number — GSTR-1 Table 13
+ * declares it as a cancelled document — but reverses nothing: it does not reduce
+ * the month's liability, does not count as "already credited", and does not mark
+ * its order as settled. Every reader of credit notes goes through this.
+ */
+export function isActiveCreditNote(c: { cancelledAt: Date | null; issuedAt: Date }): boolean {
+  // Same rule as a cancelled invoice (lib/invoice-cancel.ts isCancelledInvoice): a
+  // cancellation counts only if it happened before the note's own month ended —
+  // after that the month may be filed, and a late stamp must not restate it.
+  return !c.cancelledAt || c.cancelledAt.getTime() >= invoiceMonthEnd(c.issuedAt).getTime();
+}
 
 /**
  * What a full credit note against this order would contain.
@@ -84,8 +98,9 @@ export async function previewCreditNote(orderId: number) {
   const gst = breakdown.gstAmount;
 
   // Already credited, so a second note cannot quietly double the reversal.
+  // A cancelled note reversed nothing, so it does not count.
   const alreadyCredited = round2(
-    order.creditNotes.reduce((s, c) => s + Number(c.totalAmount), 0),
+    order.creditNotes.filter(isActiveCreditNote).reduce((s, c) => s + Number(c.totalAmount), 0),
   );
 
   return {
